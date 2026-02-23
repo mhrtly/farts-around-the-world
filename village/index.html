@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Andean Village — Agent Monitor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a0e2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #d4c4a0;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 14px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #f0d060;
+      margin-bottom: 8px;
+      text-shadow: 0 0 10px rgba(240,208,96,0.4);
+    }
+
+    #village-canvas {
+      border: 2px solid #3a2a1a;
+      border-radius: 4px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: crosshair;
+    }
+
+    #status-bar {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #8a7a5a;
+      display: flex;
+      gap: 20px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    .dot-active { background: #4eff4e; box-shadow: 0 0 4px #4eff4e; }
+    .dot-idle { background: #f0d060; }
+    .dot-offline { background: #5a4a3a; }
+    .dot-cloud { background: #a08ef0; box-shadow: 0 0 4px #a08ef0; }
+
+    #tooltip {
+      position: fixed;
+      background: rgba(20,10,30,0.95);
+      border: 1px solid #f0d060;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 11px;
+      pointer-events: none;
+      display: none;
+      z-index: 100;
+      max-width: 220px;
+      line-height: 1.5;
+    }
+
+    #tooltip .name { color: #f0d060; font-weight: bold; font-size: 13px; }
+    #tooltip .role { color: #a08ef0; font-style: italic; }
+    #tooltip .activity { color: #4eff4e; }
+  </style>
+</head>
+<body>
+  <h1>The Andean Village</h1>
+  <canvas id="village-canvas" width="640" height="400"></canvas>
+  <div id="status-bar"></div>
+  <div id="tooltip"></div>
+
+  <script>
+    // =========================================================
+    //  CONFIG
+    // =========================================================
+    const TILE = 16          // base tile size
+    const SCALE = 2          // pixel scaling
+    const T = TILE * SCALE   // rendered tile size (32px)
+    const W = 640            // canvas width
+    const H = 400            // canvas height
+    const API_URL = '/api/state'
+    const POLL_MS = 2500
+
+    const canvas = document.getElementById('village-canvas')
+    const ctx = canvas.getContext('2d')
+    canvas.width = W
+    canvas.height = H
+
+    // =========================================================
+    //  COLOR PALETTE (Andean earth tones + neon accents)
+    // =========================================================
+    const PAL = {
+      sky0: '#1a0e2e',    sky1: '#2a1848',   sky2: '#3a2858',
+      star: '#f0d060',    starDim: '#8a7a5a',
+      mountain0: '#2a1a3e', mountain1: '#3a2a4e', mountain2: '#4a3a5e',
+      snow: '#d4c4e0',
+      terrace0: '#3a5a2a', terrace1: '#4a6a3a', terrace2: '#5a7a4a',
+      terraceWall: '#8a6a3a', terraceWallDark: '#6a4a2a',
+      dirt: '#6a5a3a',    dirtDark: '#4a3a2a',
+      stone: '#7a6a5a',   stoneDark: '#5a4a3a',
+      water: '#3a6a8a',   waterLight: '#5a8aaa',
+      hut: '#8a6a3a',     hutRoof: '#b08040',  hutDoor: '#3a2a1a',
+      potato: '#c4a060',  potatoLeaf: '#5a8a3a',
+      gold: '#f0d060',    goldDim: '#a08030',
+    }
+
+    // =========================================================
+    //  CHARACTER DEFINITIONS
+    // =========================================================
+    const CHARACTERS = {
+      spudnik: {
+        label: 'Spudnik',
+        role: 'Sapa Inca',
+        baseX: W / 2, baseY: 55,
+        colors: { body: '#f0d060', accent: '#a08030', skin: '#e0c070', hat: '#f0d060', hatAccent: '#ffee88' },
+        floats: true,  // Spudnik floats in the sky
+      },
+      quipu: {
+        label: 'Quipu',
+        role: 'Quipucamayoc',
+        baseX: W / 2, baseY: 175,
+        colors: { body: '#6a4aaa', accent: '#4a2a8a', skin: '#d4a870', hat: '#8a6aca', hatAccent: '#a08ef0' },
+      },
+      inti: {
+        label: 'Inti',
+        role: 'Sun Priest',
+        baseX: 130, baseY: 235,
+        colors: { body: '#d4a020', accent: '#a07810', skin: '#d4a870', hat: '#f0c030', hatAccent: '#ffe060' },
+      },
+      chaska: {
+        label: 'Chaska',
+        role: 'Star Weaver',
+        baseX: 380, baseY: 235,
+        colors: { body: '#2a8a8a', accent: '#1a6a6a', skin: '#d4a870', hat: '#38c8c8', hatAccent: '#5aeaea' },
+      },
+      wari: {
+        label: 'Wari',
+        role: 'Terrace Builder',
+        baseX: 255, baseY: 305,
+        colors: { body: '#6a4a2a', accent: '#4a3a1a', skin: '#c09860', hat: '#8a6a3a', hatAccent: '#a08040' },
+      },
+      chasqui: {
+        label: 'Chasqui',
+        role: 'Imperial Messenger',
+        baseX: 510, baseY: 305,
+        colors: { body: '#aa3030', accent: '#8a2020', skin: '#d4a870', hat: '#cc4040', hatAccent: '#ee6060' },
+      },
+    }
+
+    // =========================================================
+    //  STATE
+    // =========================================================
+    let agentState = {}
+    let frame = 0
+    let hoveredAgent = null
+    let stars = []
+
+    // Generate stars
+    for (let i = 0; i < 50; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * 100,
+        size: Math.random() > 0.8 ? 2 : 1,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.04,
+      })
+    }
+
+    // =========================================================
+    //  DRAWING HELPERS
+    // =========================================================
+    function drawRect(x, y, w, h, color) {
+      ctx.fillStyle = color
+      ctx.fillRect(Math.round(x), Math.round(y), w, h)
+    }
+
+    function drawPixel(x, y, color) {
+      drawRect(x * SCALE, y * SCALE, SCALE, SCALE, color)
+    }
+
+    // =========================================================
+    //  SCENE: BACKGROUND
+    // =========================================================
+    function drawSky() {
+      // Gradient sky
+      const grad = ctx.createLinearGradient(0, 0, 0, 160)
+      grad.addColorStop(0, PAL.sky0)
+      grad.addColorStop(0.5, PAL.sky1)
+      grad.addColorStop(1, PAL.sky2)
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, W, 160)
+
+      // Stars
+      for (const s of stars) {
+        const twinkle = Math.sin(frame * s.speed + s.twinkleOffset)
+        const alpha = 0.3 + twinkle * 0.4
+        ctx.globalAlpha = Math.max(0.1, alpha)
+        ctx.fillStyle = twinkle > 0.3 ? PAL.star : PAL.starDim
+        ctx.fillRect(Math.round(s.x), Math.round(s.y), s.size * SCALE, s.size * SCALE)
+      }
+      ctx.globalAlpha = 1
+    }
+
+    function drawMountains() {
+      // Far mountains
+      ctx.fillStyle = PAL.mountain0
+      drawMountainRange(80, [0.3, 0.7, 0.5, 0.9, 0.4, 0.6, 0.8, 0.3])
+
+      ctx.fillStyle = PAL.mountain1
+      drawMountainRange(110, [0.4, 0.8, 0.3, 0.6, 0.9, 0.5, 0.7, 0.4])
+
+      // Snow caps on tallest peaks
+      ctx.fillStyle = PAL.snow
+      ctx.globalAlpha = 0.6
+      drawSnowCaps(80, [0.3, 0.7, 0.5, 0.9, 0.4, 0.6, 0.8, 0.3])
+      ctx.globalAlpha = 1
+    }
+
+    function drawMountainRange(baseY, peaks) {
+      ctx.beginPath()
+      ctx.moveTo(0, baseY + 60)
+      const segW = W / (peaks.length - 1)
+      for (let i = 0; i < peaks.length; i++) {
+        const x = i * segW
+        const y = baseY + 60 - peaks[i] * 60
+        if (i === 0) ctx.moveTo(x, y)
+        else {
+          const cpx = x - segW / 2
+          ctx.quadraticCurveTo(cpx, (y + baseY + 60 - peaks[i-1]*60)/2 - 15, x, y)
+        }
+      }
+      ctx.lineTo(W, baseY + 60)
+      ctx.lineTo(W, baseY + 80)
+      ctx.lineTo(0, baseY + 80)
+      ctx.closePath()
+      ctx.fill()
+    }
+
+    function drawSnowCaps(baseY, peaks) {
+      const segW = W / (peaks.length - 1)
+      for (let i = 0; i < peaks.length; i++) {
+        if (peaks[i] > 0.7) {
+          const x = i * segW
+          const y = baseY + 60 - peaks[i] * 60
+          ctx.fillRect(x - 6, y, 12, 4)
+          ctx.fillRect(x - 3, y - 2, 6, 2)
+        }
+      }
+    }
+
+    function drawTerraces() {
+      // Three terrace levels, each slightly wider
+      const levels = [
+        { y: 195, w: 280, color: PAL.terrace0, wallColor: PAL.terraceWall },
+        { y: 260, w: 420, color: PAL.terrace1, wallColor: PAL.terraceWallDark },
+        { y: 325, w: 560, color: PAL.terrace2, wallColor: PAL.terraceWall },
+      ]
+
+      for (const lv of levels) {
+        const x = (W - lv.w) / 2
+
+        // Stone wall face
+        drawRect(x, lv.y, lv.w, 14, lv.wallColor)
+        // Stone texture on wall
+        for (let sx = x + 4; sx < x + lv.w - 4; sx += 18) {
+          drawRect(sx, lv.y + 2, 8, 4, PAL.stoneDark)
+          drawRect(sx + 10, lv.y + 7, 6, 4, PAL.stoneDark)
+        }
+
+        // Soil/grass surface
+        drawRect(x, lv.y + 14, lv.w, 50, lv.color)
+
+        // Potato plants
+        for (let px = x + 20; px < x + lv.w - 20; px += 40 + Math.sin(px) * 10) {
+          drawPotatoPlant(px, lv.y + 22 + Math.sin(px * 0.1) * 4)
+        }
+      }
+    }
+
+    function drawPotatoPlant(x, y) {
+      // Leaves
+      drawRect(x - 3, y - 6, 2, 4, PAL.potatoLeaf)
+      drawRect(x + 1, y - 8, 2, 4, PAL.potatoLeaf)
+      drawRect(x - 1, y - 4, 4, 2, PAL.potatoLeaf)
+      // Potato peeking out
+      if (Math.random() > 0.5) {
+        drawRect(x + 3, y - 1, 4, 3, PAL.potato)
+      }
+    }
+
+    function drawIrrigationChannel() {
+      // Water channel running across bottom terrace
+      const y = 355
+      const x = 100
+      const w = W - 200
+      drawRect(x, y, w, 6, PAL.water)
+      // Shimmer
+      const shimmerX = x + ((frame * 2) % w)
+      drawRect(shimmerX, y + 1, 12, 2, PAL.waterLight)
+      if (shimmerX > 80) drawRect(shimmerX - 80, y + 3, 8, 2, PAL.waterLight)
+    }
+
+    function drawSunDisk() {
+      // Golden sun disk behind the top terrace (represents the Globe)
+      const cx = W / 2
+      const cy = 170
+      const r = 22
+
+      // Glow
+      const grad = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 1.8)
+      grad.addColorStop(0, 'rgba(240,208,96,0.3)')
+      grad.addColorStop(1, 'rgba(240,208,96,0)')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Disk
+      ctx.fillStyle = PAL.gold
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Face (Inti face on sun)
+      ctx.fillStyle = PAL.goldDim
+      // Eyes
+      ctx.fillRect(cx - 7, cy - 4, 4, 4)
+      ctx.fillRect(cx + 3, cy - 4, 4, 4)
+      // Mouth
+      ctx.fillRect(cx - 4, cy + 4, 8, 2)
+
+      // Rays
+      ctx.strokeStyle = PAL.gold
+      ctx.lineWidth = 2
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+        const rayAngle = a + frame * 0.005
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(rayAngle) * (r + 4), cy + Math.sin(rayAngle) * (r + 4))
+        ctx.lineTo(cx + Math.cos(rayAngle) * (r + 12), cy + Math.sin(rayAngle) * (r + 12))
+        ctx.stroke()
+      }
+    }
+
+    function drawHut(x, y) {
+      // Simple stone hut
+      drawRect(x, y, 28, 20, PAL.hut)
+      // Roof (thatched)
+      drawRect(x - 4, y - 8, 36, 10, PAL.hutRoof)
+      drawRect(x, y - 12, 28, 6, PAL.hutRoof)
+      // Door
+      drawRect(x + 10, y + 8, 8, 12, PAL.hutDoor)
+      // Stone detail
+      drawRect(x + 2, y + 2, 6, 4, PAL.stoneDark)
+      drawRect(x + 18, y + 4, 6, 4, PAL.stoneDark)
+    }
+
+    // =========================================================
+    //  CHARACTERS (Pixel Art Sprites)
+    // =========================================================
+    function drawCharacter(name, charDef, state) {
+      const isActive = state?.status === 'active'
+      const isCloud = state?.status === 'cloud'
+      const activity = state?.activity || 'sleeping'
+      const c = charDef.colors
+      let x = charDef.baseX
+      let y = charDef.baseY
+
+      // Floating animation for Spudnik
+      if (charDef.floats) {
+        y += Math.sin(frame * 0.03) * 6
+      }
+
+      // Idle sway
+      const sway = isActive ? Math.sin(frame * 0.08) * 1 : 0
+
+      // Status glow
+      if (isActive) {
+        const glowAlpha = 0.15 + Math.sin(frame * 0.06) * 0.1
+        ctx.fillStyle = `rgba(78,255,78,${glowAlpha})`
+        ctx.beginPath()
+        ctx.arc(x, y - 4, 28, 0, Math.PI * 2)
+        ctx.fill()
+      } else if (isCloud) {
+        const glowAlpha = 0.12 + Math.sin(frame * 0.04) * 0.08
+        ctx.fillStyle = `rgba(160,142,240,${glowAlpha})`
+        ctx.beginPath()
+        ctx.arc(x, y - 4, 28, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      const bx = x - 8  // body left edge
+      const by = y - 16  // body top
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'
+      ctx.beginPath()
+      ctx.ellipse(x, y + 6, 10, 3, 0, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Body (tunic)
+      drawRect(bx + 2, by + 8, 12, 10, c.body)
+      drawRect(bx + 4, by + 6, 8, 2, c.body)
+
+      // Accent stripe on tunic
+      drawRect(bx + 2, by + 12, 12, 2, c.accent)
+
+      // Head
+      drawRect(bx + 4, by + 0, 8, 6, c.skin)
+
+      // Eyes (blink occasionally)
+      const blinkFrame = frame % 180
+      if (blinkFrame > 3) {
+        drawRect(bx + 5, by + 2, 2, 2, '#2a1a0a')
+        drawRect(bx + 9, by + 2, 2, 2, '#2a1a0a')
+      }
+
+      // Hat/headdress
+      drawRect(bx + 2, by - 4, 12, 4, c.hat)
+      drawRect(bx + 4, by - 6, 8, 2, c.hatAccent)
+
+      // Spudnik gets a potato crown
+      if (name === 'spudnik') {
+        drawRect(bx + 6, by - 10, 4, 4, PAL.potato)
+        drawRect(bx + 5, by - 8, 6, 2, PAL.potato)
+        // Glow
+        ctx.fillStyle = 'rgba(240,208,96,0.3)'
+        ctx.beginPath()
+        ctx.arc(x, by - 8, 8, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // Legs
+      drawRect(bx + 3, by + 18, 4, 4, c.accent)
+      drawRect(bx + 9, by + 18, 4, 4, c.accent)
+
+      // Feet
+      drawRect(bx + 2, by + 22, 5, 2, PAL.dirtDark)
+      drawRect(bx + 9, by + 22, 5, 2, PAL.dirtDark)
+
+      // ACTIVITY-SPECIFIC PROPS
+      if (activity === 'reading' || activity === 'planning') {
+        // Holding a quipu/scroll
+        drawRect(bx + 14, by + 6, 6, 8, '#d4c4a0')
+        drawRect(bx + 15, by + 7, 4, 1, '#8a7a5a')
+        drawRect(bx + 15, by + 10, 4, 1, '#8a7a5a')
+        drawRect(bx + 15, by + 13, 3, 1, '#8a7a5a')
+      } else if (activity === 'writing') {
+        // Chisel / carving
+        drawRect(bx + 14, by + 8, 2, 8, '#aaaaaa')
+        // Sparks
+        if (frame % 8 < 4) {
+          drawRect(bx + 16, by + 8, 2, 2, PAL.star)
+        }
+      } else if (activity === 'digging') {
+        // Digging stick (taclla)
+        drawRect(bx + 14, by + 4, 2, 14, '#8a6a3a')
+        drawRect(bx + 14, by + 18, 4, 2, '#aaaaaa')
+        // Dirt particles
+        if (frame % 12 < 6) {
+          drawRect(bx + 18, by + 16, 2, 2, PAL.dirt)
+          drawRect(bx + 20, by + 14, 2, 2, PAL.dirtDark)
+        }
+      } else if (activity === 'scouting') {
+        // Looking out with hand over eyes
+        drawRect(bx + 12, by + 2, 6, 2, c.skin)
+      } else if (activity === 'delegating') {
+        // Pointing arm
+        drawRect(bx + 14, by + 8, 8, 2, c.skin)
+        drawRect(bx + 22, by + 7, 2, 4, c.skin)
+      } else if (activity === 'talking') {
+        // Speech bubble
+        const bubbleY = by - 18
+        drawRect(bx + 8, bubbleY, 16, 10, 'rgba(255,255,255,0.9)')
+        drawRect(bx + 10, bubbleY + 10, 2, 3, 'rgba(255,255,255,0.9)')
+        // "..." in bubble
+        ctx.fillStyle = '#333'
+        ctx.fillRect(bx + 11, bubbleY + 4, 2, 2)
+        ctx.fillRect(bx + 15, bubbleY + 4, 2, 2)
+        ctx.fillRect(bx + 19, bubbleY + 4, 2, 2)
+      } else if (activity === 'meditating') {
+        // Meditation sparkles around Spudnik
+        const sparkleT = frame * 0.05
+        for (let i = 0; i < 5; i++) {
+          const angle = sparkleT + (i * Math.PI * 2 / 5)
+          const sx = x + Math.cos(angle) * 20
+          const sy = (by - 2) + Math.sin(angle) * 12
+          ctx.fillStyle = frame % 3 === i % 3 ? PAL.star : PAL.starDim
+          ctx.fillRect(Math.round(sx), Math.round(sy), 2, 2)
+        }
+      }
+
+      // Sleeping ZZZ
+      if (activity === 'sleeping' || state?.status === 'offline') {
+        const zzz = 'zzz'
+        ctx.font = '10px Courier New'
+        ctx.fillStyle = '#8a7a5a'
+        const zOffset = Math.sin(frame * 0.04) * 3
+        ctx.fillText('z', bx + 16, by - 4 + zOffset)
+        ctx.fillText('z', bx + 20, by - 10 + zOffset)
+        ctx.fillText('z', bx + 24, by - 16 + zOffset)
+      }
+
+      // Name tag
+      ctx.font = 'bold 11px Courier New'
+      ctx.textAlign = 'center'
+      ctx.fillStyle = isActive ? '#4eff4e' : isCloud ? '#a08ef0' : '#8a7a5a'
+      ctx.fillText(charDef.label, x, y + 18)
+
+      // Activity text
+      if (isActive && activity !== 'idle') {
+        ctx.font = '9px Courier New'
+        ctx.fillStyle = '#d4c4a0'
+        ctx.fillText(activity, x, y + 28)
+      }
+
+      ctx.textAlign = 'left'
+    }
+
+    // =========================================================
+    //  HIT DETECTION (for hover tooltips)
+    // =========================================================
+    function getAgentAtPos(mx, my) {
+      for (const [name, charDef] of Object.entries(CHARACTERS)) {
+        const dx = mx - charDef.baseX
+        let dy = my - charDef.baseY
+        if (charDef.floats) dy -= Math.sin(frame * 0.03) * 6
+        if (Math.abs(dx) < 20 && Math.abs(dy) < 24) {
+          return name
+        }
+      }
+      return null
+    }
+
+    // =========================================================
+    //  MAIN RENDER LOOP
+    // =========================================================
+    function render() {
+      ctx.clearRect(0, 0, W, H)
+
+      // Scene
+      drawSky()
+      drawMountains()
+      drawSunDisk()
+      drawTerraces()
+      drawIrrigationChannel()
+
+      // Huts
+      drawHut(50, 218)
+      drawHut(540, 218)
+      drawHut(80, 290)
+      drawHut(480, 290)
+
+      // Characters
+      for (const [name, charDef] of Object.entries(CHARACTERS)) {
+        const state = agentState[name] || { status: 'offline', activity: 'sleeping' }
+        drawCharacter(name, charDef, state)
+      }
+
+      // Quipu cords visual (lines connecting Quipu to other agents)
+      if (agentState.quipu?.status === 'active') {
+        ctx.strokeStyle = 'rgba(160,142,240,0.15)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([4, 4])
+        const qx = CHARACTERS.quipu.baseX
+        const qy = CHARACTERS.quipu.baseY
+        for (const [name, charDef] of Object.entries(CHARACTERS)) {
+          if (name === 'quipu') continue
+          const state = agentState[name]
+          if (state?.status === 'active' || state?.status === 'cloud') {
+            ctx.beginPath()
+            ctx.moveTo(qx, qy)
+            const ty = charDef.floats ? charDef.baseY + Math.sin(frame * 0.03) * 6 : charDef.baseY
+            ctx.lineTo(charDef.baseX, ty)
+            ctx.stroke()
+          }
+        }
+        ctx.setLineDash([])
+      }
+
+      // Ground at very bottom
+      drawRect(0, H - 20, W, 20, PAL.dirtDark)
+      drawRect(0, H - 22, W, 2, PAL.dirt)
+
+      frame++
+      requestAnimationFrame(render)
+    }
+
+    // =========================================================
+    //  STATUS BAR
+    // =========================================================
+    function updateStatusBar() {
+      const bar = document.getElementById('status-bar')
+      let html = ''
+      for (const [name, charDef] of Object.entries(CHARACTERS)) {
+        const state = agentState[name] || { status: 'offline' }
+        const dotClass = state.status === 'active' ? 'dot-active'
+          : state.status === 'cloud' ? 'dot-cloud'
+          : state.status === 'idle' ? 'dot-idle'
+          : 'dot-offline'
+        html += `<span><span class="status-dot ${dotClass}"></span>${charDef.label}</span>`
+      }
+      bar.innerHTML = html
+    }
+
+    // =========================================================
+    //  TOOLTIP
+    // =========================================================
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const mx = (e.clientX - rect.left) * (W / rect.width)
+      const my = (e.clientY - rect.top) * (H / rect.height)
+      const agent = getAgentAtPos(mx, my)
+
+      const tooltip = document.getElementById('tooltip')
+      if (agent) {
+        const charDef = CHARACTERS[agent]
+        const state = agentState[agent] || {}
+        tooltip.style.display = 'block'
+        tooltip.style.left = (e.clientX + 12) + 'px'
+        tooltip.style.top = (e.clientY - 10) + 'px'
+        tooltip.innerHTML = `
+          <div class="name">${charDef.label}</div>
+          <div class="role">${charDef.role}</div>
+          <div class="activity">Status: ${state.status || 'offline'}</div>
+          ${state.activity ? `<div class="activity">Activity: ${state.activity}</div>` : ''}
+          ${state.activityDetail ? `<div style="color:#8a7a5a">Tool: ${state.activityDetail}</div>` : ''}
+          ${state.toolUseCount ? `<div style="color:#8a7a5a">Tool uses: ${state.toolUseCount}</div>` : ''}
+          ${state.lastSeen ? `<div style="color:#8a7a5a">Last seen: ${new Date(state.lastSeen).toLocaleTimeString()}</div>` : ''}
+        `
+      } else {
+        tooltip.style.display = 'none'
+      }
+    })
+
+    canvas.addEventListener('mouseleave', () => {
+      document.getElementById('tooltip').style.display = 'none'
+    })
+
+    // =========================================================
+    //  POLLING
+    // =========================================================
+    async function pollState() {
+      try {
+        const res = await fetch(API_URL)
+        if (res.ok) {
+          const data = await res.json()
+          agentState = data.agents || {}
+          updateStatusBar()
+        }
+      } catch (err) {
+        // Watcher not running — show all as offline
+        console.log('Village watcher not available, showing offline state')
+      }
+    }
+
+    // =========================================================
+    //  BOOT
+    // =========================================================
+    pollState()
+    setInterval(pollState, POLL_MS)
+    render()
+  </script>
+</body>
+</html>

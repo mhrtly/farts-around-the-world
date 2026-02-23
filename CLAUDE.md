@@ -170,6 +170,9 @@ Backend API is built but not yet wired to frontend.
 │   ├── styles/                    ← All CSS (tokens, app, animations, etc.)
 │   ├── types/                     ← TypeScript type defs (reference only)
 │   └── utils/                     ← Formatting, color, time helpers
+├── village/                        ← Andean Village agent monitor
+│   ├── watcher.js                 ← Reads JSONL transcripts, serves state
+│   └── index.html                 ← Canvas-based pixel art village
 ├── _archive/                      ← Dead code from chaotic bootstrap phase
 └── docs/                          ← Historical docs (COORDINATION.md, etc.)
 ```

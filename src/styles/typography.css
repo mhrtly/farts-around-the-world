@@ -1,0 +1,155 @@
+/* ============================================================
+   Typography
+   ============================================================ */
+
+/* --- Google Fonts: JetBrains Mono --- */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* --- Base Monospace --- */
+
+html,
+body,
+input,
+button,
+select,
+textarea {
+  font-family: var(--font-mono);
+}
+
+/* --- Panel Header Title --- */
+
+.panel-header-title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-accent);
+}
+
+/* --- Data Value (Tabular Nums) --- */
+
+.data-value {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+
+/* --- Classification Marking --- */
+
+.classification-marking {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  line-height: 1.4;
+}
+
+.classification-marking.sbd {
+  background: rgba(255, 0, 64, 0.15);
+  color: var(--class-sbd);
+  border: 1px solid rgba(255, 0, 64, 0.3);
+}
+
+.classification-marking.thunderclap {
+  background: rgba(255, 68, 0, 0.15);
+  color: var(--class-thunderclap);
+  border: 1px solid rgba(255, 68, 0, 0.3);
+}
+
+.classification-marking.squeaker {
+  background: rgba(255, 221, 0, 0.15);
+  color: var(--class-squeaker);
+  border: 1px solid rgba(255, 221, 0, 0.3);
+}
+
+.classification-marking.rumbler {
+  background: rgba(255, 136, 0, 0.15);
+  color: var(--class-rumbler);
+  border: 1px solid rgba(255, 136, 0, 0.3);
+}
+
+.classification-marking.machine-gun {
+  background: rgba(255, 102, 34, 0.15);
+  color: var(--class-machine-gun);
+  border: 1px solid rgba(255, 102, 34, 0.3);
+}
+
+.classification-marking.leaker {
+  background: rgba(136, 170, 0, 0.15);
+  color: var(--class-leaker);
+  border: 1px solid rgba(136, 170, 0, 0.3);
+}
+
+.classification-marking.wet-warning {
+  background: rgba(139, 69, 19, 0.15);
+  color: var(--class-wet-warning);
+  border: 1px solid rgba(139, 69, 19, 0.3);
+}
+
+.classification-marking.phantom {
+  background: rgba(153, 102, 204, 0.15);
+  color: var(--class-phantom);
+  border: 1px solid rgba(153, 102, 204, 0.3);
+}
+
+.classification-marking.crop-duster {
+  background: rgba(68, 170, 255, 0.15);
+  color: var(--class-crop-duster);
+  border: 1px solid rgba(68, 170, 255, 0.3);
+}
+
+.classification-marking.unclassified {
+  background: rgba(136, 136, 136, 0.15);
+  color: var(--class-unclassified);
+  border: 1px solid rgba(136, 136, 136, 0.3);
+}
+
+/* --- Signal Text --- */
+
+.signal-text {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+}
+
+.signal-text.active {
+  color: var(--text-accent);
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+
+.signal-text.alert {
+  color: var(--severity-critical);
+  text-shadow: 0 0 8px rgba(255, 68, 68, 0.4);
+}
+
+.signal-text.warning {
+  color: var(--text-amber);
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.4);
+}
+
+/* --- Heading Sizes --- */
+
+.text-xs { font-size: var(--font-size-xs); }
+.text-sm { font-size: var(--font-size-sm); }
+.text-md { font-size: var(--font-size-md); }
+.text-lg { font-size: var(--font-size-lg); }
+.text-xl { font-size: var(--font-size-xl); }
+.text-2xl { font-size: var(--font-size-2xl); }
+.text-3xl { font-size: var(--font-size-3xl); }
+
+/* --- Text Color Utilities --- */
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-accent { color: var(--text-accent); }
+.text-amber { color: var(--text-amber); }
+.text-danger { color: var(--text-danger); }
+.text-success { color: var(--text-success); }
+.text-warning { color: var(--text-warning); }

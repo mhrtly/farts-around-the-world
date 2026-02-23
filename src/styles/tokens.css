@@ -1,0 +1,35 @@
+:root {
+  /* Backgrounds */
+  --bg-0: #06090d;
+  --bg-1: #0b1118;
+  --bg-2: #0f1a26;
+
+  /* Glassmorphism panels */
+  --panel-glass: rgba(16, 26, 38, 0.42);
+  --panel-border: rgba(56, 243, 255, 0.12);
+  --panel-blur: 14px;
+
+  /* Accent palette */
+  --accent-cyan: #38f3ff;
+  --accent-lime: #9dff4a;
+  --accent-pink: #ff64ff;
+  --accent-amber: #ffb020;
+  --accent-red: #ff4d5a;
+
+  /* Text */
+  --text-primary: rgba(220, 240, 255, 0.92);
+  --text-dim: rgba(150, 185, 210, 0.55);
+  --text-label: rgba(100, 150, 180, 0.7);
+
+  /* Glow intensities */
+  --glow-cyan-sm: 0 0 8px rgba(56, 243, 255, 0.5);
+  --glow-cyan-md: 0 0 16px rgba(56, 243, 255, 0.6), 0 0 32px rgba(56, 243, 255, 0.2);
+  --glow-lime-sm: 0 0 8px rgba(157, 255, 74, 0.5);
+  --glow-pink-sm: 0 0 8px rgba(255, 100, 255, 0.6);
+  --glow-amber-sm: 0 0 8px rgba(255, 176, 32, 0.5);
+
+  /* Layout */
+  --header-height: 56px;
+  --panel-width: 260px;
+  --radius: 6px;
+}

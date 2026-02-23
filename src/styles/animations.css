@@ -1,0 +1,139 @@
+/* ============================================================
+   Animations
+   ============================================================ */
+
+/* --- CRT Scanline Overlay --- */
+
+.crt-scanlines::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    rgba(0, 0, 0, 0.03) 1px,
+    rgba(0, 0, 0, 0.03) 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* --- Keyframes --- */
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes slideInFromTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes greenFlash {
+  0% {
+    background-color: rgba(0, 255, 65, 0.15);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes rotateRadar {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(0, 255, 65, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(0, 255, 65, 0.6);
+  }
+}
+
+/* --- Animation Utility Classes --- */
+
+.animate-blink {
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slideInFromTop 300ms ease-out;
+}
+
+.animate-green-flash {
+  animation: greenFlash 600ms ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 200ms ease-out;
+}
+
+/* --- Status Dot Indicators --- */
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background-color: var(--text-success, #00ff41);
+  box-shadow: 0 0 6px rgba(0, 255, 65, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-dot.offline {
+  background-color: var(--severity-critical, #ff4444);
+  box-shadow: 0 0 6px rgba(255, 68, 68, 0.6);
+}
+
+.status-dot.stale {
+  background-color: var(--text-amber, #ffb000);
+  box-shadow: 0 0 6px rgba(255, 176, 0, 0.4);
+  animation: blink 1.2s ease-in-out infinite;
+}

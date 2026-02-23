@@ -1,0 +1,235 @@
+{
+  "main": {
+    "id": "48729a6f7e155360",
+    "type": "split",
+    "children": [
+      {
+        "id": "7f6339facb2cbef0",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b979f2ab2fa029f1",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "COORDINATION.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "COORDINATION"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "4821e7b3bf34f59f",
+    "type": "split",
+    "children": [
+      {
+        "id": "021901897a67b69c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3a7edb589922650d",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "585958ad6b176915",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "ad7b4c4711704792",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4846b20a73f27fe4",
+    "type": "split",
+    "children": [
+      {
+        "id": "8d45a730b7c16a0b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2c3124d68230144c",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "COORDINATION.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for COORDINATION"
+            }
+          },
+          {
+            "id": "8affc49d2e1f5a39",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "COORDINATION.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from COORDINATION"
+            }
+          },
+          {
+            "id": "d670f7256fbd4989",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "9e395c1e668d822a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "9783e7f0f34a94d3",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "COORDINATION.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of COORDINATION"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "b979f2ab2fa029f1",
+  "lastOpenFiles": [
+    "node_modules/@arcgis/core/layers/mixins/RasterPresetRendererMixin.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/TemporalSceneLayer.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/ArcGISMapService.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/FeatureEffectLayer.js",
+    "node_modules/@arcgis/core/layers/mixins/OrderedLayer.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/refresh.js",
+    "node_modules/@arcgis/core/layers/mixins/APIKeyMixin.js",
+    "node_modules/@arcgis/core/layers/mixins/TemporalLayer.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/DisplayFilteredLayer.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/APIKeyMixin.d.ts",
+    "node_modules/@arcgis/core/layers/mixins/SceneService.d.ts",
+    "node_modules/@arcgis/core/LICENSE.md",
+    "node_modules/@amcharts/amcharts5/README.md",
+    "node_modules/@amcharts/amcharts5/LICENSE-3RD-PARTY.md",
+    "node_modules/texture-compressor/docs/SUPPORTED_PARAMETERS.md",
+    "node_modules/texture-compressor/docs/RECOMMENDED_PARAMETERS.md",
+    "node_modules/@vaadin/vaadin-lumo-styles/README.md",
+    "node_modules/ieee754/README.md",
+    "node_modules/pdfmake/README.md",
+    "node_modules/pdfmake/CHANGELOG.md",
+    "node_modules/d3-weighted-voronoi/node_modules/internmap/README.md",
+    "node_modules/d3-weighted-voronoi/node_modules/d3-polygon/README.md",
+    "node_modules/d3-weighted-voronoi/README.md",
+    "node_modules/d3-weighted-voronoi/CONTRIBUTING.md",
+    "node_modules/cssfilter/README.md",
+    "node_modules/tabbable/SECURITY.md",
+    "node_modules/tabbable/README.md",
+    "node_modules/tabbable/CHANGELOG.md",
+    "node_modules/brotli/readme.md",
+    "node_modules/core-util-is/README.md",
+    "node_modules/fflate/README.md",
+    "node_modules/fflate/CHANGELOG.md",
+    "node_modules/md5/README.md",
+    "node_modules/@arcgis/core/README.md",
+    "node_modules/@arcgis/lumina/README.md",
+    "node_modules/@arcgis/lumina/LICENSE.md",
+    "node_modules/jszip/graph.svg",
+    "node_modules/lit/logo.svg",
+    "node_modules/jpeg-exif/test/IMG_0001.JPG",
+    "node_modules/jpeg-exif/test/IMG_0003.JPG",
+    "node_modules/seedrandom/coverage/lcov-report/sort-arrow-sprite.png",
+    "node_modules/long/long.png",
+    "node_modules/long/donate.png",
+    "node_modules/png-js/test/images/transparent-white-palette-8bit.png",
+    "node_modules/png-js/test/images/transparent-white-grayscale-16bit.png",
+    "node_modules/png-js/test/images/transparent-black-grayscale-4bit.png"
+  ]
+}

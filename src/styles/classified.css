@@ -1,0 +1,87 @@
+/* ============================================================
+   CLASSIFIED Watermark & Stamp Styles
+   ============================================================ */
+
+/* --- Full-screen CLASSIFIED Watermark --- */
+
+.classified-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-35deg);
+  font-family: var(--font-mono);
+  font-size: 120px;
+  font-weight: 700;
+  color: rgba(255, 0, 64, 0.04);
+  letter-spacing: 20px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9998;
+  user-select: none;
+}
+
+/* --- Dossier Classified Stamp --- */
+
+.classified-stamp {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  border: 3px solid rgba(255, 0, 64, 0.6);
+  color: rgba(255, 0, 64, 0.6);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  transform: rotate(12deg);
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+}
+
+.classified-stamp::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1px solid rgba(255, 0, 64, 0.3);
+  pointer-events: none;
+}
+
+/* --- Classification Banner --- */
+
+.classification-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  background: rgba(255, 0, 64, 0.1);
+  border-bottom: 1px solid rgba(255, 0, 64, 0.2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: rgba(255, 0, 64, 0.7);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* --- Redacted Text Effect --- */
+
+.redacted {
+  position: relative;
+  color: transparent;
+  user-select: none;
+}
+
+.redacted::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  background: var(--text-primary);
+  opacity: 0.8;
+}

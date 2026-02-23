@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite runtime files (db itself is tracked)
+server/*.db-shm
+server/*.db-wal
+server/*.db-journal
+
+# Obsidian
+.obsidian/

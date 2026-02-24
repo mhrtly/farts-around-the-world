@@ -2,6 +2,16 @@ import React, { useEffect, useRef, useMemo } from 'react'
 
 const HISTORY = 120  // samples kept
 
+const PEAK_LABELS = [
+  'CARBONARA INCIDENT',
+  'BEAN SURGE',
+  'DAIRY EVENT',
+  'BURRITO CLUSTER',
+  'POST-LUNCH SPIKE',
+  'SUSPICIOUS UPLIFT',
+  'CURRY CORRELATION',
+]
+
 export default function MethaneWaveform({ events }) {
   const canvasRef = useRef(null)
   const samplesRef = useRef(new Array(HISTORY).fill(0))
@@ -100,6 +110,31 @@ export default function MethaneWaveform({ events }) {
       ctx.shadowBlur = 8
       ctx.stroke()
       ctx.shadowBlur = 0
+
+      // Peak annotations — up to 2 labels on high-amplitude samples
+      ctx.font = '9px "Courier New", monospace'
+      let labelCount = 0
+      for (let i = 4; i < HISTORY - 4 && labelCount < 2; i++) {
+        const val = samples[i]
+        if (val > 0.6) {
+          // Check it's a local peak (higher than neighbors)
+          if (val >= samples[i - 3] && val >= samples[i + 3]) {
+            const alpha = Math.min((val - 0.6) / 0.35, 1)
+            const x = (i / (HISTORY - 1)) * W
+            const y = getY(i) - 6
+            const label = PEAK_LABELS[i % PEAK_LABELS.length]
+
+            ctx.save()
+            ctx.globalAlpha = alpha * 0.9
+            ctx.fillStyle = 'rgba(56,243,255,0.9)'
+            ctx.shadowColor = 'rgba(56,243,255,0.8)'
+            ctx.shadowBlur = 6
+            ctx.fillText(label, Math.min(x, W - ctx.measureText(label).width - 2), Math.max(y, 10))
+            ctx.restore()
+            labelCount++
+          }
+        }
+      }
 
       rafRef.current = requestAnimationFrame(draw)
     }

@@ -46,9 +46,11 @@ export default function GasconIndicator({ events }) {
     }
   }, [burstCount])
 
+  const isCritical = gascon.level <= 2
+
   return (
     <div
-      className={`gascon-strip ${flash ? 'gascon-strip--flash' : ''}`}
+      className={`gascon-strip ${flash ? 'gascon-strip--flash' : ''} ${isCritical ? 'gascon-strip--critical' : ''}`}
       style={{ '--gascon-color': gascon.color, '--gascon-glow': gascon.glow }}
     >
       <span className="gascon-prefix">GASCON</span>
@@ -67,7 +69,15 @@ export default function GasconIndicator({ events }) {
       </div>
 
       <span className="gascon-level">{gascon.level}</span>
-      <span className="gascon-label" style={{ color: gascon.color, textShadow: `0 0 10px ${gascon.glow}` }}>
+      <span
+        className="gascon-label"
+        style={{
+          color: gascon.color,
+          textShadow: isCritical
+            ? `0 0 10px ${gascon.glow}, 0 0 20px ${gascon.glow}, 0 0 4px ${gascon.color}`
+            : `0 0 10px ${gascon.glow}`,
+        }}
+      >
         {gascon.label}
       </span>
 

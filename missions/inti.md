@@ -30,21 +30,96 @@ git checkout -b feature/inti-globe-enhancements
 ## Mission: Make the Globe Transcendent
 
 The globe already has arcs, rings, points, hexbin heatmap, and country labels.
-It looks good. Your job is to make it look **cinematic**.
+But the current **arcs look like ribbons traveling from A to B** — like flight
+paths or missile trajectories. That's wrong. Farts don't go somewhere. Farts
+happen HERE. The visuals need to say "something happened at this location" —
+not "something traveled from here to there."
 
-### Task 1: UnrealBloomPass (Selective Bloom) — HIGH PRIORITY
+Your job: replace the arc-based visualization with something that reads as
+**localized emission events**, and then make everything glow.
 
-This is the single highest-impact visual upgrade. Add Three.js post-processing
-bloom so that arcs, rings, and epic events GLOW against the dark globe.
+### Task 1: Replace Arcs with Fart Cloud Puffs — HIGHEST PRIORITY
+
+Remove (or heavily rework) the arc layer. Replace it with visuals that
+clearly show "an event occurred at this location." The best approach
+uses globe.gl's `customLayer` or `objectsData` + `htmlElementsData`.
+
+**Recommended approach — Rising emission puffs using `objectsData`:**
+
+globe.gl's `objectsData` layer lets you place 3D objects on the globe
+surface that rise perpendicularly. This is perfect for fart "puffs" that
+appear and rise upward from the event location, then fade.
+
+```js
+// Each new event becomes a 3D object that rises and fades
+g.objectsData([])
+  .objectLat('lat')
+  .objectLng('lng')
+  .objectAltitude(d => {
+    // Rise over time: altitude increases as the event ages
+    const age = (Date.now() - d.timestamp) / 1000
+    return 0.01 + age * 0.015  // rises ~0.015 altitude units/sec
+  })
+  .objectThreeObject(d => {
+    // Create a glowing sphere that represents the emission cloud
+    const geometry = new THREE.SphereGeometry(
+      0.3 + d.intensity * 0.15,  // size scales with intensity
+      8, 6
+    )
+    const color = CLOUD_COLORS[d.type]  // cyan/pink/lime
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.6,
+    })
+    return new THREE.Mesh(geometry, material)
+  })
+```
+
+**Lifecycle for each event puff:**
+1. Event arrives → add to objectsData with timestamp
+2. Puff appears at ground level, small
+3. Over 3-5 seconds: rises in altitude, grows slightly, fades opacity
+4. After 5s: remove from objectsData
+5. Cap at ~60 active puffs for performance
+
+**Color by type:**
+- `standard` → cyan cloud (`#38f3ff`)
+- `epic` → pink/magenta cloud (`#ff64ff`), LARGER, brighter
+- `silent-but-deadly` → sickly green cloud (`#9dff4a`), with a slow "creeping" rise
+
+**Keep rings for epic/SBD events:** The existing ring propagation effect is
+great for epic and SBD events — it looks like a shockwave, which is perfect.
+Keep that layer but only for those event types.
+
+**Keep points as ground markers:** The existing points layer (glowing dots)
+works well as "here's where it happened" markers. Keep those.
+
+**Keep hexbin heatmap:** The density columns show accumulated activity. Keep
+them.
+
+**So the final visual stack is:**
+1. **Points** (dots on surface) — all events, showing recent locations
+2. **Rising cloud puffs** (3D objects) — new events, rising and fading
+3. **Rings** (shockwave ripples) — epic and SBD events only
+4. **Hexbin columns** — density heatmap for accumulated activity
+5. **Labels** — country codes for top active regions
+
+The arcs can be removed entirely, or if you want to keep a hint of them,
+make them very short (not traveling to random points) — more like a tiny
+spike upward from the surface.
+
+### Task 2: UnrealBloomPass (Selective Bloom) — HIGH PRIORITY
+
+After the cloud puffs are working, add Three.js post-processing bloom to
+make everything GLOW. This is the cinematic upgrade.
 
 **How it works with globe.gl:**
 - `globe.gl` exposes its Three.js renderer, scene, and camera via
   `globeInstance.renderer()`, `globeInstance.scene()`, `globeInstance.camera()`
-- You need to create an `EffectComposer` with `RenderPass` + `UnrealBloomPass`
-- Then replace the default render loop with the composer's render loop
-- Use `globeInstance.onAfterRender(() => {})` or override the animation loop
+- Create an `EffectComposer` with `RenderPass` + `UnrealBloomPass`
+- Replace the default render loop with the composer's render
 
-**Implementation approach:**
 ```js
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
@@ -71,24 +146,21 @@ composer.addPass(bloomPass)
 - Three.js is already in package.json (`"three": "^0.172.0"`) — the post-processing
   modules ship with it, so no new deps needed
 - Start with subtle bloom (strength 0.6-0.8). Too much looks washed out
-- The `threshold` controls what blooms — set it so only the bright arcs/rings
-  bloom, not the entire globe texture
+- The `threshold` controls what blooms — set it so the cloud puffs, rings,
+  and points glow, but the globe texture doesn't wash out
 - Make sure to update composer size on window resize
 - Test that the atmosphere layer still looks correct with bloom
 
-### Task 2: Intensity-Based Glow Scaling
-
-Once bloom is working, scale the visual intensity:
-- Epic events: stronger glow, thicker arcs (you already have different colors)
-- High-intensity events (8-10): add emissive boost
-- Consider making the `atmosphereColor` pulse briefly when a burst is detected
+**Bloom + cloud puffs together:** The MeshBasicMaterial on the cloud puffs
+will bloom beautifully — it naturally emits light. Epic events should bloom
+brighter (higher emissive value or brighter base color).
 
 ### Task 3: Click Interaction on Events — MEDIUM PRIORITY
 
-Add the ability to click on an arc or point on the globe and show event details.
+Add the ability to click on a point or cloud puff and show event details.
 
 **Approach:**
-- `globe.gl` supports `onArcClick(arc)` and `onPointClick(point)` callbacks
+- `globe.gl` supports `onPointClick(point)` and `onObjectClick(obj)` callbacks
 - On click, pause auto-rotate, zoom the camera toward the event location
 - Display a small detail overlay showing: type badge, intensity, country, timestamp,
   and a randomly selected analyst note from `src/config/humor.ts`

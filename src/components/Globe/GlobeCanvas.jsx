@@ -150,7 +150,7 @@ export default function GlobeCanvas({ events }) {
       .pointLat('lat')
       .pointLng('lng')
       .pointAltitude(0.012)
-      .pointRadius(d => 0.12 + d.intensity * 0.032)
+      .pointRadius(d => 0.25 + d.intensity * 0.06)
       .pointColor(d => POINT_COLORS[d.type] ?? POINT_COLORS.standard)
       .pointsMerge(false)
       .pointsTransitionDuration(300)
@@ -178,17 +178,16 @@ export default function GlobeCanvas({ events }) {
       .hexBinMerge(true)
       .hexTransitionDuration(700)
 
-      // ── Country labels ─────────────────────────────────────────────────
+      // ── Labels — audio indicators for clickable events ────────────────
       .labelsData([])
       .labelLat('lat')
       .labelLng('lng')
       .labelText('text')
-      .labelColor(() => 'rgba(56,243,255,0.85)')
-      .labelSize(0.55)
-      .labelDotRadius(0.3)
-      .labelDotOrientation(() => 'bottom')
+      .labelColor(() => 'rgba(255,200,60,0.95)')
+      .labelSize(0.8)
+      .labelDotRadius(0)
       .labelResolution(3)
-      .labelAltitude(0.016)
+      .labelAltitude(0.025)
 
       // Click empty globe → dismiss overlay, resume rotate
       .onGlobeClick(() => {
@@ -298,15 +297,10 @@ export default function GlobeCanvas({ events }) {
       }))
       puffsRef.current = [...newPuffs, ...puffsRef.current].slice(0, 60)
 
-      // Rings for epic + SBD only
-      const ringEvents = newEvents.filter(
-        e => e.type === 'epic' || e.type === 'silent-but-deadly'
-      )
-      if (ringEvents.length) {
-        const stamped = ringEvents.map(e => ({ ...e, _ts: Date.now() }))
-        const alive   = g.ringsData().filter(r => Date.now() - r._ts < 10000)
-        g.ringsData([...stamped, ...alive].slice(0, 40))
-      }
+      // Rings for ALL events — visible shockwave on every submission
+      const stamped = newEvents.map(e => ({ ...e, _ts: Date.now() }))
+      const alive   = g.ringsData().filter(r => Date.now() - r._ts < 10000)
+      g.ringsData([...stamped, ...alive].slice(0, 40))
     }
 
     // Throttled: points + hexbin + labels (heavier)
@@ -317,18 +311,12 @@ export default function GlobeCanvas({ events }) {
       g.pointsData(recent.slice(0, 200))
       g.hexBinPointsData(events.filter(e => now - e.timestamp < 600_000))
 
-      // Top 6 countries by event count in last 60s → floating labels
-      const window60  = events.filter(e => now - e.timestamp < 60_000)
-      const byCountry = new Map()
-      for (const e of window60) {
-        const c = byCountry.get(e.country) || { lat: 0, lng: 0, n: 0 }
-        byCountry.set(e.country, { lat: c.lat + e.lat, lng: c.lng + e.lng, n: c.n + 1 })
-      }
-      const labels = [...byCountry.entries()]
-        .sort((a, b) => b[1].n - a[1].n)
-        .slice(0, 6)
-        .map(([country, s]) => ({ lat: s.lat / s.n, lng: s.lng / s.n, text: country }))
-      g.labelsData(labels)
+      // Floating labels for events with audio (clickable indicators)
+      const audioEvents = events
+        .filter(e => e.hasAudio && now - e.timestamp < 300_000)
+        .slice(0, 15)
+        .map(e => ({ ...e, text: '\u266B' })) // ♫ music note
+      g.labelsData(audioEvents)
     }, 400)
 
   }, [events])

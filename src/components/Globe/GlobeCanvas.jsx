@@ -397,174 +397,284 @@ const GlobeCanvasInner = forwardRef(function GlobeCanvas({ events }, ref) {
         style={{ width: '100%', height: '100%', background: 'transparent' }}
       />
 
-      {selectedEvent && (
-        <div style={{
-          position:         'absolute',
-          top:              '50%',
-          right:            '20px',
-          transform:        'translateY(-50%)',
-          background:       'var(--panel-glass)',
-          backdropFilter:   'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          border:           '1px solid rgba(56,243,255,0.2)',
-          borderRadius:     'var(--radius)',
-          padding:          '16px 20px',
-          minWidth:         '265px',
-          fontFamily:       'monospace',
-          fontSize:         '12px',
-          lineHeight:       '1.7',
-          zIndex:           100,
-          boxShadow:        '0 0 24px rgba(56,243,255,0.08)',
-          animation:        'overlaySlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-        }}>
-          {(() => {
-            const cls = classifyEmission(selectedEvent.duration, selectedEvent.volume)
-            return (
-              <>
-                {/* Classification header */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  marginBottom: '10px', paddingBottom: '10px',
-                  borderBottom: `1px solid ${cls.color}33`,
-                }}>
+      {selectedEvent && (() => {
+        const cls = classifyEmission(selectedEvent.duration, selectedEvent.volume)
+        const FLAG_MAP = {
+          US:'🇺🇸', GB:'🇬🇧', DE:'🇩🇪', FR:'🇫🇷', JP:'🇯🇵', CN:'🇨🇳',
+          BR:'🇧🇷', IN:'🇮🇳', AU:'🇦🇺', CA:'🇨🇦', MX:'🇲🇽', RU:'🇷🇺',
+          NG:'🇳🇬', ZA:'🇿🇦', EG:'🇪🇬', AR:'🇦🇷', KR:'🇰🇷', ID:'🇮🇩',
+          TR:'🇹🇷', IT:'🇮🇹',
+        }
+        const flag = FLAG_MAP[selectedEvent.country] || '🌍'
+        const relTime = (() => {
+          const sec = Math.max(0, Math.floor((Date.now() - selectedEvent.timestamp) / 1000))
+          if (sec < 60) return `${sec}s ago`
+          if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
+          return `${Math.floor(sec / 3600)}h ago`
+        })()
+
+        return (
+          <div style={{
+            position:         'absolute',
+            top:              '50%',
+            right:            '20px',
+            transform:        'translateY(-50%)',
+            background:       'rgba(8,14,22,0.94)',
+            backdropFilter:   'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border:           `1px solid ${cls.color}33`,
+            borderRadius:     '8px',
+            minWidth:         '280px',
+            maxWidth:         '320px',
+            fontFamily:       'monospace',
+            fontSize:         '12px',
+            lineHeight:       '1.5',
+            zIndex:           100,
+            boxShadow:        `0 8px 40px rgba(0,0,0,0.6), 0 0 20px ${cls.color}15`,
+            animation:        'overlaySlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+            overflow:         'hidden',
+          }}>
+            {/* Top accent strip */}
+            <div style={{
+              height: '3px',
+              background: `linear-gradient(90deg, transparent, ${cls.color}, transparent)`,
+              opacity: 0.7,
+            }} />
+
+            {/* Classification header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '14px 16px 12px',
+              background: `linear-gradient(180deg, ${cls.color}0a, transparent)`,
+              borderBottom: `1px solid ${cls.color}22`,
+            }}>
+              <span style={{ fontSize: '28px' }}>{flag}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
                   <span style={{
-                    fontSize: '8px', padding: '2px 5px', borderRadius: '3px',
-                    background: `${cls.color}22`, border: `1px solid ${cls.color}44`,
-                    color: cls.color, fontWeight: 'bold', letterSpacing: '0.1em',
-                  }}>{cls.code}</span>
-                  <span style={{
-                    fontSize: '13px', fontWeight: 'bold', color: cls.color,
-                    letterSpacing: '0.12em',
+                    fontSize: '14px', fontWeight: 'bold', color: cls.color,
+                    letterSpacing: '0.1em',
+                    textShadow: `0 0 10px ${cls.color}55`,
                   }}>{cls.label.toUpperCase()}</span>
+                  <span style={{
+                    fontSize: '7px', padding: '2px 5px', borderRadius: '3px',
+                    background: `${cls.color}18`, border: `1px solid ${cls.color}33`,
+                    color: cls.color, fontWeight: 'bold', letterSpacing: '0.12em',
+                  }}>{cls.code}</span>
                 </div>
-
-                {/* Payload description */}
                 <div style={{
-                  fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic',
-                  marginBottom: '10px', lineHeight: 1.5,
-                  padding: '6px 8px', borderRadius: '3px',
-                  background: 'rgba(6,9,13,0.4)',
+                  fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.04em',
                 }}>
-                  {cls.description}
+                  {selectedEvent.country} {relTime}
                 </div>
-              </>
-            )
-          })()}
-
-          <div>
-            <span style={{ color: 'var(--text-label)' }}>Location:&nbsp;</span>
-            <span style={{ color: 'var(--text-primary)' }}>
-              {Math.abs(selectedEvent.lat).toFixed(4)}{'\u00B0'}{selectedEvent.lat >= 0 ? 'N' : 'S'},&nbsp;
-              {Math.abs(selectedEvent.lng).toFixed(4)}{'\u00B0'}{selectedEvent.lng >= 0 ? 'E' : 'W'}
-            </span>
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-label)' }}>Country:&nbsp;&nbsp;</span>
-            <span style={{ color: 'var(--text-primary)' }}>{selectedEvent.country}</span>
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-label)' }}>Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-            <span style={{ color: 'var(--text-primary)' }}>{formatUTC(selectedEvent.timestamp)}</span>
-          </div>
-
-          {selectedEvent.duration != null && (
-            <div>
-              <span style={{ color: 'var(--text-label)' }}>Duration:&nbsp;</span>
-              <span style={{ color: '#38f3ff' }}>{selectedEvent.duration}s</span>
-            </div>
-          )}
-
-          {selectedEvent.volume != null && (
-            <div>
-              <span style={{ color: 'var(--text-label)' }}>Volume:&nbsp;&nbsp;&nbsp;</span>
-              <span style={{ color: '#38f3ff' }}>{selectedEvent.volume}</span>
-            </div>
-          )}
-
-          {selectedEvent.peakVolume != null && (
-            <div>
-              <span style={{ color: 'var(--text-label)' }}>Peak:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-              <span style={{ color: '#ff6b6b' }}>{selectedEvent.peakVolume}</span>
-            </div>
-          )}
-
-          {/* Visual volume meter */}
-          {selectedEvent.volume != null && (
-            <div style={{ margin: '8px 0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '8px', color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'monospace', width: '28px' }}>VOL</span>
-              <div style={{
-                flex: 1, height: '6px', borderRadius: '3px',
-                background: 'rgba(56,243,255,0.08)',
-                border: '1px solid rgba(56,243,255,0.1)',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${Math.min((selectedEvent.volume / 60) * 100, 100)}%`,
-                  height: '100%',
-                  borderRadius: '2px',
-                  background: selectedEvent.volume > 40
-                    ? 'linear-gradient(90deg, #38f3ff, #ff4d5a)'
-                    : selectedEvent.volume > 20
-                      ? 'linear-gradient(90deg, #38f3ff, #ffb020)'
-                      : '#38f3ff',
-                  boxShadow: selectedEvent.volume > 30
-                    ? '0 0 6px rgba(255,77,90,0.4)'
-                    : '0 0 4px rgba(56,243,255,0.3)',
-                  transition: 'width 0.3s ease',
-                }} />
               </div>
             </div>
-          )}
 
-          {selectedEvent.hasAudio ? (
-            <div style={{ marginBottom: '10px' }}>
-              <button
-                onClick={() => playAudio(selectedEvent.id)}
-                disabled={audioLoading}
-                style={{
-                  width: '100%', padding: '10px',
-                  background: audioPlaying ? 'rgba(255,77,90,0.15)' : 'rgba(56,243,255,0.12)',
-                  border: `1px solid ${audioPlaying ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.35)'}`,
-                  borderRadius: '4px',
-                  color: audioPlaying ? '#ff4d5a' : '#38f3ff',
-                  fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold',
-                  letterSpacing: '0.12em',
-                  cursor: audioLoading ? 'wait' : 'pointer',
-                  boxShadow: audioPlaying ? '0 0 12px rgba(255,77,90,0.2)' : '0 0 12px rgba(56,243,255,0.15)',
-                }}
-              >
-                {audioLoading ? '\u23F3 LOADING...' : audioPlaying ? '\u23F9 STOP' : '\u25B6 PLAY AUDIO'}
-              </button>
-            </div>
-          ) : (
+            {/* Description */}
             <div style={{
-              fontSize: '10px', color: 'rgba(106,122,138,0.6)',
-              fontFamily: 'monospace', letterSpacing: '0.1em', marginBottom: '10px',
+              fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic',
+              lineHeight: 1.5, padding: '10px 16px',
+              borderBottom: '1px solid rgba(56,243,255,0.06)',
             }}>
-              NO AUDIO RECORDED
+              {cls.description}
             </div>
-          )}
 
-          <div
-            onClick={() => {
-              setSelectedEvent(null)
-              if (globeRef.current) globeRef.current.controls().autoRotate = true
-            }}
-            style={{
-              marginTop:     '12px',
-              color:         'rgba(56,243,255,0.45)',
-              cursor:        'pointer',
-              fontSize:      '10px',
-              letterSpacing: '0.15em',
-              textAlign:     'center',
-            }}
-          >
-            [CLICK TO DISMISS]
+            {/* Stats grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: selectedEvent.volume != null ? '1fr 1fr 1fr' : '1fr 1fr',
+              gap: '1px',
+              background: 'rgba(56,243,255,0.06)',
+              margin: '0',
+            }}>
+              {/* Duration */}
+              <div style={{
+                padding: '10px 12px',
+                background: 'rgba(8,14,22,0.9)',
+                textAlign: 'center',
+              }}>
+                <div style={{
+                  fontSize: '7px', letterSpacing: '0.2em', color: 'var(--text-dim)',
+                  textTransform: 'uppercase', marginBottom: '3px',
+                }}>DURATION</div>
+                <div style={{
+                  fontSize: '16px', fontWeight: 'bold', color: '#38f3ff',
+                  textShadow: '0 0 8px rgba(56,243,255,0.3)',
+                }}>
+                  {selectedEvent.duration != null ? `${selectedEvent.duration}s` : '—'}
+                </div>
+              </div>
+
+              {/* Volume */}
+              {selectedEvent.volume != null && (
+                <div style={{
+                  padding: '10px 12px',
+                  background: 'rgba(8,14,22,0.9)',
+                  textAlign: 'center',
+                }}>
+                  <div style={{
+                    fontSize: '7px', letterSpacing: '0.2em', color: 'var(--text-dim)',
+                    textTransform: 'uppercase', marginBottom: '3px',
+                  }}>VOLUME</div>
+                  <div style={{
+                    fontSize: '16px', fontWeight: 'bold',
+                    color: selectedEvent.volume > 40 ? '#ff4d5a' : selectedEvent.volume > 20 ? '#ffb020' : '#38f3ff',
+                    textShadow: selectedEvent.volume > 40
+                      ? '0 0 8px rgba(255,77,90,0.4)'
+                      : '0 0 8px rgba(56,243,255,0.3)',
+                  }}>
+                    {selectedEvent.volume}
+                  </div>
+                </div>
+              )}
+
+              {/* Coordinates */}
+              <div style={{
+                padding: '10px 12px',
+                background: 'rgba(8,14,22,0.9)',
+                textAlign: 'center',
+              }}>
+                <div style={{
+                  fontSize: '7px', letterSpacing: '0.2em', color: 'var(--text-dim)',
+                  textTransform: 'uppercase', marginBottom: '3px',
+                }}>POSITION</div>
+                <div style={{
+                  fontSize: '9px', color: 'var(--text-primary)', letterSpacing: '0.03em',
+                  lineHeight: 1.6,
+                }}>
+                  {Math.abs(selectedEvent.lat).toFixed(2)}{'\u00B0'}{selectedEvent.lat >= 0 ? 'N' : 'S'}
+                  <br />
+                  {Math.abs(selectedEvent.lng).toFixed(2)}{'\u00B0'}{selectedEvent.lng >= 0 ? 'E' : 'W'}
+                </div>
+              </div>
+            </div>
+
+            {/* Visual volume meter */}
+            {selectedEvent.volume != null && (
+              <div style={{
+                padding: '10px 16px',
+                borderTop: '1px solid rgba(56,243,255,0.06)',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}>
+                  <span style={{
+                    fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.15em',
+                    width: '42px', textTransform: 'uppercase',
+                  }}>Volume</span>
+                  <div style={{
+                    flex: 1, height: '6px', borderRadius: '3px',
+                    background: 'rgba(56,243,255,0.08)',
+                    border: '1px solid rgba(56,243,255,0.08)',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      width: `${Math.min((selectedEvent.volume / 60) * 100, 100)}%`,
+                      height: '100%',
+                      borderRadius: '2px',
+                      background: selectedEvent.volume > 40
+                        ? 'linear-gradient(90deg, #38f3ff, #ff4d5a)'
+                        : selectedEvent.volume > 20
+                          ? 'linear-gradient(90deg, #38f3ff, #ffb020)'
+                          : '#38f3ff',
+                      boxShadow: selectedEvent.volume > 30
+                        ? '0 0 6px rgba(255,77,90,0.4)'
+                        : '0 0 4px rgba(56,243,255,0.3)',
+                      transition: 'width 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+                    }} />
+                  </div>
+                </div>
+
+                {selectedEvent.peakVolume != null && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    marginTop: '6px',
+                  }}>
+                    <span style={{
+                      fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.15em',
+                      width: '42px', textTransform: 'uppercase',
+                    }}>Peak</span>
+                    <div style={{
+                      flex: 1, height: '4px', borderRadius: '2px',
+                      background: 'rgba(255,77,90,0.06)',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        width: `${Math.min((selectedEvent.peakVolume / 80) * 100, 100)}%`,
+                        height: '100%',
+                        borderRadius: '2px',
+                        background: 'linear-gradient(90deg, #ff4d5a88, #ff4d5a)',
+                        boxShadow: '0 0 4px rgba(255,77,90,0.3)',
+                        transition: 'width 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+                      }} />
+                    </div>
+                    <span style={{
+                      fontSize: '8px', color: '#ff4d5a', fontWeight: 'bold',
+                      minWidth: '20px', textAlign: 'right',
+                    }}>{selectedEvent.peakVolume}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Audio section */}
+            <div style={{ padding: '10px 16px 12px', borderTop: '1px solid rgba(56,243,255,0.06)' }}>
+              {selectedEvent.hasAudio ? (
+                <button
+                  onClick={() => playAudio(selectedEvent.id)}
+                  disabled={audioLoading}
+                  style={{
+                    width: '100%', padding: '10px',
+                    background: audioPlaying ? 'rgba(255,77,90,0.12)' : 'rgba(56,243,255,0.08)',
+                    border: `1px solid ${audioPlaying ? 'rgba(255,77,90,0.35)' : 'rgba(56,243,255,0.25)'}`,
+                    borderRadius: '5px',
+                    color: audioPlaying ? '#ff4d5a' : '#38f3ff',
+                    fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold',
+                    letterSpacing: '0.12em',
+                    cursor: audioLoading ? 'wait' : 'pointer',
+                    boxShadow: audioPlaying
+                      ? '0 0 12px rgba(255,77,90,0.15)'
+                      : '0 0 12px rgba(56,243,255,0.1)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {audioLoading ? '\u23F3 LOADING...' : audioPlaying ? '\u23F9 STOP PLAYBACK' : '\u25B6 PLAY AUDIO'}
+                </button>
+              ) : (
+                <div style={{
+                  fontSize: '9px', color: 'rgba(106,122,138,0.4)',
+                  fontFamily: 'monospace', letterSpacing: '0.12em',
+                  textAlign: 'center',
+                  padding: '4px 0',
+                }}>
+                  NO AUDIO CAPTURED
+                </div>
+              )}
+            </div>
+
+            {/* Dismiss */}
+            <div
+              onClick={() => {
+                setSelectedEvent(null)
+                if (globeRef.current) globeRef.current.controls().autoRotate = true
+              }}
+              style={{
+                padding:        '8px 16px',
+                borderTop:      '1px solid rgba(56,243,255,0.06)',
+                color:          'rgba(56,243,255,0.35)',
+                cursor:         'pointer',
+                fontSize:       '8px',
+                letterSpacing:  '0.2em',
+                textAlign:      'center',
+                textTransform:  'uppercase',
+                transition:     'color 0.15s ease',
+              }}
+            >
+              ESC TO DISMISS
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 })

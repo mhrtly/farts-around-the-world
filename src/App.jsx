@@ -24,6 +24,7 @@ import PanelSection from './components/HUD/PanelSection.jsx'
 import CTAButton from './components/HUD/CTAButton.jsx'
 import MyContributions from './components/HUD/MyContributions.jsx'
 import RecentSignals from './components/HUD/RecentSignals.jsx'
+import TimeFilter from './components/HUD/TimeFilter.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -246,48 +247,7 @@ export default function App() {
             </div>
           </PanelSection>
 
-          {/* Time window filter chips — always visible */}
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {[
-              { label: 'ALL', value: null },
-              { label: '1H', value: 3600000 },
-              { label: '6H', value: 21600000 },
-              { label: '24H', value: 86400000 },
-              { label: '7D', value: 604800000 },
-            ].map(tw => (
-              <button
-                key={tw.label}
-                onClick={() => setTimeWindow(tw.value)}
-                style={{
-                  flex: 1,
-                  padding: '4px 0',
-                  fontSize: '8px',
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  letterSpacing: '0.15em',
-                  border: '1px solid',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                  background: timeWindow === tw.value
-                    ? 'rgba(56,243,255,0.15)'
-                    : 'rgba(56,243,255,0.03)',
-                  borderColor: timeWindow === tw.value
-                    ? 'rgba(56,243,255,0.5)'
-                    : 'rgba(56,243,255,0.12)',
-                  color: timeWindow === tw.value
-                    ? '#38f3ff'
-                    : 'var(--text-dim)',
-                  boxShadow: timeWindow === tw.value
-                    ? '0 0 8px rgba(56,243,255,0.2)'
-                    : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {tw.label}
-              </button>
-            ))}
-          </div>
+          <TimeFilter value={timeWindow} onChange={setTimeWindow} />
 
           <PanelSection id="leaderboard" title="Leaderboard" badge={stats.leaderboard?.length > 0 ? `TOP ${stats.leaderboard.length}` : null}>
             <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />

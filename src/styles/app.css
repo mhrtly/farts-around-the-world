@@ -199,9 +199,15 @@ html, body, #root {
   scrollbar-width: thin;
   scrollbar-color: rgba(56, 243, 255, 0.2) transparent;
 }
-.panel::-webkit-scrollbar { width: 3px; }
-.panel::-webkit-scrollbar-track { background: transparent; }
-.panel::-webkit-scrollbar-thumb { background: rgba(56, 243, 255, 0.2); border-radius: 2px; }
+.panel::-webkit-scrollbar { width: 4px; }
+.panel::-webkit-scrollbar-track { background: rgba(56, 243, 255, 0.02); }
+.panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(56, 243, 255, 0.15), rgba(56, 243, 255, 0.3));
+  border-radius: 2px;
+}
+.panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(56, 243, 255, 0.25), rgba(56, 243, 255, 0.45));
+}
 
 /* Glowing edge on inner side */
 .panel-left::after {
@@ -249,8 +255,34 @@ html, body, #root {
 
 .panel-divider {
   height: 1px;
-  background: rgba(56, 243, 255, 0.08);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(56, 243, 255, 0.15) 20%,
+    rgba(56, 243, 255, 0.15) 80%,
+    transparent
+  );
   margin: 8px 0;
+  position: relative;
+}
+
+.panel-divider::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 30px;
+  height: 3px;
+  background: linear-gradient(90deg, #38f3ff, transparent);
+  opacity: 0.3;
+  animation: dividerSweep 8s linear infinite;
+}
+
+@keyframes dividerSweep {
+  0%   { left: -30px; opacity: 0; }
+  10%  { opacity: 0.3; }
+  90%  { opacity: 0.3; }
+  100% { left: calc(100% + 30px); opacity: 0; }
 }
 
 /* ─── Globe Container ───────────────────────────────────────────── */

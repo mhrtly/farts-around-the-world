@@ -21,6 +21,7 @@ import SessionStats from './components/HUD/SessionStats.jsx'
 import GlobalCoverage from './components/HUD/GlobalCoverage.jsx'
 import ConnectionStatus from './components/HUD/ConnectionStatus.jsx'
 import MilestoneToast from './components/HUD/MilestoneToast.jsx'
+import PanelSection from './components/HUD/PanelSection.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -251,15 +252,14 @@ export default function App() {
 
       <div className={`app-body ${isExpressViewport ? 'app-body--express' : ''}`}>
         <aside className="panel panel-left">
-          <KPIPanel stats={stats} />
+          <PanelSection id="telemetry" title="Telemetry">
+            <KPIPanel stats={stats} />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+              <ActivitySparkline events={filteredEvents} minutes={30} width={160} height={24} />
+            </div>
+          </PanelSection>
 
-          {/* Activity Sparkline */}
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
-            <ActivitySparkline events={filteredEvents} minutes={30} width={160} height={24} />
-          </div>
-
-          {/* Time window filter chips */}
-          <div className="panel-divider" />
+          {/* Time window filter chips — always visible */}
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {[
               { label: 'ALL', value: null },
@@ -302,20 +302,23 @@ export default function App() {
             ))}
           </div>
 
-          <div className="panel-divider" />
-          <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
+          <PanelSection id="leaderboard" title="Leaderboard">
+            <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
+          </PanelSection>
 
-          <div className="panel-divider" />
-          <GlobalCoverage
-            events={events}
-            onCountryClick={(code) => setShowDossier(code)}
-          />
+          <PanelSection id="coverage" title="Coverage" defaultOpen={false}>
+            <GlobalCoverage
+              events={events}
+              onCountryClick={(code) => setShowDossier(code)}
+            />
+          </PanelSection>
 
-          <div className="panel-divider" />
-          <EventFeed
-            events={filteredEvents}
-            onEventClick={(e) => flyToLocation({ lat: e.lat, lng: e.lng, altitude: 1.2 })}
-          />
+          <PanelSection id="feed" title="Event Feed" defaultOpen={false}>
+            <EventFeed
+              events={filteredEvents}
+              onEventClick={(e) => flyToLocation({ lat: e.lat, lng: e.lng, altitude: 1.2 })}
+            />
+          </PanelSection>
         </aside>
 
         <main className="globe-container">

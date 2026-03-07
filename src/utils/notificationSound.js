@@ -1,9 +1,27 @@
 /**
  * Synthesized notification sounds using Web Audio API.
  * No external files needed — all sounds are generated programmatically.
+ * Supports global mute toggle stored in localStorage.
  */
 
 let audioCtx = null
+let _muted = localStorage.getItem('fatwa-sound-muted') === 'true'
+
+/** Check if sounds are currently muted */
+export function isMuted() { return _muted }
+
+/** Toggle mute state, persists to localStorage */
+export function toggleMute() {
+  _muted = !_muted
+  localStorage.setItem('fatwa-sound-muted', String(_muted))
+  return _muted
+}
+
+/** Set mute state explicitly */
+export function setMuted(val) {
+  _muted = !!val
+  localStorage.setItem('fatwa-sound-muted', String(_muted))
+}
 
 function getContext() {
   if (!audioCtx) {
@@ -17,6 +35,7 @@ function getContext() {
  * Two quick ascending tones — sounds like a radar ping.
  */
 export function playEventBlip() {
+  if (_muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
@@ -57,6 +76,7 @@ export function playEventBlip() {
  * Triumphant ascending arpeggio.
  */
 export function playMilestoneChime() {
+  if (_muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
@@ -84,6 +104,7 @@ export function playMilestoneChime() {
  * Subtle warning tone for connection status changes.
  */
 export function playWarningTone() {
+  if (_muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime

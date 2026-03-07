@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import AnimatedNumber from './AnimatedNumber.jsx'
+import { isMuted, toggleMute } from '../../utils/notificationSound.js'
 
 function useClock() {
   const [time, setTime] = useState(() => new Date())
@@ -68,6 +69,26 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
   const mm  = String(now.getUTCMinutes()).padStart(2, '0')
   const ss  = String(now.getUTCSeconds()).padStart(2, '0')
   const dateStr = now.toUTCString().split(' ').slice(1, 4).join(' ')
+  const [muted, setMuted] = useState(isMuted)
+
+  const handleToggleMute = () => {
+    const nowMuted = toggleMute()
+    setMuted(nowMuted)
+  }
+
+  // M key toggles mute
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.key === 'm' || e.key === 'M') {
+        if (!e.metaKey && !e.ctrlKey) {
+          handleToggleMute()
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   return (
     <header className="hud-header">
@@ -115,6 +136,27 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
             {'\u23F1'} {timeWindowLabel}
           </span>
         )}
+
+        {/* Sound toggle */}
+        <button
+          onClick={handleToggleMute}
+          title={`${muted ? 'Unmute' : 'Mute'} notifications (M)`}
+          style={{
+            marginLeft: '12px',
+            background: 'none',
+            border: `1px solid ${muted ? 'rgba(255,77,90,0.2)' : 'rgba(157,255,74,0.2)'}`,
+            borderRadius: '3px',
+            padding: '2px 6px',
+            cursor: 'pointer',
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            color: muted ? '#ff4d5a' : '#9dff4a',
+            letterSpacing: '0.1em',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
       </div>
 
       <div className="hud-header__clock">

@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-// Analyst notes removed — realism pivot
+import { classifyEmission, generatePayloadDescription } from '../../config/humor.ts'
 
 // ── Color palette ────────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ function makePuffMesh(event) {
     emissive: color,
     emissiveIntensity: hasAudio ? 0.7 : 0.4,
     transparent: true,
-    opacity: isEpic ? 0.9 : 0.72,
+    opacity: event.type === 'epic' ? 0.9 : 0.72,
   })
   return new THREE.Mesh(geometry, material)
 }
@@ -393,15 +393,39 @@ export default function GlobeCanvas({ events }) {
           zIndex:           100,
           boxShadow:        '0 0 24px rgba(56,243,255,0.08)',
         }}>
-          <div style={{
-            color: 'var(--accent-cyan)',
-            fontSize: '13px',
-            fontWeight: 'bold',
-            marginBottom: '10px',
-            letterSpacing: '0.12em',
-          }}>
-            {'\uD83D\uDCA8'} EMISSION DATA
-          </div>
+          {(() => {
+            const cls = classifyEmission(selectedEvent.duration, selectedEvent.volume)
+            return (
+              <>
+                {/* Classification header */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  marginBottom: '10px', paddingBottom: '10px',
+                  borderBottom: `1px solid ${cls.color}33`,
+                }}>
+                  <span style={{
+                    fontSize: '8px', padding: '2px 5px', borderRadius: '3px',
+                    background: `${cls.color}22`, border: `1px solid ${cls.color}44`,
+                    color: cls.color, fontWeight: 'bold', letterSpacing: '0.1em',
+                  }}>{cls.code}</span>
+                  <span style={{
+                    fontSize: '13px', fontWeight: 'bold', color: cls.color,
+                    letterSpacing: '0.12em',
+                  }}>{cls.label.toUpperCase()}</span>
+                </div>
+
+                {/* Payload description */}
+                <div style={{
+                  fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic',
+                  marginBottom: '10px', lineHeight: 1.5,
+                  padding: '6px 8px', borderRadius: '3px',
+                  background: 'rgba(6,9,13,0.4)',
+                }}>
+                  {cls.description}
+                </div>
+              </>
+            )
+          })()}
 
           <div>
             <span style={{ color: 'var(--text-label)' }}>Location:&nbsp;</span>

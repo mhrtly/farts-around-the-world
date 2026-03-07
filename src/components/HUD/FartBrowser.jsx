@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { REPORTER_ALIASES, classifyEmission } from '../../config/humor.ts'
+import { REPORTER_ALIASES, classifyEmission, generatePayloadDescription } from '../../config/humor.ts'
 
 const FLAG_EMOJIS = {
   US:'\uD83C\uDDFA\uD83C\uDDF8', GB:'\uD83C\uDDEC\uD83C\uDDE7', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', JP:'\uD83C\uDDEF\uD83C\uDDF5',
@@ -250,27 +250,36 @@ export default function FartBrowser({ events, onClose }) {
                         style={{ paddingTop: '12px', borderTop: '1px solid rgba(56,243,255,0.08)', marginTop: '10px' }}
                         onClick={ev => ev.stopPropagation()}
                       >
-                        {/* Classification badge */}
+                        {/* Classification badge + payload description */}
                         {(() => {
                           const cls = classifyEmission(e.duration, e.volume)
                           return (
-                            <div style={{
-                              display: 'flex', alignItems: 'center', gap: '8px',
-                              marginBottom: '10px', padding: '8px 10px', borderRadius: '4px',
-                              background: `${cls.color}0a`, border: `1px solid ${cls.color}22`,
-                            }}>
-                              <span style={{
-                                fontSize: '8px', padding: '2px 5px', borderRadius: '3px',
-                                background: `${cls.color}22`, border: `1px solid ${cls.color}44`,
-                                color: cls.color, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em',
-                              }}>{cls.code}</span>
-                              <span style={{ fontSize: '11px', fontWeight: 'bold', color: cls.color, fontFamily: 'monospace' }}>
-                                {cls.label.toUpperCase()}
-                              </span>
-                              <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace', flex: 1, textAlign: 'right' }}>
-                                {cls.description.split('.')[0]}
-                              </span>
-                            </div>
+                            <>
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                marginBottom: '6px', padding: '8px 10px', borderRadius: '4px',
+                                background: `${cls.color}0a`, border: `1px solid ${cls.color}22`,
+                              }}>
+                                <span style={{
+                                  fontSize: '8px', padding: '2px 5px', borderRadius: '3px',
+                                  background: `${cls.color}22`, border: `1px solid ${cls.color}44`,
+                                  color: cls.color, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em',
+                                }}>{cls.code}</span>
+                                <span style={{ fontSize: '11px', fontWeight: 'bold', color: cls.color, fontFamily: 'monospace' }}>
+                                  {cls.label.toUpperCase()}
+                                </span>
+                                <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace', flex: 1, textAlign: 'right' }}>
+                                  {cls.description.split('.')[0]}
+                                </span>
+                              </div>
+                              <div style={{
+                                fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace',
+                                fontStyle: 'italic', marginBottom: '10px', padding: '4px 10px',
+                                lineHeight: 1.5,
+                              }}>
+                                {generatePayloadDescription()}
+                              </div>
+                            </>
                           )
                         })()}
 

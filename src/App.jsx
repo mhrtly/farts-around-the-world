@@ -79,6 +79,21 @@ export default function App() {
 
   const closeModal = useCallback(() => setActiveModal(null), [])
 
+  // Keyboard shortcuts: R to record, B to browse
+  useEffect(() => {
+    const handler = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.key === 'r' || e.key === 'R') {
+        setActiveModal(prev => prev === 'record' ? null : 'record')
+      } else if (e.key === 'b' || e.key === 'B') {
+        setActiveModal(prev => prev === 'browse' ? null : 'browse')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   return (
     <div className="app-shell">
       <Header totalToday={stats.totalToday} />
@@ -119,6 +134,9 @@ export default function App() {
             <span style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(255,107,107,0.6)', fontWeight: 'normal' }}>
               Contribute to the global dataset
             </span>
+            <span style={{ fontSize: '8px', color: 'rgba(255,107,107,0.35)', fontWeight: 'normal', letterSpacing: '0.05em' }}>
+              Press R
+            </span>
           </button>
 
           <button
@@ -135,6 +153,9 @@ export default function App() {
             <span>Rate Emissions</span>
             <span style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(56,243,255,0.5)', fontWeight: 'normal' }}>
               Listen, rate, and classify
+            </span>
+            <span style={{ fontSize: '8px', color: 'rgba(56,243,255,0.3)', fontWeight: 'normal', letterSpacing: '0.05em' }}>
+              Press B
             </span>
           </button>
         </aside>

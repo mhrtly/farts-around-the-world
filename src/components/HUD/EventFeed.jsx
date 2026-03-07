@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { REPORTER_ALIASES } from '../../config/humor.ts'
 import { classifyEmission } from '../../config/humor.ts'
 
@@ -23,12 +23,144 @@ function timeSince(ts) {
   return `${Math.floor(s / 3600)}h`
 }
 
+function FeedRow({ event, maxVolume, index, onEventClick }) {
+  const [hovered, setHovered] = useState(false)
+  const cls = classifyEmission(event.duration, event.volume)
+  const isRecent = (Date.now() - event.timestamp) < 30000
+
+  // Volume bar width (relative to max)
+  const volPct = event.volume != null && maxVolume > 0
+    ? Math.round((event.volume / maxVolume) * 100)
+    : 0
+
+  return (
+    <div
+      className="feed-item"
+      onClick={() => onEventClick?.(event)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: onEventClick ? 'pointer' : 'default',
+        borderColor: hovered
+          ? `${cls.color}30`
+          : isRecent
+            ? 'rgba(157,255,74,0.08)'
+            : undefined,
+        background: hovered
+          ? `${cls.color}08`
+          : isRecent
+            ? 'rgba(157,255,74,0.03)'
+            : undefined,
+        boxShadow: hovered
+          ? `inset 2px 0 0 ${cls.color}66`
+          : isRecent
+            ? 'inset 2px 0 0 rgba(157,255,74,0.2)'
+            : undefined,
+        transform: hovered ? 'translateX(2px)' : 'translateX(0)',
+        transition: 'all 0.15s ease',
+        animation: `feed-in 0.25s ease-out ${index * 0.03}s both`,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Volume background bar */}
+      {volPct > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, bottom: 0,
+          width: `${volPct}%`,
+          background: `linear-gradient(90deg, ${cls.color}08, transparent)`,
+          pointerEvents: 'none',
+          transition: 'width 0.3s ease',
+        }} />
+      )}
+
+      <span
+        className="feed-dot"
+        style={{
+          background: cls.color,
+          boxShadow: `0 0 5px ${cls.color}`,
+          position: 'relative',
+          zIndex: 1,
+        }}
+      />
+      <span className="feed-flag" style={{ position: 'relative', zIndex: 1 }}>
+        {FLAG_EMOJIS[event.country] ?? '🌍'}
+      </span>
+      <span className="feed-alias" style={{
+        position: 'relative', zIndex: 1,
+        color: hovered ? 'rgba(56,243,255,0.7)' : undefined,
+      }}>
+        {aliasForEvent(event.id)}
+      </span>
+      <span
+        className="feed-type"
+        style={{
+          color: cls.color,
+          borderColor: `${cls.color}44`,
+          position: 'relative',
+          zIndex: 1,
+          background: hovered ? `${cls.color}15` : undefined,
+        }}
+      >
+        {cls.code}
+      </span>
+      {event.duration != null && (
+        <span className="feed-stat" style={{
+          position: 'relative', zIndex: 1,
+          color: hovered ? '#ff64ff' : undefined,
+          transition: 'color 0.15s ease',
+        }}>
+          {event.duration}s
+        </span>
+      )}
+      {event.volume != null && hovered && (
+        <span style={{
+          fontSize: '8px',
+          color: '#38f3ff',
+          flexShrink: 0,
+          position: 'relative',
+          zIndex: 1,
+          animation: 'fadeIn 0.15s ease',
+        }}>
+          v{event.volume}
+        </span>
+      )}
+      {event.hasAudio && (
+        <span className="feed-audio" style={{ position: 'relative', zIndex: 1 }}>♪</span>
+      )}
+      <span className="feed-time" style={{
+        position: 'relative', zIndex: 1,
+        color: isRecent ? '#9dff4a' : undefined,
+        fontWeight: isRecent ? 'bold' : undefined,
+      }}>
+        {timeSince(event.timestamp)}
+      </span>
+    </div>
+  )
+}
+
 export default function EventFeed({ events, onEventClick }) {
   const displayed = events.slice(0, 15)
 
+  // Find max volume for relative bar sizing
+  const maxVolume = displayed.reduce((max, e) => Math.max(max, e.volume || 0), 0)
+
   return (
     <div className="event-feed">
-      <div className="panel-title">LIVE FEED</div>
+      <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>LIVE FEED</span>
+        {displayed.length > 0 && (
+          <span style={{
+            fontSize: '7px',
+            letterSpacing: '0.1em',
+            color: 'var(--text-dim)',
+            fontWeight: 'normal',
+          }}>
+            {displayed.length} SIGNALS
+          </span>
+        )}
+      </div>
 
       {displayed.length === 0 ? (
         <div style={{
@@ -40,37 +172,15 @@ export default function EventFeed({ events, onEventClick }) {
         </div>
       ) : (
         <div className="feed-list">
-          {displayed.map(e => {
-            const cls = classifyEmission(e.duration, e.volume)
-            return (
-              <div
-                key={e.id}
-                className="feed-item"
-                onClick={() => onEventClick?.(e)}
-                style={{ cursor: onEventClick ? 'pointer' : 'default' }}
-              >
-                <span
-                  className="feed-dot"
-                  style={{ background: cls.color, boxShadow: `0 0 5px ${cls.color}` }}
-                />
-                <span className="feed-flag">{FLAG_EMOJIS[e.country] ?? '🌍'}</span>
-                <span className="feed-alias">{aliasForEvent(e.id)}</span>
-                <span
-                  className="feed-type"
-                  style={{ color: cls.color, borderColor: `${cls.color}44` }}
-                >
-                  {cls.code}
-                </span>
-                {e.duration != null && (
-                  <span className="feed-stat">{e.duration}s</span>
-                )}
-                {e.hasAudio && (
-                  <span className="feed-audio">♪</span>
-                )}
-                <span className="feed-time">{timeSince(e.timestamp)}</span>
-              </div>
-            )
-          })}
+          {displayed.map((e, i) => (
+            <FeedRow
+              key={e.id}
+              event={e}
+              maxVolume={maxVolume}
+              index={i}
+              onEventClick={onEventClick}
+            />
+          ))}
         </div>
       )}
     </div>

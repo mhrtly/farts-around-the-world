@@ -71,6 +71,12 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
   const dateStr = now.toUTCString().split(' ').slice(1, 4).join(' ')
   const [muted, setMuted] = useState(isMuted)
 
+  // Detect if we have recent activity for logo glow
+  const secondsAgo = lastEventTimestamp
+    ? Math.floor((Date.now() - lastEventTimestamp) / 1000)
+    : Infinity
+  const isActive = secondsAgo < 30
+
   const handleToggleMute = () => {
     const nowMuted = toggleMute()
     setMuted(nowMuted)
@@ -93,9 +99,19 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
   return (
     <header className="hud-header">
       <div className="hud-header__logo">
-        <span className="logo-icon">{'\uD83D\uDCA8'}</span>
+        <span className="logo-icon" style={{
+          filter: isActive ? 'drop-shadow(0 0 8px rgba(157,255,74,0.5))' : 'none',
+          transition: 'filter 0.5s ease',
+        }}>💨</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-          <span className="logo-text" style={{ fontSize: '20px', letterSpacing: '0.35em' }}>FATWA</span>
+          <span className="logo-text" style={{
+            fontSize: '20px',
+            letterSpacing: '0.35em',
+            textShadow: isActive
+              ? '0 0 20px rgba(56,243,255,0.4), 0 0 40px rgba(56,243,255,0.15)'
+              : undefined,
+            transition: 'text-shadow 0.5s ease',
+          }}>FATWA</span>
           <span style={{
             fontSize: '8px',
             letterSpacing: '0.15em',
@@ -107,6 +123,8 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
 
       <div className="hud-header__center">
         <LivePulse lastEventTimestamp={lastEventTimestamp} />
+
+        {/* Counters */}
         <span className="header-stat" style={{ marginLeft: '12px' }}>
           TODAY&nbsp;&nbsp;
           <strong className="glow-cyan">
@@ -121,6 +139,27 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
             </strong>
           </span>
         )}
+
+        {/* Rate indicator — events per minute */}
+        {totalToday > 0 && (
+          <span style={{
+            marginLeft: '16px',
+            fontSize: '8px',
+            letterSpacing: '0.12em',
+            color: 'var(--text-dim)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+          }}>
+            <span style={{
+              width: '4px', height: '4px', borderRadius: '50%',
+              background: isActive ? '#9dff4a' : '#38f3ff',
+              opacity: 0.5,
+            }} />
+            {isActive ? 'ACTIVE' : 'MONITORING'}
+          </span>
+        )}
+
         {timeWindowLabel && (
           <span style={{
             marginLeft: '16px',
@@ -133,7 +172,7 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
             color: '#ffb020',
             fontWeight: 'bold',
           }}>
-            {'\u23F1'} {timeWindowLabel}
+            ⏱ {timeWindowLabel}
           </span>
         )}
 

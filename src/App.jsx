@@ -17,6 +17,7 @@ import EventFeed from './components/HUD/EventFeed.jsx'
 import ScienceTicker from './components/HUD/ScienceTicker.jsx'
 import ActivitySparkline from './components/HUD/ActivitySparkline.jsx'
 import EventToast from './components/HUD/EventToast.jsx'
+import SessionStats from './components/HUD/SessionStats.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -416,6 +417,7 @@ export default function App() {
           {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} />}
           <Timeline events={filteredEvents} />
           <ScienceTicker />
+          <SessionStats events={filteredEvents} />
         </>
       )}
 

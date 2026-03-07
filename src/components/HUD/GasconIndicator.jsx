@@ -17,16 +17,30 @@ function getGascon(epm) {
 
 export default function GasconIndicator({ events }) {
   const prevLevelRef = useRef(5)
+  const prevEpmRef = useRef(0)
   const [flash, setFlash] = useState(false)
   const [burstMode, setBurstMode] = useState(false)
   const burstTimerRef = useRef(null)
 
-  const { gascon, epm, burstCount } = useMemo(() => {
+  const { gascon, epm, burstCount, trend, countriesActive } = useMemo(() => {
     const now = Date.now()
     const recent60 = events.filter(e => now - e.timestamp < 60000)
     const recent3  = events.filter(e => now - e.timestamp < 3000).length
-    return { epm: recent60.length, gascon: getGascon(recent60.length), burstCount: recent3 }
+    // Count active countries in last 60s
+    const countries = new Set(recent60.map(e => e.country).filter(Boolean))
+    return {
+      epm: recent60.length,
+      gascon: getGascon(recent60.length),
+      burstCount: recent3,
+      trend: recent60.length > prevEpmRef.current ? 'up' : recent60.length < prevEpmRef.current ? 'down' : 'stable',
+      countriesActive: countries.size,
+    }
   }, [events])
+
+  // Track EPM changes for trend
+  useEffect(() => {
+    prevEpmRef.current = epm
+  }, [epm])
 
   // Detect level change → flash
   useEffect(() => {
@@ -47,6 +61,8 @@ export default function GasconIndicator({ events }) {
   }, [burstCount])
 
   const isCritical = gascon.level <= 2
+  const trendArrow = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '—'
+  const trendColor = trend === 'up' ? '#ff4d5a' : trend === 'down' ? '#9dff4a' : 'var(--text-dim)'
 
   return (
     <div
@@ -82,7 +98,27 @@ export default function GasconIndicator({ events }) {
       </span>
 
       <span className="gascon-sep">|</span>
-      <span className="gascon-stat">EPM <span style={{ color: gascon.color }}>{epm}</span></span>
+      <span className="gascon-stat">
+        EPM{' '}
+        <span style={{ color: gascon.color, fontWeight: 'bold' }}>{epm}</span>
+        <span style={{
+          marginLeft: '4px',
+          fontSize: '8px',
+          color: trendColor,
+          textShadow: trend !== 'stable' ? `0 0 4px ${trendColor}55` : 'none',
+          transition: 'color 0.3s ease',
+        }}>
+          {trendArrow}
+        </span>
+      </span>
+
+      <span className="gascon-sep">|</span>
+      <span className="gascon-stat">
+        <span style={{ color: countriesActive > 0 ? '#38f3ff' : 'var(--text-dim)' }}>
+          {countriesActive}
+        </span>
+        {' '}RGN
+      </span>
 
       {burstMode && (
         <span className="gascon-burst">⚡ BURST DETECTED</span>

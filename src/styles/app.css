@@ -843,7 +843,34 @@ html, body, #root {
     rgba(56, 243, 255, 0.35) 100%
   );
   box-shadow: 0 0 4px rgba(56, 243, 255, 0.6), 0 -2px 8px rgba(56, 243, 255, 0.3);
-  transition: height 0.15s ease-out;
+  transition: height 0.15s ease-out, opacity 0.2s ease, transform 0.1s ease;
+  cursor: crosshair;
+}
+
+/* Peak bar — amber glow */
+.timeline-hud__bar--peak {
+  background: linear-gradient(
+    180deg,
+    #fff 0%,
+    #ffb020 25%,
+    rgba(255, 176, 32, 0.45) 100%
+  );
+  box-shadow:
+    0 0 6px rgba(255, 176, 32, 0.7),
+    0 -3px 10px rgba(255, 176, 32, 0.4);
+}
+
+/* Current-second indicator — rightmost bar pulses */
+.timeline-hud__bar--current {
+  border-top: 1px solid rgba(157, 255, 74, 0.6);
+  box-shadow:
+    0 0 4px rgba(157, 255, 74, 0.5),
+    0 -2px 8px rgba(157, 255, 74, 0.2);
+}
+
+@keyframes timelineBarIn {
+  from { opacity: 0; transform: scaleY(0); }
+  to   { opacity: 1; transform: scaleY(1); }
 }
 
 /* ─── Epic Alert ────────────────────────────────────────────────── */

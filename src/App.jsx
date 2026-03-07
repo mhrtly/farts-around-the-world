@@ -17,9 +17,8 @@ import EventFeed from './components/HUD/EventFeed.jsx'
 import ScienceTicker from './components/HUD/ScienceTicker.jsx'
 import ActivitySparkline from './components/HUD/ActivitySparkline.jsx'
 import EventToast from './components/HUD/EventToast.jsx'
-import SessionStats from './components/HUD/SessionStats.jsx'
 import GlobalCoverage from './components/HUD/GlobalCoverage.jsx'
-import ConnectionStatus from './components/HUD/ConnectionStatus.jsx'
+import StatusFooter from './components/HUD/StatusFooter.jsx'
 import MilestoneToast from './components/HUD/MilestoneToast.jsx'
 import PanelSection from './components/HUD/PanelSection.jsx'
 import CTAButton from './components/HUD/CTAButton.jsx'
@@ -396,8 +395,7 @@ export default function App() {
           {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} />}
           <Timeline events={filteredEvents} />
           <ScienceTicker />
-          <ConnectionStatus isConnected={wsConnected} lastEventTimestamp={filteredEvents[0]?.timestamp} />
-          <SessionStats events={filteredEvents} />
+          <StatusFooter isConnected={wsConnected} lastEventTimestamp={filteredEvents[0]?.timestamp} events={filteredEvents} />
         </>
       )}
 

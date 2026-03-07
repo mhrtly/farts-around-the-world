@@ -145,7 +145,7 @@ export default function EventToast({ events }) {
   return (
     <div style={{
       position: 'fixed',
-      bottom: '80px',
+      bottom: '160px',
       right: '20px',
       zIndex: 7000,
       pointerEvents: 'none',

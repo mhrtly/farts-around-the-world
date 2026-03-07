@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { validateFartEvent } from './validation.js'
-import { insertEvent, getRecentEvents, getEventsByRange, getStats, getAudio } from './db.js'
+import { insertEvent, getRecentEvents, getEventsByRange, getStats, getAudio, updateEventRating } from './db.js'
 
 const startTime = Date.now()
 
@@ -55,6 +55,24 @@ export default function createRoutes(io) {
     } catch (err) {
       console.error('[DB ERROR]', err.message)
       res.status(500).json({ error: 'Failed to fetch audio' })
+    }
+  })
+
+  // Rate a fart event
+  router.patch('/api/events/:id/rate', (req, res) => {
+    const { rating } = req.body
+    if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 10) {
+      return res.status(400).json({ error: 'rating must be an integer between 1 and 10' })
+    }
+    try {
+      const updated = updateEventRating(req.params.id, rating)
+      if (!updated) {
+        return res.status(404).json({ error: 'Event not found' })
+      }
+      res.json({ id: req.params.id, rating })
+    } catch (err) {
+      console.error('[DB ERROR]', err.message)
+      res.status(500).json({ error: 'Failed to update rating' })
     }
   })
 

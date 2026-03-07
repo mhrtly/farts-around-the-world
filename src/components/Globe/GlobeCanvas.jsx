@@ -38,11 +38,10 @@ const TYPE_CSS_COLOR = {
   'silent-but-deadly':'var(--accent-lime)',
 }
 
-// Altitude gained per second as the puff rises
 const RISE_SPEED = {
   standard:           0.015,
   epic:               0.020,
-  'silent-but-deadly': 0.008,  // creeping, ominous
+  'silent-but-deadly': 0.008,
 }
 
 const PUFF_LIFETIME_MS = 5000
@@ -52,14 +51,33 @@ const PUFF_LIFETIME_MS = 5000
 function makePuffMesh(event) {
   const isEpic = event.type === 'epic'
   const isSBD  = event.type === 'silent-but-deadly'
+  const hasAudio = !!event.hasAudio
 
-  const baseRadius = isEpic ? 0.4 + event.intensity * 0.18
-                   : isSBD  ? 0.22 + event.intensity * 0.10
-                   :          0.25 + event.intensity * 0.12
+  let baseRadius = isEpic ? 0.4 + event.intensity * 0.18
+                 : isSBD  ? 0.22 + event.intensity * 0.10
+                 :          0.25 + event.intensity * 0.12
 
-  const geometry = new THREE.SphereGeometry(baseRadius, 8, 6)
-  const material = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(CLOUD_COLOR_HEX[event.type] ?? CLOUD_COLOR_HEX.standard),
+  // Audio events are larger and more visible
+  if (hasAudio) baseRadius *= 1.4
+
+  // Cloud-like geometry: perturb vertices for lumpy shape
+  const geometry = new THREE.SphereGeometry(baseRadius, 10, 8)
+  const positions = geometry.attributes.position
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i)
+    const y = positions.getY(i)
+    const z = positions.getZ(i)
+    const noise = 1 + (Math.sin(x * 5.3 + i) * Math.cos(y * 4.1 + i) * 0.3)
+    positions.setXYZ(i, x * noise, y * noise, z * noise)
+  }
+  geometry.attributes.position.needsUpdate = true
+  geometry.computeVertexNormals()
+
+  const color = new THREE.Color(CLOUD_COLOR_HEX[event.type] ?? CLOUD_COLOR_HEX.standard)
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: hasAudio ? 0.7 : 0.4,
     transparent: true,
     opacity: isEpic ? 0.9 : 0.72,
   })
@@ -93,18 +111,24 @@ function randomItem(arr) {
 export default function GlobeCanvas({ events }) {
   const mountRef   = useRef(null)
   const globeRef   = useRef(null)
-  const puffsRef   = useRef([])        // live puff data array
+  const puffsRef   = useRef([])
   const layerTimer = useRef(null)
   const puffTimer  = useRef(null)
   const prevCount  = useRef(0)
 
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const selectedEventRef = useRef(null) // ref for hover callbacks (avoids stale closure)
   const analystNote = useRef('')
 
   // Audio playback state
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [audioLoading, setAudioLoading] = useState(false)
   const audioRef = useRef(null)
+
+  // Keep ref in sync with state (for globe hover callbacks)
+  useEffect(() => {
+    selectedEventRef.current = selectedEvent
+  }, [selectedEvent])
 
   // ── Init ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -119,13 +143,12 @@ export default function GlobeCanvas({ events }) {
       .atmosphereColor('#38f3ff')
       .atmosphereAltitude(0.22)
 
-      // ── Rising cloud puffs (Task 1) ────────────────────────────────────
+      // ── Rising cloud puffs ────────────────────────────────────────────
       .objectsData([])
       .objectLat('lat')
       .objectLng('lng')
       .objectAltitude(d => getPuffAltitude(d))
       .objectThreeObject(d => {
-        // Cache mesh on datum — prevents globe.gl recreating it each tick
         if (!d._mesh) d._mesh = makePuffMesh(d)
         return d._mesh
       })
@@ -134,8 +157,15 @@ export default function GlobeCanvas({ events }) {
         setSelectedEvent(obj)
         g.controls().autoRotate = false
       })
+      .onObjectHover(obj => {
+        if (obj) {
+          g.controls().autoRotate = false
+        } else if (!selectedEventRef.current) {
+          g.controls().autoRotate = true
+        }
+      })
 
-      // ── Rings — shockwaves for epic + SBD ─────────────────────────────
+      // ── Rings — shockwaves ───────────────────────────────────────────
       .ringsData([])
       .ringLat('lat')
       .ringLng('lng')
@@ -145,12 +175,15 @@ export default function GlobeCanvas({ events }) {
       .ringRepeatPeriod(1400)
       .ringAltitude(0.003)
 
-      // ── Points — ground-level location markers ─────────────────────────
+      // ── Points — ground-level location markers ────────────────────────
       .pointsData([])
       .pointLat('lat')
       .pointLng('lng')
       .pointAltitude(0.012)
-      .pointRadius(d => 0.25 + d.intensity * 0.06)
+      .pointRadius(d => {
+        const base = 0.25 + d.intensity * 0.06
+        return d.hasAudio ? base * 1.5 : base
+      })
       .pointColor(d => POINT_COLORS[d.type] ?? POINT_COLORS.standard)
       .pointsMerge(false)
       .pointsTransitionDuration(300)
@@ -159,8 +192,15 @@ export default function GlobeCanvas({ events }) {
         setSelectedEvent(point)
         g.controls().autoRotate = false
       })
+      .onPointHover(point => {
+        if (point) {
+          g.controls().autoRotate = false
+        } else if (!selectedEventRef.current) {
+          g.controls().autoRotate = true
+        }
+      })
 
-      // ── HexBin density columns ─────────────────────────────────────────
+      // ── HexBin density columns ────────────────────────────────────────
       .hexBinPointsData([])
       .hexBinPointLat('lat')
       .hexBinPointLng('lng')
@@ -178,16 +218,16 @@ export default function GlobeCanvas({ events }) {
       .hexBinMerge(true)
       .hexTransitionDuration(700)
 
-      // ── Labels — audio indicators for clickable events ────────────────
+      // ── Labels — audio indicators ─────────────────────────────────────
       .labelsData([])
       .labelLat('lat')
       .labelLng('lng')
       .labelText('text')
       .labelColor(() => 'rgba(255,200,60,0.95)')
-      .labelSize(0.8)
+      .labelSize(1.2)
       .labelDotRadius(0)
       .labelResolution(3)
-      .labelAltitude(0.025)
+      .labelAltitude(0.045)
 
       // Click empty globe → dismiss overlay, resume rotate
       .onGlobeClick(() => {
@@ -201,25 +241,25 @@ export default function GlobeCanvas({ events }) {
     g.controls().enableDamping   = true
     g.controls().dampingFactor   = 0.08
 
-    // ── UnrealBloomPass (Task 2) ───────────────────────────────────────
+    // ── UnrealBloomPass ──────────────────────────────────────────────
     const renderer = g.renderer()
     const scene    = g.scene()
     const camera   = g.camera()
+
+    // Add ambient light so MeshStandardMaterial is visible
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6))
 
     const composer = new EffectComposer(renderer)
     composer.addPass(new RenderPass(scene, camera))
 
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.75,  // strength — visible but not washed out
-      0.4,   // radius
-      0.65   // threshold — catches cyan, pink, and lime
+      0.75,
+      0.4,
+      0.65
     )
     composer.addPass(bloomPass)
 
-    // Intercept renderer.render so globe.gl's internal loop renders
-    // through the EffectComposer instead of directly to screen.
-    // The flag prevents infinite recursion when composer calls renderer.render.
     let composerActive = false
     const _render = renderer.render.bind(renderer)
     renderer.render = (sc, cam) => {
@@ -229,34 +269,28 @@ export default function GlobeCanvas({ events }) {
       composerActive = false
     }
 
-    // ── Puff animation loop ────────────────────────────────────────────
-    // Runs at 20fps: removes expired puffs, updates mesh opacity/scale,
-    // then pushes updated data to globe.gl so altitude accessors re-fire.
+    // ── Puff animation loop ──────────────────────────────────────────
     puffTimer.current = setInterval(() => {
       const now = Date.now()
 
-      // Expire old puffs
       puffsRef.current = puffsRef.current.filter(
         p => now - p._birthTime < PUFF_LIFETIME_MS
       )
 
-      // Update Three.js mesh properties directly
       for (const p of puffsRef.current) {
         if (p._mesh) {
           p._mesh.material.opacity = getPuffOpacity(p)
-          // Gentle expansion as the puff rises
           const ageFrac = (now - p._birthTime) / PUFF_LIFETIME_MS
           p._mesh.scale.setScalar(1 + ageFrac * 0.7)
         }
       }
 
-      // Push to globe.gl — this re-fires objectAltitude, making puffs rise
       if (globeRef.current) {
         globeRef.current.objectsData([...puffsRef.current])
       }
     }, 50)
 
-    // Resize handler — keeps composer and bloom pass in sync
+    // Resize handler
     const resize = () => {
       if (!mountRef.current) return
       const w = mountRef.current.clientWidth
@@ -274,7 +308,7 @@ export default function GlobeCanvas({ events }) {
     return () => {
       window.removeEventListener('resize', resize)
       clearInterval(puffTimer.current)
-      renderer.render = _render  // restore original renderer
+      renderer.render = _render
       globeRef.current = null
     }
   }, [])
@@ -289,21 +323,20 @@ export default function GlobeCanvas({ events }) {
     prevCount.current = newCount
 
     if (newEvents.length > 0) {
-      // Spawn a puff for each new event
       const newPuffs = newEvents.map(e => ({
         ...e,
-        _birthTime: Date.now(),  // animation clock starts on arrival
+        _birthTime: Date.now(),
         _mesh: null,
       }))
       puffsRef.current = [...newPuffs, ...puffsRef.current].slice(0, 60)
 
-      // Rings for ALL events — visible shockwave on every submission
+      // Rings for ALL events
       const stamped = newEvents.map(e => ({ ...e, _ts: Date.now() }))
       const alive   = g.ringsData().filter(r => Date.now() - r._ts < 10000)
       g.ringsData([...stamped, ...alive].slice(0, 40))
     }
 
-    // Throttled: points + hexbin + labels (heavier)
+    // Throttled: points + hexbin + labels
     clearTimeout(layerTimer.current)
     layerTimer.current = setTimeout(() => {
       const now    = Date.now()
@@ -311,11 +344,11 @@ export default function GlobeCanvas({ events }) {
       g.pointsData(recent.slice(0, 200))
       g.hexBinPointsData(events.filter(e => now - e.timestamp < 600_000))
 
-      // Floating labels for events with audio (clickable indicators)
+      // Audio indicator labels
       const audioEvents = events
         .filter(e => e.hasAudio && now - e.timestamp < 300_000)
         .slice(0, 15)
-        .map(e => ({ ...e, text: '\u266B' })) // ♫ music note
+        .map(e => ({ ...e, text: '\uD83D\uDD0A' })) // 🔊
       g.labelsData(audioEvents)
     }, 400)
 
@@ -332,7 +365,6 @@ export default function GlobeCanvas({ events }) {
   }, [selectedEvent])
 
   const playAudio = async (eventId) => {
-    // Toggle off if already playing
     if (audioPlaying && audioRef.current) {
       audioRef.current.pause()
       audioRef.current = null
@@ -354,13 +386,13 @@ export default function GlobeCanvas({ events }) {
       await audio.play()
       setAudioPlaying(true)
     } catch {
-      // silently fail — no audio available
+      // silently fail
     } finally {
       setAudioLoading(false)
     }
   }
 
-  // ── Escape key → dismiss overlay ─────────────────────────────────────────
+  // ── Escape key → dismiss overlay ───────────────────────────────────────
   useEffect(() => {
     const onKey = e => {
       if (e.key === 'Escape' && selectedEvent) {
@@ -372,7 +404,7 @@ export default function GlobeCanvas({ events }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [selectedEvent])
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div
@@ -380,7 +412,6 @@ export default function GlobeCanvas({ events }) {
         style={{ width: '100%', height: '100%', background: 'transparent' }}
       />
 
-      {/* Task 3 — Event Intercept overlay */}
       {selectedEvent && (
         <div style={{
           position:         'absolute',
@@ -407,29 +438,14 @@ export default function GlobeCanvas({ events }) {
             marginBottom:  '10px',
             letterSpacing: '0.12em',
           }}>
-            ◉ EVENT INTERCEPT
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-label)' }}>Type:&nbsp;&nbsp;&nbsp;&nbsp;</span>
-            <span style={{
-              color:      TYPE_CSS_COLOR[selectedEvent.type] ?? 'var(--accent-cyan)',
-              fontWeight: 'bold',
-            }}>
-              {TYPE_LABELS[selectedEvent.type] ?? selectedEvent.type.toUpperCase()}
-            </span>
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-label)' }}>Intensity: </span>
-            <span style={{ color: 'var(--text-primary)' }}>{selectedEvent.intensity}/10</span>
+            {selectedEvent.hasAudio ? '\uD83D\uDD0A' : '\u25C9'} EVENT INTERCEPT
           </div>
 
           <div>
             <span style={{ color: 'var(--text-label)' }}>Grid:&nbsp;&nbsp;&nbsp;&nbsp;</span>
             <span style={{ color: 'var(--text-primary)' }}>
-              {Math.abs(selectedEvent.lat).toFixed(4)}°{selectedEvent.lat >= 0 ? 'N' : 'S'},&nbsp;
-              {Math.abs(selectedEvent.lng).toFixed(4)}°{selectedEvent.lng >= 0 ? 'E' : 'W'}
+              {Math.abs(selectedEvent.lat).toFixed(4)}{'\u00B0'}{selectedEvent.lat >= 0 ? 'N' : 'S'},&nbsp;
+              {Math.abs(selectedEvent.lng).toFixed(4)}{'\u00B0'}{selectedEvent.lng >= 0 ? 'E' : 'W'}
             </span>
           </div>
 
@@ -443,27 +459,38 @@ export default function GlobeCanvas({ events }) {
             <span style={{ color: 'var(--text-primary)' }}>{formatUTC(selectedEvent.timestamp)}</span>
           </div>
 
-          {selectedEvent.hasAudio && (
+          {selectedEvent.hasAudio ? (
             <div style={{ marginBottom: '10px' }}>
               <button
                 onClick={() => playAudio(selectedEvent.id)}
                 disabled={audioLoading}
                 style={{
                   width:           '100%',
-                  padding:         '8px',
-                  background:      audioPlaying ? 'rgba(255,77,90,0.15)' : 'rgba(56,243,255,0.1)',
-                  border:          `1px solid ${audioPlaying ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.3)'}`,
+                  padding:         '10px',
+                  background:      audioPlaying ? 'rgba(255,77,90,0.15)' : 'rgba(56,243,255,0.12)',
+                  border:          `1px solid ${audioPlaying ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.35)'}`,
                   borderRadius:    '4px',
                   color:           audioPlaying ? '#ff4d5a' : '#38f3ff',
                   fontFamily:      'monospace',
-                  fontSize:        '11px',
+                  fontSize:        '12px',
                   fontWeight:      'bold',
                   letterSpacing:   '0.12em',
                   cursor:          audioLoading ? 'wait' : 'pointer',
+                  boxShadow:       audioPlaying ? '0 0 12px rgba(255,77,90,0.2)' : '0 0 12px rgba(56,243,255,0.15)',
                 }}
               >
-                {audioLoading ? '⏳ LOADING...' : audioPlaying ? '⏹ STOP PLAYBACK' : '🔊 PLAY FART AUDIO'}
+                {audioLoading ? '\u23F3 LOADING...' : audioPlaying ? '\u23F9 STOP PLAYBACK' : '\uD83D\uDD0A PLAY FART AUDIO'}
               </button>
+            </div>
+          ) : (
+            <div style={{
+              fontSize: '10px',
+              color: 'rgba(106,122,138,0.6)',
+              fontFamily: 'monospace',
+              letterSpacing: '0.1em',
+              marginBottom: '10px',
+            }}>
+              NO AUDIO RECORDED
             </div>
           )}
 

@@ -33,6 +33,13 @@ try {
   // Column already exists — ignore
 }
 
+// Add user_rating column (migration-safe)
+try {
+  db.exec(`ALTER TABLE events ADD COLUMN user_rating INTEGER DEFAULT NULL`)
+} catch {
+  // Column already exists — ignore
+}
+
 // Prepared statements
 const stmts = {
   insert: db.prepare(`
@@ -42,13 +49,15 @@ const stmts = {
 
   recent: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
-           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio
+           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
+           user_rating
     FROM events ORDER BY timestamp DESC LIMIT ?
   `),
 
   range: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
-           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio
+           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
+           user_rating
     FROM events WHERE timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp DESC
   `),
@@ -76,6 +85,10 @@ const stmts = {
     WHERE timestamp >= ?
     GROUP BY type
   `),
+
+  updateRating: db.prepare(`
+    UPDATE events SET user_rating = ? WHERE id = ?
+  `),
 }
 
 export function insertEvent(event) {
@@ -93,6 +106,11 @@ export function getEventsByRange(start, end) {
 export function getAudio(eventId) {
   const row = stmts.audio.get(eventId)
   return row?.audio_data || null
+}
+
+export function updateEventRating(id, rating) {
+  const result = stmts.updateRating.run(rating, id)
+  return result.changes > 0
 }
 
 export function getStats() {

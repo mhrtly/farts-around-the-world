@@ -3,7 +3,7 @@ import GlobeCanvas from './components/Globe/GlobeCanvas.jsx'
 import Header from './components/HUD/Header.jsx'
 import KPIPanel from './components/HUD/KPIPanel.jsx'
 import Leaderboard from './components/HUD/Leaderboard.jsx'
-import EventFeed from './components/HUD/EventFeed.jsx'
+import FartBrowser from './components/HUD/FartBrowser.jsx'
 import Timeline from './components/HUD/Timeline.jsx'
 import EpicAlert from './components/HUD/EpicAlert.jsx'
 import GasconIndicator from './components/HUD/GasconIndicator.jsx'
@@ -73,7 +73,7 @@ export default function App() {
           <div className="panel-divider" />
           <MethaneWaveform events={events} />
           <div className="panel-divider" />
-          <EventFeed events={events.slice(0, 40)} />
+          <FartBrowser events={events.slice(0, 40)} />
         </aside>
       </div>
 

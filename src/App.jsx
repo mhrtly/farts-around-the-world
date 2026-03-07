@@ -14,6 +14,8 @@ import HighlightsStrip from './components/HUD/HighlightsStrip.jsx'
 import CountryDossier from './components/HUD/CountryDossier.jsx'
 import SpotlightTour from './components/HUD/SpotlightTour.jsx'
 import EventFeed from './components/HUD/EventFeed.jsx'
+import ScienceTicker from './components/HUD/ScienceTicker.jsx'
+import ActivitySparkline from './components/HUD/ActivitySparkline.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -238,6 +240,11 @@ export default function App() {
         <aside className="panel panel-left">
           <KPIPanel stats={stats} />
 
+          {/* Activity Sparkline */}
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+            <ActivitySparkline events={filteredEvents} minutes={30} width={160} height={24} />
+          </div>
+
           {/* Time window filter chips */}
           <div className="panel-divider" />
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -404,6 +411,7 @@ export default function App() {
         <>
           {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} />}
           <Timeline events={filteredEvents} />
+          <ScienceTicker />
         </>
       )}
 

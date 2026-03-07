@@ -89,6 +89,29 @@
   }
 }
 
+/* --- GASCON Threat Animation --- */
+
+@keyframes gascon-pulse {
+  0%, 100% { opacity: 0.75; }
+  50%       { opacity: 1; }
+}
+
+@keyframes gascon-critical-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 8px var(--gascon-glow),
+      0 0 2px var(--gascon-color),
+      inset 0 0 4px rgba(0,0,0,0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 16px var(--gascon-glow),
+      0 0 4px var(--gascon-color),
+      0 0 28px var(--gascon-glow),
+      inset 0 0 4px rgba(0,0,0,0.4);
+  }
+}
+
 /* --- Animation Utility Classes --- */
 
 .animate-blink {

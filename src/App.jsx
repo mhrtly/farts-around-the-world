@@ -18,6 +18,9 @@ import ScienceTicker from './components/HUD/ScienceTicker.jsx'
 import ActivitySparkline from './components/HUD/ActivitySparkline.jsx'
 import EventToast from './components/HUD/EventToast.jsx'
 import SessionStats from './components/HUD/SessionStats.jsx'
+import GlobalCoverage from './components/HUD/GlobalCoverage.jsx'
+import ConnectionStatus from './components/HUD/ConnectionStatus.jsx'
+import MilestoneToast from './components/HUD/MilestoneToast.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -75,6 +78,7 @@ export default function App() {
     maxVolume: null,
     leaderboard: [],
   })
+  const [wsConnected, setWsConnected] = useState(false)
   const streamRef = useRef(null)
   const globeCanvasRef = useRef(null)
 
@@ -107,7 +111,11 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
-    createStream(handleNewEvent).then(stream => {
+    createStream({
+      onEvent: handleNewEvent,
+      onConnect: () => setWsConnected(true),
+      onDisconnect: () => setWsConnected(false),
+    }).then(stream => {
       if (!cancelled) streamRef.current = stream
     })
     fetchEvents()
@@ -298,6 +306,12 @@ export default function App() {
           <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
 
           <div className="panel-divider" />
+          <GlobalCoverage
+            events={events}
+            onCountryClick={(code) => setShowDossier(code)}
+          />
+
+          <div className="panel-divider" />
           <EventFeed
             events={filteredEvents}
             onEventClick={(e) => flyToLocation({ lat: e.lat, lng: e.lng, altitude: 1.2 })}
@@ -417,6 +431,7 @@ export default function App() {
           {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} />}
           <Timeline events={filteredEvents} />
           <ScienceTicker />
+          <ConnectionStatus isConnected={wsConnected} lastEventTimestamp={filteredEvents[0]?.timestamp} />
           <SessionStats events={filteredEvents} />
         </>
       )}
@@ -454,6 +469,7 @@ export default function App() {
       )}
 
       {!isExpressViewport && <EventToast events={filteredEvents} />}
+      <MilestoneToast events={events} />
     </div>
   )
 }

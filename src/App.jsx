@@ -9,6 +9,8 @@ import SubmitPanel from './components/HUD/SubmitPanel.jsx'
 import FartBrowser from './components/HUD/FartBrowser.jsx'
 import FATWAExpressPanel from './components/HUD/FATWAExpressPanel.jsx'
 import CommandPalette from './components/HUD/CommandPalette.jsx'
+import ShortcutsOverlay from './components/HUD/ShortcutsOverlay.jsx'
+import HighlightsStrip from './components/HUD/HighlightsStrip.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -48,6 +50,7 @@ export default function App() {
   const [events, setEvents]           = useState([])
   const [activeModal, setActiveModal] = useState(null)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [timeWindow, setTimeWindow]   = useState(null) // null = all, or ms duration
   const [isExpressViewport, setIsExpressViewport] = useState(() => window.innerWidth <= 900)
   const [stats, setStats]             = useState({
@@ -177,6 +180,13 @@ export default function App() {
       if (e.key === '/' && !showCommandPalette && !activeModal) {
         e.preventDefault()
         setShowCommandPalette(true)
+        return
+      }
+
+      // ? → toggle shortcuts overlay
+      if (e.key === '?' && !showCommandPalette && !activeModal) {
+        e.preventDefault()
+        setShowShortcuts(prev => !prev)
         return
       }
 
@@ -341,13 +351,22 @@ export default function App() {
         </aside>
       </div>
 
-      {!isExpressViewport && <Timeline events={filteredEvents} />}
+      {!isExpressViewport && (
+        <>
+          {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} />}
+          <Timeline events={filteredEvents} />
+        </>
+      )}
 
       {showCommandPalette && (
         <CommandPalette
           onClose={() => setShowCommandPalette(false)}
           onAction={handleCommandAction}
         />
+      )}
+
+      {showShortcuts && (
+        <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
       )}
     </div>
   )

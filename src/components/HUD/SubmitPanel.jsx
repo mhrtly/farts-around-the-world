@@ -1,49 +1,32 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 
-// Nearest-country lookup from coordinates (capital cities)
-const COUNTRY_COORDS = [
-  { code: 'US', name: 'United States', lat: 38.9, lng: -77.0 },
-  { code: 'GB', name: 'United Kingdom', lat: 51.5, lng: -0.1 },
-  { code: 'DE', name: 'Germany', lat: 52.5, lng: 13.4 },
-  { code: 'FR', name: 'France', lat: 48.9, lng: 2.4 },
-  { code: 'JP', name: 'Japan', lat: 35.7, lng: 139.7 },
-  { code: 'CN', name: 'China', lat: 39.9, lng: 116.4 },
-  { code: 'BR', name: 'Brazil', lat: -15.8, lng: -47.9 },
-  { code: 'IN', name: 'India', lat: 28.6, lng: 77.2 },
-  { code: 'AU', name: 'Australia', lat: -35.3, lng: 149.1 },
-  { code: 'CA', name: 'Canada', lat: 45.4, lng: -75.7 },
-  { code: 'MX', name: 'Mexico', lat: 19.4, lng: -99.1 },
-  { code: 'RU', name: 'Russia', lat: 55.8, lng: 37.6 },
-  { code: 'NG', name: 'Nigeria', lat: 9.1, lng: 7.5 },
-  { code: 'ZA', name: 'South Africa', lat: -25.7, lng: 28.2 },
-  { code: 'EG', name: 'Egypt', lat: 30.0, lng: 31.2 },
-  { code: 'AR', name: 'Argentina', lat: -34.6, lng: -58.4 },
-  { code: 'KR', name: 'South Korea', lat: 37.6, lng: 127.0 },
-  { code: 'ID', name: 'Indonesia', lat: -6.2, lng: 106.8 },
-  { code: 'TR', name: 'Turkey', lat: 39.9, lng: 32.9 },
-  { code: 'IT', name: 'Italy', lat: 41.9, lng: 12.5 },
-]
+// Supported country codes for the app
+const SUPPORTED_COUNTRIES = new Set([
+  'US', 'GB', 'DE', 'FR', 'JP', 'CN', 'BR', 'IN', 'AU', 'CA',
+  'MX', 'RU', 'NG', 'ZA', 'EG', 'AR', 'KR', 'ID', 'TR', 'IT',
+])
 
-function nearestCountry(lat, lng) {
-  let best = COUNTRY_COORDS[0]
-  let bestDist = Infinity
-  for (const c of COUNTRY_COORDS) {
-    const d = (c.lat - lat) ** 2 + (c.lng - lng) ** 2
-    if (d < bestDist) { bestDist = d; best = c }
+// Reverse geocode via free BigDataCloud API (no key needed, client-side)
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+    )
+    if (!res.ok) throw new Error('Geocode failed')
+    const data = await res.json()
+    const code = (data.countryCode || '').toUpperCase()
+    const name = data.countryName || code
+    // Map to supported country or keep raw code
+    return { code: SUPPORTED_COUNTRIES.has(code) ? code : code, name }
+  } catch {
+    return { code: 'XX', name: 'Unknown' }
   }
-  return best
 }
 
 const INTENSITY_LABELS = {
   1: 'Whisper', 2: 'Gentle', 3: 'Mild', 4: 'Moderate', 5: 'Notable',
   6: 'Significant', 7: 'Substantial', 8: 'Severe', 9: 'Extreme', 10: 'Catastrophic',
 }
-
-const TYPES = [
-  { value: 'standard', label: 'Standard' },
-  { value: 'epic', label: 'Epic' },
-  { value: 'silent-but-deadly', label: 'SBD' },
-]
 
 const MAX_RECORD_SECONDS = 10
 
@@ -66,7 +49,6 @@ export default function SubmitPanel() {
 
   // Form state
   const [intensity, setIntensity] = useState(5)
-  const [type, setType] = useState('standard')
 
   // Submit state
   const [submitting, setSubmitting] = useState(false)
@@ -94,10 +76,10 @@ export default function SubmitPanel() {
     setLocating(true)
     setLocError(null)
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = pos.coords.latitude
         const lng = pos.coords.longitude
-        const country = nearestCountry(lat, lng)
+        const country = await reverseGeocode(lat, lng)
         setLocation({ lat: +lat.toFixed(4), lng: +lng.toFixed(4), country: country.code, countryName: country.name })
         setLocating(false)
       },
@@ -199,7 +181,7 @@ export default function SubmitPanel() {
           lng: location.lng,
           intensity,
           country: location.country,
-          type,
+          type: 'standard',
           audioData: audioBase64,
         }),
       })
@@ -221,7 +203,7 @@ export default function SubmitPanel() {
       setSequence(null)
       setConfirmed(false)
     }
-  }, [audioBlob, location, intensity, type, resetRecording])
+  }, [audioBlob, location, intensity, resetRecording])
 
   return (
     <div className="panel submit-panel">
@@ -320,24 +302,6 @@ export default function SubmitPanel() {
                 onChange={e => setIntensity(parseInt(e.target.value))}
                 disabled={submitting}
               />
-            </div>
-
-            {/* --- CLASSIFICATION --- */}
-            <div className="submit-field">
-              <label className="submit-label">CLASSIFICATION</label>
-              <div className="submit-chips">
-                {TYPES.map(t => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    className={`chip${type === t.value ? ' active' : ''}`}
-                    onClick={() => setType(t.value)}
-                    disabled={submitting}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {error && <div className="submit-error">{error}</div>}

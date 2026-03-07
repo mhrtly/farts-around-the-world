@@ -37,11 +37,11 @@ export function validateFartEvent(body) {
     errors.push('intensity must be between 1 and 10')
   }
 
-  // country
+  // country — accept any ISO 3166-1 alpha-2 code (2 uppercase letters)
   if (typeof country !== 'string') {
     errors.push('country must be a string')
-  } else if (!VALID_COUNTRIES.has(country.toUpperCase())) {
-    errors.push(`country must be one of: ${[...VALID_COUNTRIES].join(', ')}`)
+  } else if (!/^[A-Za-z]{2}$/.test(country)) {
+    errors.push('country must be a 2-letter ISO country code')
   }
 
   // type

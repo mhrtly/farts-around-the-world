@@ -43,10 +43,18 @@ function volumeLabel(vol) {
   return 'Thunderous'
 }
 
+const SORT_OPTIONS = [
+  { key: 'recent', label: 'RECENT' },
+  { key: 'loudest', label: 'LOUDEST' },
+  { key: 'longest', label: 'LONGEST' },
+  { key: 'audio', label: 'WITH AUDIO' },
+]
+
 export default function FartBrowser({ events, onClose }) {
   const [expandedId, setExpandedId] = useState(null)
   const [ratings, setRatings] = useState({})
   const [audioStates, setAudioStates] = useState({})
+  const [sortBy, setSortBy] = useState('recent')
   const audioRefs = useRef({})
 
   // ESC key to close
@@ -153,6 +161,29 @@ export default function FartBrowser({ events, onClose }) {
           </button>
         </div>
 
+        {/* Sort tabs */}
+        {events.length > 0 && (
+          <div style={{
+            display: 'flex', gap: '4px', padding: '10px 24px',
+            borderBottom: '1px solid rgba(56,243,255,0.06)', flexShrink: 0,
+          }}>
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setSortBy(opt.key)}
+                style={{
+                  ...btnBase, padding: '4px 10px', fontSize: '9px',
+                  background: sortBy === opt.key ? 'rgba(56,243,255,0.15)' : 'rgba(56,243,255,0.03)',
+                  borderColor: sortBy === opt.key ? 'rgba(56,243,255,0.4)' : 'rgba(56,243,255,0.1)',
+                  color: sortBy === opt.key ? '#38f3ff' : 'var(--text-dim)',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Event list */}
         <div style={{ overflowY: 'auto', padding: '16px 24px', flex: 1 }}>
           {events.length === 0 ? (
@@ -197,7 +228,12 @@ export default function FartBrowser({ events, onClose }) {
                   </div>
                 )
               })()}
-              {events.slice(0, 50).map(e => {
+              {[...events].sort((a, b) => {
+                if (sortBy === 'loudest') return (b.volume || 0) - (a.volume || 0)
+                if (sortBy === 'longest') return (b.duration || 0) - (a.duration || 0)
+                if (sortBy === 'audio') return (b.hasAudio ? 1 : 0) - (a.hasAudio ? 1 : 0)
+                return b.timestamp - a.timestamp // recent (default)
+              }).slice(0, 50).map(e => {
                 const isExpanded = expandedId === e.id
                 const audioState = audioStates[e.id] || 'idle'
                 const userRating = ratings[e.id]

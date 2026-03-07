@@ -380,10 +380,16 @@ export default function SubmitPanel({ onClose }) {
     setSubmitting(true)
     setConfirmed(false)
 
-    const steps = ['TRIANGULATING COORDINATES...', 'ANALYZING EMISSION SIGNATURE...', 'ENCODING AUDIO PAYLOAD...', 'FILING REPORT...']
+    const steps = [
+      'TRIANGULATING COORDINATES...',
+      'ANALYZING EMISSION SIGNATURE...',
+      'ENCODING AUDIO PAYLOAD...',
+      'UPLOADING TO GLOBAL DATABASE...',
+      'NOTIFYING MONITORING STATIONS...',
+    ]
     for (const step of steps) {
       setSequence(step)
-      await new Promise(r => setTimeout(r, 600))
+      await new Promise(r => setTimeout(r, 500))
     }
 
     try {
@@ -415,9 +421,10 @@ export default function SubmitPanel({ onClose }) {
         throw new Error(body.error || `HTTP ${res.status}`)
       }
 
-      setSequence('CONFIRMED \u2014 EMISSION LOGGED')
+      const cls = classifyEmission(recordTime, audioStats?.avgVolume)
+      setSequence(cls.label.toUpperCase())
       setConfirmed(true)
-      await new Promise(r => setTimeout(r, 2000))
+      await new Promise(r => setTimeout(r, 3000))
       resetRecording()
       onClose()
     } catch (err) {
@@ -666,15 +673,50 @@ export default function SubmitPanel({ onClose }) {
         )}
 
         {submitting ? (
-          <div style={{
-            textAlign: 'center', fontSize: '13px', fontFamily: 'monospace',
-            fontWeight: 'bold', letterSpacing: '0.1em',
-            color: confirmed ? '#9dff4a' : '#38f3ff',
-            padding: '16px',
-            animation: confirmed ? 'none' : 'pulseOpacity 1.5s infinite',
-          }}>
-            {sequence}
-          </div>
+          confirmed ? (
+            <div style={{
+              textAlign: 'center', padding: '24px 16px',
+              background: 'rgba(157,255,74,0.05)',
+              border: '1px solid rgba(157,255,74,0.2)',
+              borderRadius: '6px',
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>{'\uD83D\uDCA8'}</div>
+              <div style={{
+                fontSize: '10px', letterSpacing: '0.3em', color: '#9dff4a',
+                fontFamily: 'monospace', marginBottom: '6px',
+              }}>
+                EMISSION LOGGED
+              </div>
+              <div style={{
+                fontSize: '22px', fontWeight: 'bold', letterSpacing: '0.15em',
+                color: '#9dff4a', fontFamily: 'monospace',
+                textShadow: '0 0 20px rgba(157,255,74,0.5)',
+              }}>
+                {sequence}
+              </div>
+              <div style={{
+                fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace',
+                letterSpacing: '0.1em', marginTop: '10px',
+              }}>
+                Your contribution to the global dataset is recorded.
+              </div>
+              <div style={{
+                fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace',
+                letterSpacing: '0.1em', marginTop: '4px',
+              }}>
+                The world thanks you.
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              textAlign: 'center', fontSize: '13px', fontFamily: 'monospace',
+              fontWeight: 'bold', letterSpacing: '0.1em',
+              color: '#38f3ff', padding: '16px',
+              animation: 'pulseOpacity 1.5s infinite',
+            }}>
+              {sequence}
+            </div>
+          )
         ) : (
           <button
             onClick={handleSubmit}

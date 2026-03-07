@@ -6,4 +6,13 @@ export default defineConfig({
   optimizeDeps: {
     include: ['three', 'three-globe', 'globe.gl'],
   },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3001',
+      '/socket.io': {
+        target: 'http://localhost:3001',
+        ws: true,
+      },
+    },
+  },
 })

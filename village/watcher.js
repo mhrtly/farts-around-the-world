@@ -1,9 +1,10 @@
 /**
- * Village Watcher — reads Claude Code JSONL transcripts and serves agent state
+ * Village Watcher v2 — reads Claude Code JSONL transcripts and serves agent state
  *
  * Scans ~/.claude/projects/ for sessions belonging to this project,
- * auto-detects persona names from user messages, and exposes a
- * /api/state endpoint that the village renderer polls.
+ * auto-detects persona names from user messages, extracts recent activity
+ * logs with file paths and descriptions, and exposes a /api/state endpoint
+ * that the village renderer polls.
  *
  * Run:  node village/watcher.js
  * API:  http://localhost:3002/api/state
@@ -19,7 +20,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const PORT = 3002
-const POLL_INTERVAL = 2000 // ms between transcript re-reads
+const POLL_INTERVAL = 2000
 
 // Claude Code stores transcripts here
 const CLAUDE_DIR = join(
@@ -40,7 +41,7 @@ const TOOL_TO_ACTIVITY = {
   Write: 'writing',
   Edit: 'writing',
   NotebookEdit: 'writing',
-  Bash: 'digging',       // "digging in the field"
+  Bash: 'digging',
   Task: 'delegating',
   TodoWrite: 'planning',
   WebFetch: 'scouting',
@@ -51,10 +52,79 @@ const TOOL_TO_ACTIVITY = {
 }
 
 /**
- * Parse a JSONL file and extract:
- * - persona (from first user message containing a name)
- * - last activity (from most recent tool use)
- * - whether session is still active (recent timestamp)
+ * Extract a short description from a tool_use block
+ */
+function describeToolUse(block) {
+  const name = (block.name || '').replace(/^mcp__\w+__/, '')
+  const input = block.input || {}
+
+  switch (name) {
+    case 'Read':
+      return input.file_path
+        ? `Reading ${shortenPath(input.file_path)}`
+        : 'Reading file'
+    case 'Write':
+      return input.file_path
+        ? `Writing ${shortenPath(input.file_path)}`
+        : 'Writing file'
+    case 'Edit':
+      return input.file_path
+        ? `Editing ${shortenPath(input.file_path)}`
+        : 'Editing file'
+    case 'Grep':
+      return input.pattern
+        ? `Searching for "${truncate(input.pattern, 30)}"`
+        : 'Searching code'
+    case 'Glob':
+      return input.pattern
+        ? `Finding ${truncate(input.pattern, 30)}`
+        : 'Finding files'
+    case 'Bash':
+      return input.command
+        ? `$ ${truncate(input.command, 40)}`
+        : 'Running command'
+    case 'Task':
+      return input.description
+        ? `Delegating: ${truncate(input.description, 30)}`
+        : 'Spawning sub-agent'
+    case 'TodoWrite':
+      return 'Updating task list'
+    case 'WebFetch':
+      return input.url
+        ? `Fetching ${truncate(input.url, 35)}`
+        : 'Fetching web page'
+    case 'WebSearch':
+      return input.query
+        ? `Searching: "${truncate(input.query, 30)}"`
+        : 'Web search'
+    case 'AskUserQuestion':
+      return 'Asking Mark a question'
+    case 'EnterPlanMode':
+      return 'Entering plan mode'
+    case 'ExitPlanMode':
+      return 'Plan ready for review'
+    default:
+      return name || 'Working...'
+  }
+}
+
+function shortenPath(p) {
+  if (!p) return '?'
+  // Strip the project root prefix
+  const stripped = p.replace(/^.*Farts_Around_The_World_App\//, '')
+  // If still long, show last 2 segments
+  const parts = stripped.split('/')
+  if (parts.length > 3) return '.../' + parts.slice(-2).join('/')
+  return stripped
+}
+
+function truncate(s, max) {
+  if (!s) return ''
+  return s.length > max ? s.slice(0, max) + '...' : s
+}
+
+/**
+ * Parse a JSONL file and extract persona, activity, and recent actions
  */
 function parseTranscript(filepath) {
   try {
@@ -67,6 +137,8 @@ function parseTranscript(filepath) {
     let lastTimestamp = 0
     let messageCount = 0
     let toolUseCount = 0
+    const recentActions = [] // collect all, trim later
+    let currentMsgTimestamp = 0
 
     for (const line of lines) {
       let obj
@@ -80,6 +152,7 @@ function parseTranscript(filepath) {
       if (obj.timestamp) {
         const ts = new Date(obj.timestamp).getTime()
         if (ts > lastTimestamp) lastTimestamp = ts
+        currentMsgTimestamp = ts
       }
 
       // Detect persona from user messages
@@ -89,7 +162,6 @@ function parseTranscript(filepath) {
           : JSON.stringify(obj.message.content).toLowerCase()
 
         for (const name of PERSONAS) {
-          // Look for "you are X" or "you're X" patterns
           if (
             content.includes(`you are ${name}`) ||
             content.includes(`you are **${name}**`) ||
@@ -108,18 +180,22 @@ function parseTranscript(filepath) {
         messageCount++
       }
 
-      // Track latest tool use
+      // Track tool uses with descriptions
       if (obj.type === 'assistant' && obj.message?.content) {
         const content = obj.message.content
         if (Array.isArray(content)) {
           for (const block of content) {
             if (block.type === 'tool_use') {
               toolUseCount++
-              const toolName = block.name || ''
-              // Strip MCP prefixes
-              const shortName = toolName.replace(/^mcp__\w+__/, '')
-              lastActivity = TOOL_TO_ACTIVITY[shortName] || 'working'
-              lastActivityName = shortName
+              const toolName = (block.name || '').replace(/^mcp__\w+__/, '')
+              lastActivity = TOOL_TO_ACTIVITY[toolName] || 'working'
+              lastActivityName = toolName
+              recentActions.push({
+                tool: toolName,
+                activity: TOOL_TO_ACTIVITY[toolName] || 'working',
+                description: describeToolUse(block),
+                timestamp: currentMsgTimestamp,
+              })
             }
           }
         }
@@ -131,7 +207,6 @@ function parseTranscript(filepath) {
     const isActive = (now - lastTimestamp) < 5 * 60 * 1000
     const isRecent = (now - lastTimestamp) < 30 * 60 * 1000
 
-    // If not active, override to idle or sleeping
     if (!isActive) {
       lastActivity = isRecent ? 'idle' : 'sleeping'
     }
@@ -145,6 +220,7 @@ function parseTranscript(filepath) {
       isRecent,
       messageCount,
       toolUseCount,
+      recentActions: recentActions.slice(-15), // last 15 actions
     }
   } catch (err) {
     return null
@@ -157,7 +233,6 @@ function parseTranscript(filepath) {
 function buildState() {
   const agents = {}
 
-  // Initialize all personas as offline
   for (const name of PERSONAS) {
     agents[name] = {
       name,
@@ -168,14 +243,14 @@ function buildState() {
       messageCount: 0,
       toolUseCount: 0,
       lastSeen: null,
+      recentActions: [],
     }
   }
 
   if (!existsSync(CLAUDE_DIR)) {
-    return { agents, timestamp: Date.now(), projectDir: CLAUDE_DIR }
+    return { agents, timestamp: Date.now(), activityLog: [] }
   }
 
-  // Find all session JSONL files (top-level, not subagents)
   const files = readdirSync(CLAUDE_DIR).filter(f => f.endsWith('.jsonl'))
 
   for (const file of files) {
@@ -185,10 +260,8 @@ function buildState() {
 
     if (!parsed) continue
 
-    // If we detected a persona, update its state
     if (parsed.persona && agents[parsed.persona]) {
       const existing = agents[parsed.persona]
-      // Use the most recent session for this persona
       if (!existing.lastSeen || parsed.lastTimestamp > new Date(existing.lastSeen).getTime()) {
         agents[parsed.persona] = {
           name: parsed.persona,
@@ -199,13 +272,13 @@ function buildState() {
           messageCount: parsed.messageCount,
           toolUseCount: parsed.toolUseCount,
           lastSeen: new Date(parsed.lastTimestamp).toISOString(),
+          recentActions: parsed.recentActions,
         }
       }
     }
   }
 
-  // Special: Quipu is THIS session — always mark active
-  // (Auto-detect: the current session is always Quipu since it's the coordinator)
+  // Quipu = this session, always active
   const currentSessionId = getCurrentSessionId()
   if (currentSessionId) {
     agents.quipu.status = 'active'
@@ -214,20 +287,29 @@ function buildState() {
     agents.quipu.sessionId = currentSessionId
   }
 
-  // Spudnik is always "in the cloud" (Claude Web — we can't detect it)
+  // Spudnik = Claude Web, always "in the cloud"
   agents.spudnik.status = 'cloud'
   agents.spudnik.activity = 'meditating'
   agents.spudnik.activityDetail = 'contemplating the cosmic potato'
+
+  // Build combined activity log (last 30 across all agents)
+  const activityLog = []
+  for (const [name, agent] of Object.entries(agents)) {
+    for (const action of (agent.recentActions || [])) {
+      activityLog.push({ ...action, agent: name })
+    }
+  }
+  activityLog.sort((a, b) => b.timestamp - a.timestamp)
 
   return {
     agents,
     timestamp: Date.now(),
     activeCount: Object.values(agents).filter(a => a.status === 'active').length,
+    activityLog: activityLog.slice(0, 30),
   }
 }
 
 function getCurrentSessionId() {
-  // Try to find the most recently modified session file
   if (!existsSync(CLAUDE_DIR)) return null
   const files = readdirSync(CLAUDE_DIR)
     .filter(f => f.endsWith('.jsonl'))
@@ -240,9 +322,8 @@ function getCurrentSessionId() {
   return files[0]?.name.replace('.jsonl', '') || null
 }
 
-// Simple HTTP server (no deps needed)
+// HTTP server
 const server = createServer((req, res) => {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET')
 
@@ -284,12 +365,12 @@ const server = createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(``)
   console.log(`  ╔══════════════════════════════════════════╗`)
-  console.log(`  ║   THE ANDEAN VILLAGE — Agent Watcher     ║`)
+  console.log(`  ║   THE ANDEAN VILLAGE v2 — Agent Watcher  ║`)
   console.log(`  ║                                          ║`)
   console.log(`  ║   Village:  http://localhost:${PORT}         ║`)
   console.log(`  ║   API:      http://localhost:${PORT}/api/state║`)
   console.log(`  ║                                          ║`)
-  console.log(`  ║   Watching Claude Code transcripts...    ║`)
+  console.log(`  ║   Now with activity logs!                ║`)
   console.log(`  ╚══════════════════════════════════════════╝`)
   console.log(``)
 })

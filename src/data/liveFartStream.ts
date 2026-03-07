@@ -31,12 +31,12 @@ export interface LiveStream {
   readonly connected: boolean
 }
 
-const API_URL = import.meta.env.VITE_API_URL || ''
-
 export function createLiveFartStream(options: LiveStreamOptions): LiveStream {
   const { onEvent, onStats, onConnect, onDisconnect } = options
 
-  const socket: Socket = io(API_URL || window.location.origin)
+  // Connect to same origin — works in prod (Express serves everything)
+  // and in dev (Vite proxy forwards to Express)
+  const socket: Socket = io(window.location.origin)
 
   socket.on('fart:new', (event: FartEvent) => {
     onEvent(event)
@@ -58,7 +58,7 @@ export function createLiveFartStream(options: LiveStreamOptions): LiveStream {
     onConnect?.()
     // Load recent events to populate the view
     try {
-      const res = await fetch(`${API_URL}/api/events?limit=200`)
+      const res = await fetch(`/api/events?limit=200`)
       if (res.ok) {
         const events: FartEvent[] = await res.json()
         // Deliver oldest first so the store builds up chronologically

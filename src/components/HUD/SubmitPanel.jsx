@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Relative URL works in both dev (Vite proxy) and prod (Express serves all)
 
 const COUNTRIES = [
   { code: 'US', name: 'United States' },
@@ -89,7 +89,7 @@ export default function SubmitPanel() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/events`, {
+      const res = await fetch(`/api/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

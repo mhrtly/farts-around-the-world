@@ -8,7 +8,9 @@ import Timeline from './components/HUD/Timeline.jsx'
 import EpicAlert from './components/HUD/EpicAlert.jsx'
 import GasconIndicator from './components/HUD/GasconIndicator.jsx'
 import MethaneWaveform from './components/HUD/MethaneWaveform.jsx'
-import { createFartStream } from './data/mockFartStream.js'
+import NewsTicker from './components/HUD/NewsTicker.jsx'
+import SubmitPanel from './components/HUD/SubmitPanel.jsx'
+import { createStream } from './data/fartStreamFactory.js'
 
 export default function App() {
   const [events, setEvents]         = useState([])
@@ -37,8 +39,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    streamRef.current = createFartStream(handleNewEvent)
-    return () => streamRef.current?.stop()
+    let cancelled = false
+    createStream(handleNewEvent).then(stream => {
+      if (!cancelled) streamRef.current = stream
+    })
+    return () => {
+      cancelled = true
+      streamRef.current?.stop()
+    }
   }, [handleNewEvent])
 
   const dismissAlert = useCallback(() => setAlertEvent(null), [])
@@ -46,6 +54,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header totalToday={stats.totalToday} />
+      <NewsTicker />
       <GasconIndicator events={events} />
 
       <div className="app-body">
@@ -60,6 +69,8 @@ export default function App() {
         </main>
 
         <aside className="panel panel-right">
+          <SubmitPanel />
+          <div className="panel-divider" />
           <MethaneWaveform events={events} />
           <div className="panel-divider" />
           <EventFeed events={events.slice(0, 40)} />

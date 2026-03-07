@@ -115,8 +115,6 @@ export default function KPIPanel({ stats }) {
 
   return (
     <div className="kpi-panel">
-      <div className="panel-title">TELEMETRY</div>
-
       <KPICard
         label="EMISSIONS TODAY"
         value={stats.totalToday}

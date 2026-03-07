@@ -148,20 +148,6 @@ export default function EventFeed({ events, onEventClick }) {
 
   return (
     <div className="event-feed">
-      <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span>LIVE FEED</span>
-        {displayed.length > 0 && (
-          <span style={{
-            fontSize: '7px',
-            letterSpacing: '0.1em',
-            color: 'var(--text-dim)',
-            fontWeight: 'normal',
-          }}>
-            {displayed.length} SIGNALS
-          </span>
-        )}
-      </div>
-
       {displayed.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '12px 4px',

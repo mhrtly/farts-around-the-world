@@ -64,8 +64,6 @@ export default function Leaderboard({ events, serverLeaderboard, windowMs = 6000
 
   return (
     <section className="leaderboard">
-      <div className="panel-title">COUNTRY LEADERBOARD</div>
-
       {leaderboard.length === 0 ? (
         <div className="lb-empty" style={{ textAlign: 'center', padding: '12px 4px' }}>
           <div style={{ fontSize: '18px', marginBottom: '6px', opacity: 0.4 }}>🌍</div>

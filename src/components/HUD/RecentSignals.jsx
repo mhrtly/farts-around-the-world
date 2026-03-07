@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { classifyEmission } from '../../config/humor.ts'
 
 const FLAG_MAP = {
@@ -16,9 +16,88 @@ function relativeTime(ts) {
   return `${Math.floor(sec / 3600)}h`
 }
 
+function SignalRow({ event, index, isFirst }) {
+  const [hovered, setHovered] = useState(false)
+  const cls = classifyEmission(event.duration, event.volume)
+  const flag = FLAG_MAP[event.country] || '🌍'
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '4px 10px',
+        borderBottom: '1px solid rgba(56,243,255,0.03)',
+        animation: isFirst ? 'fadeIn 0.3s ease' : 'none',
+        background: hovered ? `${cls.color}08` : 'transparent',
+        boxShadow: hovered ? `inset 2px 0 0 ${cls.color}55` : 'none',
+        transition: 'background 0.15s ease, box-shadow 0.15s ease',
+        cursor: 'default',
+      }}
+    >
+      <span style={{
+        fontSize: '11px',
+        flexShrink: 0,
+        transform: hovered ? 'scale(1.15)' : 'scale(1)',
+        transition: 'transform 0.15s ease',
+      }}>{flag}</span>
+
+      <span style={{
+        width: '4px',
+        height: '4px',
+        borderRadius: '50%',
+        background: cls.color,
+        boxShadow: `0 0 ${hovered ? '6' : '4'}px ${cls.color}${hovered ? '88' : '55'}`,
+        flexShrink: 0,
+        transition: 'box-shadow 0.15s ease',
+      }} />
+
+      <span style={{
+        fontSize: '8px',
+        color: hovered ? cls.color : 'var(--text-primary)',
+        fontWeight: 'bold',
+        letterSpacing: '0.08em',
+        width: '18px',
+        flexShrink: 0,
+        transition: 'color 0.15s ease',
+      }}>
+        {event.country}
+      </span>
+
+      {event.duration != null && (
+        <span style={{
+          fontSize: '8px',
+          color: hovered ? '#ff64ff' : 'var(--text-dim)',
+          flexShrink: 0,
+          transition: 'color 0.15s ease',
+        }}>
+          {event.duration}s
+        </span>
+      )}
+
+      {event.hasAudio && (
+        <span style={{ fontSize: '8px', color: '#9dff4a', flexShrink: 0 }}>♪</span>
+      )}
+
+      <span style={{
+        fontSize: '7px',
+        color: hovered ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)',
+        marginLeft: 'auto',
+        flexShrink: 0,
+        transition: 'color 0.15s ease',
+      }}>
+        {relativeTime(event.timestamp)}
+      </span>
+    </div>
+  )
+}
+
 /**
  * Compact recent event mini-feed for the right panel.
- * Shows the last 4 events as tiny signal rows.
+ * Shows the last 4 events as tiny signal rows with hover effects.
  */
 export default function RecentSignals({ events }) {
   const recentEvents = useMemo(() => {
@@ -89,83 +168,14 @@ export default function RecentSignals({ events }) {
 
       {/* Signal rows */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {recentEvents.map((e, i) => {
-          const cls = classifyEmission(e.duration, e.volume)
-          const flag = FLAG_MAP[e.country] || '🌍'
-
-          return (
-            <div
-              key={e.id || i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderBottom: i < recentEvents.length - 1
-                  ? '1px solid rgba(56,243,255,0.03)'
-                  : 'none',
-                animation: i === 0 ? 'fadeIn 0.3s ease' : 'none',
-              }}
-            >
-              {/* Flag */}
-              <span style={{ fontSize: '11px', flexShrink: 0 }}>{flag}</span>
-
-              {/* Classification dot */}
-              <span style={{
-                width: '4px',
-                height: '4px',
-                borderRadius: '50%',
-                background: cls.color,
-                boxShadow: `0 0 4px ${cls.color}55`,
-                flexShrink: 0,
-              }} />
-
-              {/* Country code */}
-              <span style={{
-                fontSize: '8px',
-                color: 'var(--text-primary)',
-                fontWeight: 'bold',
-                letterSpacing: '0.08em',
-                width: '18px',
-                flexShrink: 0,
-              }}>
-                {e.country}
-              </span>
-
-              {/* Duration if available */}
-              {e.duration != null && (
-                <span style={{
-                  fontSize: '8px',
-                  color: 'var(--text-dim)',
-                  flexShrink: 0,
-                }}>
-                  {e.duration}s
-                </span>
-              )}
-
-              {/* Audio indicator */}
-              {e.hasAudio && (
-                <span style={{
-                  fontSize: '8px',
-                  color: '#9dff4a',
-                  flexShrink: 0,
-                }}>
-                  ♪
-                </span>
-              )}
-
-              {/* Time — pushed right */}
-              <span style={{
-                fontSize: '7px',
-                color: 'rgba(255,255,255,0.15)',
-                marginLeft: 'auto',
-                flexShrink: 0,
-              }}>
-                {relativeTime(e.timestamp)}
-              </span>
-            </div>
-          )
-        })}
+        {recentEvents.map((e, i) => (
+          <SignalRow
+            key={e.id || i}
+            event={e}
+            index={i}
+            isFirst={i === 0}
+          />
+        ))}
       </div>
     </div>
   )

@@ -10,7 +10,59 @@ function useClock() {
   return time
 }
 
-export default function Header({ totalToday, totalAllTime, timeWindowLabel }) {
+function LivePulse({ lastEventTimestamp }) {
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const secondsAgo = lastEventTimestamp
+    ? Math.floor((Date.now() - lastEventTimestamp) / 1000)
+    : Infinity
+
+  // Active: event within last 30s
+  // Warm: event within last 120s
+  // Cold: no recent events
+  const isActive = secondsAgo < 30
+  const isWarm = secondsAgo < 120
+
+  const color = isActive ? '#9dff4a' : isWarm ? '#ffb020' : '#ff4d5a'
+  const label = isActive ? 'LIVE' : isWarm ? 'IDLE' : 'QUIET'
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      fontFamily: 'monospace',
+    }}>
+      <div style={{
+        width: '6px',
+        height: '6px',
+        borderRadius: '50%',
+        background: color,
+        boxShadow: isActive
+          ? `0 0 8px ${color}, 0 0 16px ${color}55`
+          : `0 0 4px ${color}88`,
+        animation: isActive ? 'pulseOpacity 1.2s ease-in-out infinite' : 'none',
+        transition: 'background 0.5s ease, box-shadow 0.5s ease',
+      }} />
+      <span style={{
+        fontSize: '8px',
+        letterSpacing: '0.2em',
+        color,
+        fontWeight: 'bold',
+        transition: 'color 0.5s ease',
+      }}>
+        {label}
+      </span>
+    </div>
+  )
+}
+
+export default function Header({ totalToday, totalAllTime, timeWindowLabel, lastEventTimestamp }) {
   const now = useClock()
   const hh  = String(now.getUTCHours()).padStart(2, '0')
   const mm  = String(now.getUTCMinutes()).padStart(2, '0')
@@ -33,7 +85,8 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel }) {
       </div>
 
       <div className="hud-header__center">
-        <span className="header-stat">
+        <LivePulse lastEventTimestamp={lastEventTimestamp} />
+        <span className="header-stat" style={{ marginLeft: '12px' }}>
           TODAY&nbsp;&nbsp;
           <strong className="glow-cyan">
             <AnimatedNumber value={totalToday} />

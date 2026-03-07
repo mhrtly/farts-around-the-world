@@ -13,6 +13,7 @@ import ShortcutsOverlay from './components/HUD/ShortcutsOverlay.jsx'
 import HighlightsStrip from './components/HUD/HighlightsStrip.jsx'
 import CountryDossier from './components/HUD/CountryDossier.jsx'
 import SpotlightTour from './components/HUD/SpotlightTour.jsx'
+import EventFeed from './components/HUD/EventFeed.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -230,7 +231,7 @@ export default function App() {
 
   return (
     <div className={`app-shell ${isExpressViewport ? 'app-shell--express' : ''}`}>
-      <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} timeWindowLabel={timeWindowLabel} />
+      <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} timeWindowLabel={timeWindowLabel} lastEventTimestamp={filteredEvents[0]?.timestamp} />
       <GasconIndicator events={filteredEvents} />
 
       <div className={`app-body ${isExpressViewport ? 'app-body--express' : ''}`}>
@@ -283,6 +284,12 @@ export default function App() {
 
           <div className="panel-divider" />
           <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
+
+          <div className="panel-divider" />
+          <EventFeed
+            events={filteredEvents}
+            onEventClick={(e) => flyToLocation({ lat: e.lat, lng: e.lng, altitude: 1.2 })}
+          />
         </aside>
 
         <main className="globe-container">

@@ -580,6 +580,12 @@ html, body, #root {
   background:
     linear-gradient(180deg, rgba(13, 22, 33, 0.82), rgba(10, 18, 28, 0.56));
   overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lb-row:hover {
+  border-color: rgba(56, 243, 255, 0.3);
+  box-shadow: 0 0 12px rgba(56, 243, 255, 0.08);
 }
 
 .lb-bar {
@@ -722,7 +728,24 @@ html, body, #root {
   flex-shrink: 0;
 }
 
+.feed-item:hover {
+  background: rgba(56, 243, 255, 0.04);
+  border-color: rgba(56, 243, 255, 0.08);
+}
+
 .feed-intensity { font-size: 9px; color: var(--text-dim); flex-shrink: 0; }
+
+.feed-stat {
+  font-size: 8px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.feed-audio {
+  font-size: 10px;
+  color: #9dff4a;
+  flex-shrink: 0;
+}
 
 .feed-time {
   font-size: 9px;
@@ -730,6 +753,7 @@ html, body, #root {
   flex-shrink: 0;
   min-width: 24px;
   text-align: right;
+  margin-left: auto;
 }
 
 /* ─── Timeline HUD ──────────────────────────────────────────────── */

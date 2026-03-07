@@ -56,6 +56,11 @@ function buildCommands({ onAction }) {
     label: 'Spotlight Tour', hint: 'T',
     action: () => onAction('tour'),
   })
+  commands.push({
+    id: 'rotate', category: 'ACTIONS', icon: '\uD83C\uDF00',
+    label: 'Toggle Globe Rotation',
+    action: () => onAction('toggleRotate'),
+  })
 
   // Regions
   for (const region of REGIONS) {

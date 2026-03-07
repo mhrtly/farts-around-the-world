@@ -107,14 +107,25 @@ const GlobeCanvasInner = forwardRef(function GlobeCanvas({ events }, ref) {
   const [audioLoading, setAudioLoading] = useState(false)
   const audioRef = useRef(null)
 
-  // Expose flyTo method via ref for parent (Command Palette)
+  // Expose methods via ref for parent
   useImperativeHandle(ref, () => ({
     flyTo: ({ lat, lng, altitude = 1.8 }) => {
       if (globeRef.current) {
         globeRef.current.pointOfView({ lat, lng, altitude }, 1200)
         globeRef.current.controls().autoRotate = false
       }
-    }
+    },
+    toggleAutoRotate: () => {
+      if (globeRef.current) {
+        const controls = globeRef.current.controls()
+        controls.autoRotate = !controls.autoRotate
+        return controls.autoRotate
+      }
+      return false
+    },
+    getAutoRotate: () => {
+      return globeRef.current?.controls()?.autoRotate ?? false
+    },
   }), [])
 
   // Keep ref in sync with state (for globe hover callbacks)

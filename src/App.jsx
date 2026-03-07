@@ -16,6 +16,7 @@ import SpotlightTour from './components/HUD/SpotlightTour.jsx'
 import EventFeed from './components/HUD/EventFeed.jsx'
 import ScienceTicker from './components/HUD/ScienceTicker.jsx'
 import ActivitySparkline from './components/HUD/ActivitySparkline.jsx'
+import EventToast from './components/HUD/EventToast.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -172,6 +173,9 @@ export default function App() {
         break
       case 'tour':
         setShowTour(true)
+        break
+      case 'toggleRotate':
+        globeCanvasRef.current?.toggleAutoRotate?.()
         break
     }
   }, [flyToLocation])
@@ -446,6 +450,8 @@ export default function App() {
           onStop={() => setShowTour(false)}
         />
       )}
+
+      {!isExpressViewport && <EventToast events={filteredEvents} />}
     </div>
   )
 }

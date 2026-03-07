@@ -83,10 +83,12 @@ export default function ScienceTicker() {
           letterSpacing: '0.15em',
           fontWeight: 'bold',
           color: tagColor,
-          padding: '1px 6px',
+          padding: '2px 7px',
           borderRadius: '2px',
-          border: `1px solid ${tagColor}33`,
-          background: `${tagColor}0a`,
+          border: `1px solid ${tagColor}55`,
+          background: `${tagColor}12`,
+          boxShadow: `0 0 6px ${tagColor}15`,
+          transition: 'all 0.35s ease',
         }}>
           {brief.tag}
         </span>
@@ -109,15 +111,35 @@ export default function ScienceTicker() {
         {brief.text}
       </div>
 
-      {/* Counter */}
-      <span style={{
-        fontSize: '7px',
-        color: 'rgba(255,255,255,0.12)',
-        letterSpacing: '0.1em',
+      {/* Counter pill */}
+      <div style={{
         flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
       }}>
-        {index + 1}/{INTEL_BRIEFS.length}
-      </span>
+        <div style={{
+          width: '24px', height: '3px',
+          borderRadius: '1.5px',
+          background: 'rgba(56,243,255,0.08)',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${((index + 1) / INTEL_BRIEFS.length) * 100}%`,
+            height: '100%',
+            background: `${tagColor}55`,
+            borderRadius: '1.5px',
+            transition: 'width 0.4s ease, background 0.4s ease',
+          }} />
+        </div>
+        <span style={{
+          fontSize: '7px',
+          color: 'rgba(255,255,255,0.2)',
+          letterSpacing: '0.05em',
+        }}>
+          {index + 1}/{INTEL_BRIEFS.length}
+        </span>
+      </div>
     </div>
   )
 }

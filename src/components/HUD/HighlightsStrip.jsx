@@ -19,7 +19,7 @@ function relativeTime(ts) {
   return `${Math.floor(sec / 86400)}d ago`
 }
 
-function HighlightCard({ title, titleColor, event, accentColor }) {
+function HighlightCard({ title, titleColor, event, accentColor, index = 0 }) {
   if (!event) return null
   const cls = classifyEmission(event.duration, event.volume)
   const flag = FLAG_MAP[event.country] || '\uD83C\uDF0D'
@@ -36,6 +36,7 @@ function HighlightCard({ title, titleColor, event, accentColor }) {
       fontFamily: 'monospace',
       position: 'relative',
       overflow: 'hidden',
+      animation: `highlightCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) ${index * 0.08}s both`,
     }}>
       {/* Accent top line */}
       <div style={{
@@ -92,85 +93,103 @@ export default function HighlightsStrip({ events }) {
 
   if (!highlights) return null
 
+  let cardIndex = 0
+
   return (
-    <div style={{
-      display: 'flex',
-      gap: '8px',
-      padding: '0 14px',
-      overflowX: 'auto',
-      scrollbarWidth: 'none',
-      msOverflowStyle: 'none',
-    }}>
+    <div style={{ position: 'relative' }}>
       <div style={{
-        flex: '0 0 auto',
         display: 'flex',
-        alignItems: 'center',
-        fontSize: '8px',
-        fontFamily: 'monospace',
-        letterSpacing: '0.3em',
-        color: 'var(--text-dim)',
-        textTransform: 'uppercase',
-        writingMode: 'vertical-lr',
-        transform: 'rotate(180deg)',
-        padding: '0 2px',
+        gap: '8px',
+        padding: '0 14px',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
       }}>
-        HIGHLIGHTS
-      </div>
-
-      {highlights.latest && highlights.latest !== highlights.loudest && highlights.latest !== highlights.longest && (
-        <HighlightCard
-          title="LATEST"
-          titleColor="#38f3ff"
-          event={highlights.latest}
-          accentColor="#38f3ff"
-        />
-      )}
-      {highlights.loudest && (highlights.loudest.volume || 0) > 0 && (
-        <HighlightCard
-          title="LOUDEST"
-          titleColor="#ff4d5a"
-          event={highlights.loudest}
-          accentColor="#ff4d5a"
-        />
-      )}
-      {highlights.longest && (highlights.longest.duration || 0) > 0 && (
-        <HighlightCard
-          title="LONGEST"
-          titleColor="#ff64ff"
-          event={highlights.longest}
-          accentColor="#ff64ff"
-        />
-      )}
-
-      {highlights.totalWithAudio > 0 && (
         <div style={{
           flex: '0 0 auto',
-          minWidth: '100px',
-          padding: '8px 12px',
-          background: 'rgba(157,255,74,0.04)',
-          border: '1px solid rgba(157,255,74,0.12)',
-          borderRadius: '6px',
-          fontFamily: 'monospace',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
           alignItems: 'center',
-          gap: '3px',
+          fontSize: '8px',
+          fontFamily: 'monospace',
+          letterSpacing: '0.3em',
+          color: 'var(--text-dim)',
+          textTransform: 'uppercase',
+          writingMode: 'vertical-lr',
+          transform: 'rotate(180deg)',
+          padding: '0 2px',
         }}>
-          <div style={{
-            fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(157,255,74,0.6)',
-            textTransform: 'uppercase',
-          }}>
-            WITH AUDIO
-          </div>
-          <div style={{
-            fontSize: '20px', fontWeight: 'bold', color: '#9dff4a',
-            textShadow: '0 0 12px rgba(157,255,74,0.4)',
-          }}>
-            {highlights.totalWithAudio}
-          </div>
+          HIGHLIGHTS
         </div>
-      )}
+
+        {highlights.latest && highlights.latest !== highlights.loudest && highlights.latest !== highlights.longest && (
+          <HighlightCard
+            title="LATEST"
+            titleColor="#38f3ff"
+            event={highlights.latest}
+            accentColor="#38f3ff"
+            index={cardIndex++}
+          />
+        )}
+        {highlights.loudest && (highlights.loudest.volume || 0) > 0 && (
+          <HighlightCard
+            title="LOUDEST"
+            titleColor="#ff4d5a"
+            event={highlights.loudest}
+            accentColor="#ff4d5a"
+            index={cardIndex++}
+          />
+        )}
+        {highlights.longest && (highlights.longest.duration || 0) > 0 && (
+          <HighlightCard
+            title="LONGEST"
+            titleColor="#ff64ff"
+            event={highlights.longest}
+            accentColor="#ff64ff"
+            index={cardIndex++}
+          />
+        )}
+
+        {highlights.totalWithAudio > 0 && (
+          <div style={{
+            flex: '0 0 auto',
+            minWidth: '100px',
+            padding: '8px 12px',
+            background: 'rgba(157,255,74,0.04)',
+            border: '1px solid rgba(157,255,74,0.12)',
+            borderRadius: '6px',
+            fontFamily: 'monospace',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '3px',
+            animation: `highlightCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) ${cardIndex * 0.08}s both`,
+          }}>
+            <div style={{
+              fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(157,255,74,0.6)',
+              textTransform: 'uppercase',
+            }}>
+              WITH AUDIO
+            </div>
+            <div style={{
+              fontSize: '20px', fontWeight: 'bold', color: '#9dff4a',
+              textShadow: '0 0 12px rgba(157,255,74,0.4)',
+              animation: 'pulseOpacity 3s ease-in-out infinite',
+            }}>
+              {highlights.totalWithAudio}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right-edge fade gradient to indicate scrollable content */}
+      <div style={{
+        position: 'absolute',
+        top: 0, right: 0, bottom: 0,
+        width: '40px',
+        background: 'linear-gradient(90deg, transparent, rgba(6,9,13,0.9))',
+        pointerEvents: 'none',
+      }} />
     </div>
   )
 }

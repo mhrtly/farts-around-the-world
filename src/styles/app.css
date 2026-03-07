@@ -470,6 +470,11 @@ html, body, #root {
   background-repeat: no-repeat;
 }
 
+.kpi-card:hover {
+  border-color: rgba(56, 243, 255, 0.25);
+  box-shadow: 0 0 12px rgba(56, 243, 255, 0.08);
+}
+
 .kpi-card--alert {
   border-color: rgba(255, 100, 255, 0.4);
   box-shadow: 0 0 16px rgba(255, 100, 255, 0.1);
@@ -603,14 +608,25 @@ html, body, #root {
   transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease;
   pointer-events: none;
 }
-/* Rank-1 gets a brighter bar */
-.lb-row:first-child .lb-bar {
+/* Rank-1 gets a brighter bar + glow ring (.panel-title is :first-child, so lb-row#1 is :nth-child(2)) */
+.lb-row:nth-child(2) .lb-bar {
   background: linear-gradient(
     90deg,
     rgba(56, 243, 255, 0.35) 0%,
     rgba(56, 243, 255, 0.08) 100%
   );
   border-right-color: rgba(56, 243, 255, 0.5);
+}
+.lb-row:nth-child(2) {
+  border-color: rgba(56, 243, 255, 0.25);
+  box-shadow: 0 0 12px rgba(56, 243, 255, 0.1), inset 0 0 8px rgba(56, 243, 255, 0.03);
+}
+.lb-row:nth-child(2) .lb-rank {
+  color: #38f3ff;
+  text-shadow: 0 0 8px rgba(56, 243, 255, 0.5);
+}
+.lb-row:nth-child(2) .lb-count {
+  text-shadow: 0 0 10px rgba(56, 243, 255, 0.5);
 }
 
 .lb-rank,
@@ -1033,10 +1049,21 @@ html, body, #root {
 .glow-amber { color: var(--accent-amber); text-shadow: var(--glow-amber-sm); }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(56, 243, 255, 0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(56, 243, 255, 0.38); }
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 243, 255, 0.18);
+  border-radius: 2px;
+  transition: background 0.3s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 243, 255, 0.4);
+  box-shadow: 0 0 6px rgba(56, 243, 255, 0.3);
+}
+::-webkit-scrollbar-thumb:active {
+  background: rgba(56, 243, 255, 0.55);
+  box-shadow: 0 0 10px rgba(56, 243, 255, 0.5);
+}
 
 /* ─── Breaking News Ticker ──────────────────────────────────────── */
 .news-ticker {
@@ -1124,6 +1151,11 @@ html, body, #root {
 @keyframes overlaySlideIn {
   from { opacity: 0; transform: translateY(-50%) translateX(20px); }
   to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+@keyframes highlightCardIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-width: 900px) {

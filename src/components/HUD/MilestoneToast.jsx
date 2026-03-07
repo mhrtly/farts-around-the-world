@@ -102,18 +102,22 @@ function MilestoneToastItem({ milestone, onDone, index }) {
   )
 }
 
+const PERSONAL_MILESTONES = [1, 3, 5, 10, 25, 50]
+
 /**
  * Detects and displays milestone achievements:
  * - First emission from a new country
  * - Total event count milestones (10, 25, 50, 100, etc.)
  * - Coverage milestones (25%, 50%, 75%, 100% of nations)
+ * - Personal submission milestones (1, 3, 5, 10, 25, 50)
  */
-export default function MilestoneToast({ events }) {
+export default function MilestoneToast({ events, userSubmissions = [] }) {
   const [milestones, setMilestones] = useState([])
   const trackedRef = useRef({
     countries: new Set(),
     countMilestones: new Set(),
     coverageMilestones: new Set(),
+    personalMilestones: new Set(),
     initialized: false,
   })
 
@@ -199,6 +203,38 @@ export default function MilestoneToast({ events }) {
       playMilestoneChime()
     }
   }, [events])
+
+  // Personal submission milestones
+  useEffect(() => {
+    if (userSubmissions.length === 0) return
+    const tracked = trackedRef.current
+    const personalMilestones = []
+
+    for (const m of PERSONAL_MILESTONES) {
+      if (userSubmissions.length >= m && !tracked.personalMilestones.has(m)) {
+        tracked.personalMilestones.add(m)
+        const messages = {
+          1: 'First emission submitted!',
+          3: '3 submissions — building momentum!',
+          5: '5 submissions — prolific contributor!',
+          10: '10 submissions — elite field agent!',
+          25: '25 submissions — SIGINT specialist!',
+          50: '50 submissions — legendary operator!',
+        }
+        personalMilestones.push({
+          id: `personal-${m}-${Date.now()}`,
+          type: 'daily-record',
+          message: messages[m] || `${m} personal submissions!`,
+          sub: 'Your contribution to global intelligence',
+        })
+      }
+    }
+
+    if (personalMilestones.length > 0) {
+      setMilestones(prev => [...prev, ...personalMilestones].slice(-3))
+      playMilestoneChime()
+    }
+  }, [userSubmissions])
 
   const removeMilestone = (id) => {
     setMilestones(prev => prev.filter(m => m.id !== id))

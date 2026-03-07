@@ -23,6 +23,7 @@ import ConnectionStatus from './components/HUD/ConnectionStatus.jsx'
 import MilestoneToast from './components/HUD/MilestoneToast.jsx'
 import PanelSection from './components/HUD/PanelSection.jsx'
 import CTAButton from './components/HUD/CTAButton.jsx'
+import MyContributions from './components/HUD/MyContributions.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -63,6 +64,7 @@ export default function App() {
     leaderboard: [],
   })
   const [wsConnected, setWsConnected] = useState(false)
+  const [userSubmissions, setUserSubmissions] = useState([])
   const streamRef = useRef(null)
   const globeCanvasRef = useRef(null)
 
@@ -118,6 +120,8 @@ export default function App() {
     const handleRecordedEvent = (e) => {
       if (e.detail) {
         handleNewEvent(e.detail)
+        // Track user's own submission
+        setUserSubmissions(prev => [e.detail, ...prev])
       } else {
         fetchEvents()
         fetchStats()
@@ -296,6 +300,13 @@ export default function App() {
             />
           </PanelSection>
 
+          <PanelSection id="contributions" title="My Contributions" defaultOpen={userSubmissions.length > 0}>
+            <MyContributions
+              submissions={userSubmissions}
+              totalGlobalEvents={stats.totalAllTime}
+            />
+          </PanelSection>
+
           <PanelSection id="feed" title="Event Feed" defaultOpen={false}>
             <EventFeed
               events={filteredEvents}
@@ -423,7 +434,7 @@ export default function App() {
       )}
 
       {!isExpressViewport && <EventToast events={filteredEvents} />}
-      <MilestoneToast events={events} />
+      <MilestoneToast events={events} userSubmissions={userSubmissions} />
     </div>
   )
 }

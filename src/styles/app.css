@@ -608,26 +608,7 @@ html, body, #root {
   transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease;
   pointer-events: none;
 }
-/* Rank-1 gets a brighter bar + glow ring (.panel-title is :first-child, so lb-row#1 is :nth-child(2)) */
-.lb-row:nth-child(2) .lb-bar {
-  background: linear-gradient(
-    90deg,
-    rgba(56, 243, 255, 0.35) 0%,
-    rgba(56, 243, 255, 0.08) 100%
-  );
-  border-right-color: rgba(56, 243, 255, 0.5);
-}
-.lb-row:nth-child(2) {
-  border-color: rgba(56, 243, 255, 0.25);
-  box-shadow: 0 0 12px rgba(56, 243, 255, 0.1), inset 0 0 8px rgba(56, 243, 255, 0.03);
-}
-.lb-row:nth-child(2) .lb-rank {
-  color: #38f3ff;
-  text-shadow: 0 0 8px rgba(56, 243, 255, 0.5);
-}
-.lb-row:nth-child(2) .lb-count {
-  text-shadow: 0 0 10px rgba(56, 243, 255, 0.5);
-}
+/* Rank styling now handled by .lb-row--rank1/2/3 classes */
 
 .lb-rank,
 .lb-flag,
@@ -666,6 +647,44 @@ html, body, #root {
   text-shadow: var(--glow-cyan-sm);
   min-width: 28px;
   text-align: right;
+}
+
+.lb-row--rank1 {
+  border-color: rgba(255,215,0,0.2);
+  box-shadow: 0 0 12px rgba(255,215,0,0.08), inset 0 0 8px rgba(255,215,0,0.03);
+}
+.lb-row--rank1 .lb-bar {
+  background: linear-gradient(90deg, rgba(255,215,0,0.25) 0%, rgba(255,215,0,0.06) 100%);
+  border-right-color: rgba(255,215,0,0.4);
+}
+.lb-row--rank1 .lb-rank {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.4);
+}
+.lb-row--rank1 .lb-count {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.4);
+}
+
+.lb-row--rank2 .lb-rank {
+  color: #c0c0c0;
+  text-shadow: 0 0 6px rgba(192,192,192,0.3);
+}
+
+.lb-row--rank3 .lb-rank {
+  color: #cd7f32;
+  text-shadow: 0 0 6px rgba(205,127,50,0.3);
+}
+
+@keyframes lbSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .lb-empty {

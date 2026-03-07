@@ -2,11 +2,6 @@ import { v4 as uuidv4 } from 'uuid'
 
 const VALID_TYPES = new Set(['standard', 'epic', 'silent-but-deadly'])
 
-const VALID_COUNTRIES = new Set([
-  'US','GB','DE','FR','JP','CN','BR','IN','AU','CA',
-  'MX','RU','NG','ZA','EG','AR','KR','ID','TR','IT',
-])
-
 export function validateFartEvent(body) {
   const errors = []
 
@@ -14,7 +9,7 @@ export function validateFartEvent(body) {
     return { valid: false, errors: ['Request body must be a JSON object'], event: null }
   }
 
-  const { lat, lng, intensity, country, type, audioData } = body
+  const { lat, lng, intensity, country, type, audioData, duration, volume, peakVolume } = body
 
   // lat
   if (typeof lat !== 'number' || !Number.isFinite(lat)) {
@@ -30,12 +25,9 @@ export function validateFartEvent(body) {
     errors.push('lng must be between -180 and 180')
   }
 
-  // intensity
-  if (typeof intensity !== 'number' || !Number.isInteger(intensity)) {
-    errors.push('intensity must be an integer')
-  } else if (intensity < 1 || intensity > 10) {
-    errors.push('intensity must be between 1 and 10')
-  }
+  // intensity — optional, defaults to 5
+  const finalIntensity = (typeof intensity === 'number' && Number.isInteger(intensity) && intensity >= 1 && intensity <= 10)
+    ? intensity : 5
 
   // country — accept any ISO 3166-1 alpha-2 code (2 uppercase letters)
   if (typeof country !== 'string') {
@@ -44,12 +36,8 @@ export function validateFartEvent(body) {
     errors.push('country must be a 2-letter ISO country code')
   }
 
-  // type
-  if (typeof type !== 'string') {
-    errors.push('type must be a string')
-  } else if (!VALID_TYPES.has(type)) {
-    errors.push(`type must be one of: ${[...VALID_TYPES].join(', ')}`)
-  }
+  // type — optional, defaults to 'standard'
+  const finalType = (typeof type === 'string' && VALID_TYPES.has(type)) ? type : 'standard'
 
   // audioData is optional — validate if present
   if (audioData !== undefined && audioData !== null) {
@@ -57,6 +45,36 @@ export function validateFartEvent(body) {
       errors.push('audioData must be a base64 string')
     } else if (audioData.length > 500_000) {
       errors.push('audioData too large (max ~375KB)')
+    }
+  }
+
+  // duration — optional (seconds, 0-10)
+  let finalDuration = null
+  if (duration !== undefined && duration !== null) {
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0 || duration > 10) {
+      errors.push('duration must be a number between 0 and 10')
+    } else {
+      finalDuration = Math.round(duration * 10) / 10
+    }
+  }
+
+  // volume — optional (0-100, RMS average)
+  let finalVolume = null
+  if (volume !== undefined && volume !== null) {
+    if (typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0 || volume > 100) {
+      errors.push('volume must be a number between 0 and 100')
+    } else {
+      finalVolume = Math.round(volume * 10) / 10
+    }
+  }
+
+  // peakVolume — optional (0-100)
+  let finalPeakVolume = null
+  if (peakVolume !== undefined && peakVolume !== null) {
+    if (typeof peakVolume !== 'number' || !Number.isFinite(peakVolume) || peakVolume < 0 || peakVolume > 100) {
+      errors.push('peakVolume must be a number between 0 and 100')
+    } else {
+      finalPeakVolume = Math.round(peakVolume * 10) / 10
     }
   }
 
@@ -68,11 +86,14 @@ export function validateFartEvent(body) {
     id: uuidv4(),
     lat: Math.round(lat * 1e6) / 1e6,
     lng: Math.round(lng * 1e6) / 1e6,
-    intensity: Math.round(intensity),
+    intensity: finalIntensity,
     country: country.toUpperCase(),
     timestamp: Date.now(),
-    type,
+    type: finalType,
     audioData: audioData || null,
+    duration: finalDuration,
+    volume: finalVolume,
+    peakVolume: finalPeakVolume,
   }
 
   return { valid: true, errors: [], event }

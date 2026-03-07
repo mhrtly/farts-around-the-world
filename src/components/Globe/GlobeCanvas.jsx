@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-import { ANALYST_NOTES } from '../../config/humor.ts'
+// Analyst notes removed — realism pivot
 
 // ── Color palette ────────────────────────────────────────────────────────────
 
@@ -26,18 +26,6 @@ const RING_COLOR_FN = {
   'silent-but-deadly': t => `rgba(157,255,74,${Math.max(0, 1 - t)})`,
 }
 
-const TYPE_LABELS = {
-  standard:           'STANDARD',
-  epic:               'EPIC',
-  'silent-but-deadly':'SILENT-BUT-DEADLY',
-}
-
-const TYPE_CSS_COLOR = {
-  standard:           'var(--accent-cyan)',
-  epic:               'var(--accent-pink)',
-  'silent-but-deadly':'var(--accent-lime)',
-}
-
 const RISE_SPEED = {
   standard:           0.015,
   epic:               0.020,
@@ -49,16 +37,14 @@ const PUFF_LIFETIME_MS = 5000
 // ── Puff helpers ─────────────────────────────────────────────────────────────
 
 function makePuffMesh(event) {
-  const isEpic = event.type === 'epic'
-  const isSBD  = event.type === 'silent-but-deadly'
   const hasAudio = !!event.hasAudio
 
-  let baseRadius = isEpic ? 0.4 + event.intensity * 0.18
-                 : isSBD  ? 0.22 + event.intensity * 0.10
-                 :          0.25 + event.intensity * 0.12
+  // Volume-based sizing when available, fallback to intensity
+  const vol = event.volume || event.intensity * 5
+  let baseRadius = 0.25 + vol * 0.025
 
   // Audio events are larger and more visible
-  if (hasAudio) baseRadius *= 1.4
+  if (hasAudio) baseRadius *= 1.5
 
   // Cloud-like geometry: perturb vertices for lumpy shape
   const geometry = new THREE.SphereGeometry(baseRadius, 10, 8)
@@ -102,9 +88,6 @@ function formatUTC(ts) {
   return new Date(ts).toISOString().slice(11, 19) + ' UTC'
 }
 
-function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)]
-}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -118,7 +101,6 @@ export default function GlobeCanvas({ events }) {
 
   const [selectedEvent, setSelectedEvent] = useState(null)
   const selectedEventRef = useRef(null) // ref for hover callbacks (avoids stale closure)
-  const analystNote = useRef('')
 
   // Audio playback state
   const [audioPlaying, setAudioPlaying] = useState(false)
@@ -153,7 +135,6 @@ export default function GlobeCanvas({ events }) {
         return d._mesh
       })
       .onObjectClick(obj => {
-        analystNote.current = randomItem(ANALYST_NOTES)
         setSelectedEvent(obj)
         g.controls().autoRotate = false
       })
@@ -188,7 +169,6 @@ export default function GlobeCanvas({ events }) {
       .pointsMerge(false)
       .pointsTransitionDuration(300)
       .onPointClick(point => {
-        analystNote.current = randomItem(ANALYST_NOTES)
         setSelectedEvent(point)
         g.controls().autoRotate = false
       })
@@ -217,17 +197,6 @@ export default function GlobeCanvas({ events }) {
       })
       .hexBinMerge(true)
       .hexTransitionDuration(700)
-
-      // ── Labels — audio indicators ─────────────────────────────────────
-      .labelsData([])
-      .labelLat('lat')
-      .labelLng('lng')
-      .labelText('text')
-      .labelColor(() => 'rgba(255,200,60,0.95)')
-      .labelSize(1.2)
-      .labelDotRadius(0)
-      .labelResolution(3)
-      .labelAltitude(0.045)
 
       // Click empty globe → dismiss overlay, resume rotate
       .onGlobeClick(() => {
@@ -343,13 +312,6 @@ export default function GlobeCanvas({ events }) {
       const recent = events.filter(e => now - e.timestamp < 90_000)
       g.pointsData(recent.slice(0, 200))
       g.hexBinPointsData(events.filter(e => now - e.timestamp < 600_000))
-
-      // Audio indicator labels
-      const audioEvents = events
-        .filter(e => e.hasAudio && now - e.timestamp < 300_000)
-        .slice(0, 15)
-        .map(e => ({ ...e, text: '\uD83D\uDD0A' })) // 🔊
-      g.labelsData(audioEvents)
     }, 400)
 
   }, [events])
@@ -432,17 +394,17 @@ export default function GlobeCanvas({ events }) {
           boxShadow:        '0 0 24px rgba(56,243,255,0.08)',
         }}>
           <div style={{
-            color:         TYPE_CSS_COLOR[selectedEvent.type] ?? 'var(--accent-cyan)',
-            fontSize:      '13px',
-            fontWeight:    'bold',
-            marginBottom:  '10px',
+            color: 'var(--accent-cyan)',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            marginBottom: '10px',
             letterSpacing: '0.12em',
           }}>
-            {selectedEvent.hasAudio ? '\uD83D\uDD0A' : '\u25C9'} EVENT INTERCEPT
+            {'\uD83D\uDCA8'} EMISSION DATA
           </div>
 
           <div>
-            <span style={{ color: 'var(--text-label)' }}>Grid:&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            <span style={{ color: 'var(--text-label)' }}>Location:&nbsp;</span>
             <span style={{ color: 'var(--text-primary)' }}>
               {Math.abs(selectedEvent.lat).toFixed(4)}{'\u00B0'}{selectedEvent.lat >= 0 ? 'N' : 'S'},&nbsp;
               {Math.abs(selectedEvent.lng).toFixed(4)}{'\u00B0'}{selectedEvent.lng >= 0 ? 'E' : 'W'}
@@ -450,14 +412,35 @@ export default function GlobeCanvas({ events }) {
           </div>
 
           <div>
-            <span style={{ color: 'var(--text-label)' }}>Country:&nbsp;</span>
+            <span style={{ color: 'var(--text-label)' }}>Country:&nbsp;&nbsp;</span>
             <span style={{ color: 'var(--text-primary)' }}>{selectedEvent.country}</span>
           </div>
 
-          <div style={{ marginBottom: '10px' }}>
-            <span style={{ color: 'var(--text-label)' }}>Time:&nbsp;&nbsp;&nbsp;&nbsp;</span>
+          <div>
+            <span style={{ color: 'var(--text-label)' }}>Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
             <span style={{ color: 'var(--text-primary)' }}>{formatUTC(selectedEvent.timestamp)}</span>
           </div>
+
+          {selectedEvent.duration != null && (
+            <div>
+              <span style={{ color: 'var(--text-label)' }}>Duration:&nbsp;</span>
+              <span style={{ color: '#38f3ff' }}>{selectedEvent.duration}s</span>
+            </div>
+          )}
+
+          {selectedEvent.volume != null && (
+            <div>
+              <span style={{ color: 'var(--text-label)' }}>Volume:&nbsp;&nbsp;&nbsp;</span>
+              <span style={{ color: '#38f3ff' }}>{selectedEvent.volume}</span>
+            </div>
+          )}
+
+          {selectedEvent.peakVolume != null && (
+            <div style={{ marginBottom: '10px' }}>
+              <span style={{ color: 'var(--text-label)' }}>Peak:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+              <span style={{ color: '#ff6b6b' }}>{selectedEvent.peakVolume}</span>
+            </div>
+          )}
 
           {selectedEvent.hasAudio ? (
             <div style={{ marginBottom: '10px' }}>
@@ -465,47 +448,28 @@ export default function GlobeCanvas({ events }) {
                 onClick={() => playAudio(selectedEvent.id)}
                 disabled={audioLoading}
                 style={{
-                  width:           '100%',
-                  padding:         '10px',
-                  background:      audioPlaying ? 'rgba(255,77,90,0.15)' : 'rgba(56,243,255,0.12)',
-                  border:          `1px solid ${audioPlaying ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.35)'}`,
-                  borderRadius:    '4px',
-                  color:           audioPlaying ? '#ff4d5a' : '#38f3ff',
-                  fontFamily:      'monospace',
-                  fontSize:        '12px',
-                  fontWeight:      'bold',
-                  letterSpacing:   '0.12em',
-                  cursor:          audioLoading ? 'wait' : 'pointer',
-                  boxShadow:       audioPlaying ? '0 0 12px rgba(255,77,90,0.2)' : '0 0 12px rgba(56,243,255,0.15)',
+                  width: '100%', padding: '10px',
+                  background: audioPlaying ? 'rgba(255,77,90,0.15)' : 'rgba(56,243,255,0.12)',
+                  border: `1px solid ${audioPlaying ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.35)'}`,
+                  borderRadius: '4px',
+                  color: audioPlaying ? '#ff4d5a' : '#38f3ff',
+                  fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold',
+                  letterSpacing: '0.12em',
+                  cursor: audioLoading ? 'wait' : 'pointer',
+                  boxShadow: audioPlaying ? '0 0 12px rgba(255,77,90,0.2)' : '0 0 12px rgba(56,243,255,0.15)',
                 }}
               >
-                {audioLoading ? '\u23F3 LOADING...' : audioPlaying ? '\u23F9 STOP PLAYBACK' : '\uD83D\uDD0A PLAY FART AUDIO'}
+                {audioLoading ? '\u23F3 LOADING...' : audioPlaying ? '\u23F9 STOP' : '\u25B6 PLAY AUDIO'}
               </button>
             </div>
           ) : (
             <div style={{
-              fontSize: '10px',
-              color: 'rgba(106,122,138,0.6)',
-              fontFamily: 'monospace',
-              letterSpacing: '0.1em',
-              marginBottom: '10px',
+              fontSize: '10px', color: 'rgba(106,122,138,0.6)',
+              fontFamily: 'monospace', letterSpacing: '0.1em', marginBottom: '10px',
             }}>
               NO AUDIO RECORDED
             </div>
           )}
-
-          <div style={{
-            borderTop:     '1px solid rgba(56,243,255,0.12)',
-            paddingTop:    '8px',
-            color:         'var(--text-label)',
-            marginBottom:  '4px',
-            letterSpacing: '0.1em',
-          }}>
-            ANALYST NOTE:
-          </div>
-          <div style={{ color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: '1.5' }}>
-            "{analystNote.current}"
-          </div>
 
           <div
             onClick={() => {

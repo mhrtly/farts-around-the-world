@@ -20,9 +20,16 @@ export default function Header({ totalToday }) {
   return (
     <header className="hud-header">
       <div className="hud-header__logo">
-        <span className="logo-icon">💨</span>
-        <span className="logo-text">FARTS <em>AROUND THE WORLD</em></span>
-        <span className="logo-tag">GLOBAL TELEMETRY v1.0</span>
+        <span className="logo-icon">{'\uD83D\uDCA8'}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <span className="logo-text" style={{ fontSize: '20px', letterSpacing: '0.35em' }}>FATWA</span>
+          <span style={{
+            fontSize: '8px',
+            letterSpacing: '0.15em',
+            color: 'var(--text-dim)',
+            textTransform: 'uppercase',
+          }}>Farts Around The World App</span>
+        </div>
       </div>
 
       <div className="hud-header__center">

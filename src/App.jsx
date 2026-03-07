@@ -3,22 +3,38 @@ import GlobeCanvas from './components/Globe/GlobeCanvas.jsx'
 import Header from './components/HUD/Header.jsx'
 import KPIPanel from './components/HUD/KPIPanel.jsx'
 import Leaderboard from './components/HUD/Leaderboard.jsx'
-import FartBrowser from './components/HUD/FartBrowser.jsx'
 import Timeline from './components/HUD/Timeline.jsx'
-import EpicAlert from './components/HUD/EpicAlert.jsx'
 import GasconIndicator from './components/HUD/GasconIndicator.jsx'
-import MethaneWaveform from './components/HUD/MethaneWaveform.jsx'
-import NewsTicker from './components/HUD/NewsTicker.jsx'
 import SubmitPanel from './components/HUD/SubmitPanel.jsx'
+import FartBrowser from './components/HUD/FartBrowser.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
+const btnBase = {
+  fontFamily: 'monospace',
+  fontWeight: 'bold',
+  letterSpacing: '0.15em',
+  border: '1px solid',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+  transition: 'all 0.2s ease',
+  width: '100%',
+  padding: '24px 16px',
+  fontSize: '16px',
+  textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '6px',
+}
+
 export default function App() {
-  const [events, setEvents]         = useState([])
-  const [alertEvent, setAlertEvent] = useState(null)
-  const [stats, setStats]           = useState({
+  const [events, setEvents]           = useState([])
+  const [activeModal, setActiveModal] = useState(null)
+  const [stats, setStats]             = useState({
     totalToday: 0,
     activeFarters: 0,
-    topCountry: '—',
+    topCountry: '\u2014',
     epicCount: 0,
   })
   const streamRef = useRef(null)
@@ -32,10 +48,6 @@ export default function App() {
       topCountry:    event.country,
       epicCount:     prev.epicCount + (event.type === 'epic' ? 1 : 0),
     }))
-
-    if (event.type === 'epic' || event.type === 'silent-but-deadly') {
-      setAlertEvent(event)
-    }
   }, [])
 
   useEffect(() => {
@@ -49,12 +61,11 @@ export default function App() {
     }
   }, [handleNewEvent])
 
-  const dismissAlert = useCallback(() => setAlertEvent(null), [])
+  const closeModal = useCallback(() => setActiveModal(null), [])
 
   return (
     <div className="app-shell">
       <Header totalToday={stats.totalToday} />
-      <NewsTicker />
       <GasconIndicator events={events} />
 
       <div className="app-body">
@@ -66,20 +77,54 @@ export default function App() {
 
         <main className="globe-container">
           <GlobeCanvas events={events} />
+
+          {activeModal === 'record' && (
+            <SubmitPanel onClose={closeModal} />
+          )}
+          {activeModal === 'browse' && (
+            <FartBrowser events={events} onClose={closeModal} />
+          )}
         </main>
 
-        <aside className="panel panel-right">
-          <SubmitPanel />
-          <div className="panel-divider" />
-          <MethaneWaveform events={events} />
-          <div className="panel-divider" />
-          <FartBrowser events={events.slice(0, 40)} />
+        <aside className="panel panel-right" style={{ justifyContent: 'center', gap: '16px' }}>
+          <button
+            onClick={() => setActiveModal('record')}
+            style={{
+              ...btnBase,
+              background: 'rgba(255,77,90,0.12)',
+              borderColor: '#ff6b6b',
+              color: '#ff6b6b',
+              boxShadow: '0 0 24px rgba(255,77,90,0.2), 0 0 48px rgba(255,77,90,0.08)',
+              animation: 'pulseOpacity 2.5s ease-in-out infinite',
+            }}
+          >
+            <span style={{ fontSize: '28px' }}>{'\uD83C\uDFA4'}</span>
+            <span>Record a Fart</span>
+            <span style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(255,107,107,0.6)', fontWeight: 'normal' }}>
+              Contribute to the global dataset
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveModal('browse')}
+            style={{
+              ...btnBase,
+              background: 'rgba(56,243,255,0.08)',
+              borderColor: '#38f3ff',
+              color: '#38f3ff',
+              boxShadow: '0 0 24px rgba(56,243,255,0.15), 0 0 48px rgba(56,243,255,0.06)',
+            }}
+          >
+            <span style={{ fontSize: '28px' }}>{'\uD83D\uDCA8'}</span>
+            <span>Rate Emissions</span>
+            <span style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(56,243,255,0.5)', fontWeight: 'normal' }}>
+              Listen, rate, and classify
+            </span>
+          </button>
         </aside>
       </div>
 
       <Timeline events={events} />
-
-      <EpicAlert event={alertEvent} onDismiss={dismissAlert} />
     </div>
   )
 }

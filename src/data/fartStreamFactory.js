@@ -1,9 +1,6 @@
-import { createFartStream } from './mockFartStream.js'
-
 /**
- * Tries to connect to the live backend. Falls back to mock data
- * if the server isn't running. Uses relative URLs so it works
- * both in dev (via Vite proxy) and prod (served from Express).
+ * Tries to connect to the live backend. If the server isn't running,
+ * returns a no-op stream — only real data is shown.
  */
 export async function createStream(onEvent) {
   try {
@@ -12,13 +9,13 @@ export async function createStream(onEvent) {
     })
     if (health.ok) {
       const { createLiveFartStream } = await import('./liveFartStream.ts')
-      console.log('[GFMS] Backend detected — using live data stream')
+      console.log('[FATWA] Backend detected — using live data stream')
       return createLiveFartStream({ onEvent })
     }
   } catch {
-    // Backend not available — fall through to mock
+    // Backend not available
   }
 
-  console.log('[GFMS] Backend not available — using mock data stream')
-  return createFartStream(onEvent)
+  console.log('[FATWA] Backend not available — waiting for server')
+  return { stop() {} }
 }

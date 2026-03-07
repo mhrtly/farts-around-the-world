@@ -40,24 +40,29 @@ try {
   // Column already exists — ignore
 }
 
+// Add audio stats columns (migration-safe)
+for (const col of ['duration REAL DEFAULT NULL', 'volume REAL DEFAULT NULL', 'peak_volume REAL DEFAULT NULL']) {
+  try { db.exec(`ALTER TABLE events ADD COLUMN ${col}`) } catch { /* exists */ }
+}
+
 // Prepared statements
 const stmts = {
   insert: db.prepare(`
-    INSERT INTO events (id, lat, lng, intensity, country, timestamp, type, audio_data)
-    VALUES (@id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData)
+    INSERT INTO events (id, lat, lng, intensity, country, timestamp, type, audio_data, duration, volume, peak_volume)
+    VALUES (@id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData, @duration, @volume, @peakVolume)
   `),
 
   recent: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
            CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
-           user_rating
+           user_rating, duration, volume, peak_volume as peakVolume
     FROM events ORDER BY timestamp DESC LIMIT ?
   `),
 
   range: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
            CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
-           user_rating
+           user_rating, duration, volume, peak_volume as peakVolume
     FROM events WHERE timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp DESC
   `),

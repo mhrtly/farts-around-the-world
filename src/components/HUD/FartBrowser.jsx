@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { REPORTER_ALIASES, classifyEmission, generatePayloadDescription } from '../../config/humor.ts'
+import AudioWaveform from './AudioWaveform.jsx'
 
 const FLAG_EMOJIS = {
   US:'\uD83C\uDDFA\uD83C\uDDF8', GB:'\uD83C\uDDEC\uD83C\uDDE7', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', JP:'\uD83C\uDDEF\uD83C\uDDF5',
@@ -72,31 +73,32 @@ export default function FartBrowser({ events, onClose }) {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  const [audioUrls, setAudioUrls] = useState({})
+
   const toggleAudio = async (eventId) => {
-    if (audioRefs.current[eventId]) {
-      audioRefs.current[eventId].pause()
-      audioRefs.current[eventId] = null
+    const currentState = audioStates[eventId] || 'idle'
+
+    if (currentState === 'playing') {
+      // Stop — AudioWaveform handles actual audio stop
       setAudioStates(prev => ({ ...prev, [eventId]: 'idle' }))
       return
     }
 
-    setAudioStates(prev => ({ ...prev, [eventId]: 'loading' }))
-    try {
-      const res = await fetch(`/api/events/${eventId}/audio`)
-      if (!res.ok) throw new Error('No audio')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      audio.onended = () => {
+    // Load URL if not yet fetched
+    if (!audioUrls[eventId]) {
+      setAudioStates(prev => ({ ...prev, [eventId]: 'loading' }))
+      try {
+        const res = await fetch(`/api/events/${eventId}/audio`)
+        if (!res.ok) throw new Error('No audio')
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        setAudioUrls(prev => ({ ...prev, [eventId]: url }))
+        setAudioStates(prev => ({ ...prev, [eventId]: 'playing' }))
+      } catch {
         setAudioStates(prev => ({ ...prev, [eventId]: 'idle' }))
-        audioRefs.current[eventId] = null
-        URL.revokeObjectURL(url)
       }
-      audioRefs.current[eventId] = audio
-      await audio.play()
+    } else {
       setAudioStates(prev => ({ ...prev, [eventId]: 'playing' }))
-    } catch {
-      setAudioStates(prev => ({ ...prev, [eventId]: 'idle' }))
     }
   }
 
@@ -356,22 +358,40 @@ export default function FartBrowser({ events, onClose }) {
                         </div>
 
                         {e.hasAudio && (
-                          <button
-                            onClick={() => toggleAudio(e.id)}
-                            disabled={audioState === 'loading'}
-                            style={{
-                              ...btnBase, width: '100%', padding: '10px', marginBottom: '12px',
-                              fontSize: '12px',
-                              border: `1px solid ${audioState === 'playing' ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.3)'}`,
-                              background: audioState === 'playing' ? 'rgba(255,77,90,0.12)' : 'rgba(56,243,255,0.08)',
-                              color: audioState === 'playing' ? '#ff4d5a' : '#38f3ff',
-                              cursor: audioState === 'loading' ? 'wait' : 'pointer',
-                            }}
-                          >
-                            {audioState === 'loading' ? '\u23F3 LOADING...' :
-                             audioState === 'playing' ? '\u23F9 STOP' :
-                             '\u25B6 PLAY AUDIO'}
-                          </button>
+                          <div style={{ marginBottom: '12px' }}>
+                            {audioState === 'loading' ? (
+                              <div style={{
+                                textAlign: 'center', padding: '14px',
+                                fontFamily: 'monospace', fontSize: '10px',
+                                color: '#38f3ff', letterSpacing: '0.15em',
+                                border: '1px solid rgba(56,243,255,0.15)',
+                                borderRadius: '4px', background: 'rgba(56,243,255,0.05)',
+                              }}>
+                                ⏳ LOADING AUDIO...
+                              </div>
+                            ) : audioUrls[e.id] ? (
+                              <AudioWaveform
+                                audioUrl={audioUrls[e.id]}
+                                isPlaying={audioState === 'playing'}
+                                onPlayToggle={() => toggleAudio(e.id)}
+                                onEnded={() => setAudioStates(prev => ({ ...prev, [e.id]: 'idle' }))}
+                                color={(() => { const cls = classifyEmission(e.duration, e.volume); return cls.color; })()}
+                              />
+                            ) : (
+                              <button
+                                onClick={() => toggleAudio(e.id)}
+                                style={{
+                                  ...btnBase, width: '100%', padding: '10px',
+                                  fontSize: '12px',
+                                  border: '1px solid rgba(56,243,255,0.3)',
+                                  background: 'rgba(56,243,255,0.08)',
+                                  color: '#38f3ff',
+                                }}
+                              >
+                                ▶ PLAY AUDIO
+                              </button>
+                            )}
+                          </div>
                         )}
 
                         <div style={{ fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace', letterSpacing: '0.15em', marginBottom: '8px' }}>

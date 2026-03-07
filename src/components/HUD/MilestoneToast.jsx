@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { playMilestoneChime } from '../../utils/notificationSound.js'
 
 const COUNTRY_NAMES = {
   US: 'United States', GB: 'United Kingdom', DE: 'Germany', FR: 'France',
@@ -195,6 +196,7 @@ export default function MilestoneToast({ events }) {
 
     if (newMilestones.length > 0) {
       setMilestones(prev => [...prev, ...newMilestones].slice(-3))
+      playMilestoneChime()
     }
   }, [events])
 

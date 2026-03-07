@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { classifyEmission } from '../../config/humor.ts'
+import { playEventBlip } from '../../utils/notificationSound.js'
 
 const FLAG_MAP = {
   US:'🇺🇸', GB:'🇬🇧', DE:'🇩🇪', FR:'🇫🇷', JP:'🇯🇵', CN:'🇨🇳',
@@ -128,6 +129,11 @@ export default function EventToast({ events }) {
       ...prev,
       ...toShow.map(e => ({ id: e.id, event: e })),
     ].slice(-3))
+
+    // Play subtle notification sound for the first new event
+    if (toShow.length > 0) {
+      playEventBlip()
+    }
   }, [events])
 
   const removeToast = (id) => {

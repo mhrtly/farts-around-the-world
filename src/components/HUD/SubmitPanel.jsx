@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { classifyEmission } from '../../config/humor.ts'
+import CustomAudioPlayer from './CustomAudioPlayer.jsx'
 
 // Reverse geocode via free BigDataCloud API (no key needed, client-side)
 async function reverseGeocode(lat, lng) {
@@ -460,6 +461,7 @@ export default function SubmitPanel({ onClose }) {
         backdropFilter: 'blur(8px)',
         zIndex: 1000,
         padding: isCompact ? '0' : '20px',
+        animation: 'modalBackdropIn 0.2s ease-out',
       }}
       onClick={onClose}
     >
@@ -474,6 +476,7 @@ export default function SubmitPanel({ onClose }) {
           borderRadius: isCompact ? '0' : '8px',
           boxShadow: '0 0 60px rgba(56,243,255,0.1), 0 0 120px rgba(0,0,0,0.5)',
           padding: isCompact ? '20px 16px calc(28px + env(safe-area-inset-bottom))' : '32px',
+          animation: 'modalContentIn 0.25s ease-out',
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -582,7 +585,9 @@ export default function SubmitPanel({ onClose }) {
                   borderRadius: '4px', marginBottom: '10px',
                 }}
               />
-              <audio controls src={audioUrl} style={{ width: '100%', height: '36px', marginBottom: '12px' }} />
+              <div style={{ marginBottom: '12px' }}>
+                <CustomAudioPlayer src={audioUrl} color="#9dff4a" />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '8px', color: 'var(--text-dim)', letterSpacing: '0.2em', fontFamily: 'monospace', marginBottom: '4px' }}>DURATION</div>
@@ -715,12 +720,28 @@ export default function SubmitPanel({ onClose }) {
             </div>
           ) : (
             <div style={{
-              textAlign: 'center', fontSize: '13px', fontFamily: 'monospace',
-              fontWeight: 'bold', letterSpacing: '0.1em',
-              color: '#38f3ff', padding: '16px',
-              animation: 'pulseOpacity 1.5s infinite',
+              textAlign: 'center', padding: '16px',
             }}>
-              {sequence}
+              <div style={{
+                fontSize: '13px', fontFamily: 'monospace',
+                fontWeight: 'bold', letterSpacing: '0.1em',
+                color: '#38f3ff',
+                animation: 'pulseOpacity 1.5s infinite',
+              }}>
+                {sequence}
+              </div>
+              <div style={{
+                display: 'flex', justifyContent: 'center', gap: '4px',
+                marginTop: '12px',
+              }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{
+                    width: '6px', height: '6px', borderRadius: '50%',
+                    background: '#38f3ff',
+                    animation: `pulseOpacity 1s ease-in-out ${i * 0.2}s infinite`,
+                  }} />
+                ))}
+              </div>
             </div>
           )
         ) : (

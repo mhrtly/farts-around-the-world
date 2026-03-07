@@ -1094,6 +1094,38 @@ html, body, #root {
   100% { transform: translateX(-50%); }
 }
 
+/* --- Shared utility keyframes (used by inline styles in components) --- */
+
+@keyframes pulseOpacity {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes cmdPaletteIn {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalContentIn {
+  from { opacity: 0; transform: scale(0.95) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes overlaySlideIn {
+  from { opacity: 0; transform: translateY(-50%) translateX(20px); }
+  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
 @media (max-width: 900px) {
   html, body, #root {
     font-size: 11px;

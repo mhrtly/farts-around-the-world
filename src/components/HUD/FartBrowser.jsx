@@ -128,6 +128,7 @@ export default function FartBrowser({ events, onClose }) {
         backdropFilter: 'blur(8px)',
         zIndex: 1000,
         padding: isCompact ? '0' : '20px',
+        animation: 'modalBackdropIn 0.2s ease-out',
       }}
       onClick={onClose}
     >
@@ -143,6 +144,7 @@ export default function FartBrowser({ events, onClose }) {
           borderRadius: isCompact ? '0' : '8px',
           boxShadow: '0 0 60px rgba(56,243,255,0.1), 0 0 120px rgba(0,0,0,0.5)',
           overflow: 'hidden',
+          animation: 'modalContentIn 0.25s ease-out',
         }}
         onClick={e => e.stopPropagation()}
       >

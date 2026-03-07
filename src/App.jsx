@@ -22,6 +22,7 @@ import GlobalCoverage from './components/HUD/GlobalCoverage.jsx'
 import ConnectionStatus from './components/HUD/ConnectionStatus.jsx'
 import MilestoneToast from './components/HUD/MilestoneToast.jsx'
 import PanelSection from './components/HUD/PanelSection.jsx'
+import CTAButton from './components/HUD/CTAButton.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -38,24 +39,6 @@ function mergeEvents(current, incoming) {
     .slice(0, MAX_PERSISTED_EVENTS)
 }
 
-const btnBase = {
-  fontFamily: 'monospace',
-  fontWeight: 'bold',
-  letterSpacing: '0.15em',
-  border: '1px solid',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  textTransform: 'uppercase',
-  transition: 'all 0.2s ease',
-  width: '100%',
-  padding: '24px 16px',
-  fontSize: '16px',
-  textAlign: 'center',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '6px',
-}
 
 export default function App() {
   const [events, setEvents]           = useState([])
@@ -343,66 +326,34 @@ export default function App() {
         </main>
 
         <aside className="panel panel-right" style={{ justifyContent: 'center', gap: '16px' }}>
-          <button
+          <CTAButton
             onClick={() => setActiveModal('record')}
-            style={{
-              ...btnBase,
-              background: 'rgba(255,77,90,0.12)',
-              borderColor: '#ff6b6b',
-              color: '#ff6b6b',
-              boxShadow: '0 0 24px rgba(255,77,90,0.2), 0 0 48px rgba(255,77,90,0.08)',
-              animation: 'pulseOpacity 2.5s ease-in-out infinite',
-            }}
-          >
-            <span style={{ fontSize: '28px' }}>{'\uD83C\uDFA4'}</span>
-            <span>Record a Fart</span>
-            <span style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(255,107,107,0.6)', fontWeight: 'normal' }}>
-              Contribute to the global dataset
-            </span>
-            <span style={{ fontSize: '8px', color: 'rgba(255,107,107,0.35)', fontWeight: 'normal', letterSpacing: '0.05em' }}>
-              Press R
-            </span>
-          </button>
+            icon={'\uD83C\uDFA4'}
+            label="Record a Fart"
+            sublabel="Contribute to the global dataset"
+            shortcut="R"
+            color="#ff6b6b"
+            pulse
+          />
 
-          <button
+          <CTAButton
             onClick={() => setActiveModal('browse')}
-            style={{
-              ...btnBase,
-              background: 'rgba(56,243,255,0.08)',
-              borderColor: '#38f3ff',
-              color: '#38f3ff',
-              boxShadow: '0 0 24px rgba(56,243,255,0.15), 0 0 48px rgba(56,243,255,0.06)',
-            }}
-          >
-            <span style={{ fontSize: '28px' }}>{'\uD83D\uDCA8'}</span>
-            <span>Rate Emissions</span>
-            <span style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(56,243,255,0.5)', fontWeight: 'normal' }}>
-              Listen, rate, and classify
-            </span>
-            <span style={{ fontSize: '8px', color: 'rgba(56,243,255,0.3)', fontWeight: 'normal', letterSpacing: '0.05em' }}>
-              Press B
-            </span>
-          </button>
+            icon={'\uD83D\uDCA8'}
+            label="Rate Emissions"
+            sublabel="Listen, rate, and classify"
+            shortcut="B"
+            color="#38f3ff"
+          />
 
-          {/* Spotlight Tour button */}
-          <button
+          <CTAButton
             onClick={() => setShowTour(prev => !prev)}
-            style={{
-              ...btnBase,
-              padding: '14px 16px',
-              fontSize: '12px',
-              background: showTour ? 'rgba(255,100,255,0.15)' : 'rgba(255,100,255,0.05)',
-              borderColor: showTour ? '#ff64ff' : 'rgba(255,100,255,0.2)',
-              color: showTour ? '#ff64ff' : 'rgba(255,100,255,0.7)',
-              boxShadow: showTour ? '0 0 16px rgba(255,100,255,0.2)' : 'none',
-            }}
-          >
-            <span style={{ fontSize: '20px' }}>🔭</span>
-            <span>{showTour ? 'End Tour' : 'Spotlight Tour'}</span>
-            <span style={{ fontSize: '8px', color: 'rgba(255,100,255,0.35)', fontWeight: 'normal', letterSpacing: '0.05em' }}>
-              Press T
-            </span>
-          </button>
+            icon="🔭"
+            label={showTour ? 'End Tour' : 'Spotlight Tour'}
+            shortcut="T"
+            color="#ff64ff"
+            compact
+            active={showTour}
+          />
 
           {/* Command Palette hint */}
           <div

@@ -415,6 +415,7 @@ const GlobeCanvasInner = forwardRef(function GlobeCanvas({ events }, ref) {
           lineHeight:       '1.7',
           zIndex:           100,
           boxShadow:        '0 0 24px rgba(56,243,255,0.08)',
+          animation:        'overlaySlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
         }}>
           {(() => {
             const cls = classifyEmission(selectedEvent.duration, selectedEvent.volume)

@@ -1,14 +1,14 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { classifyEmission } from '../../config/humor.ts'
 
 const FLAG_MAP = {
-  US:'\uD83C\uDDFA\uD83C\uDDF8', GB:'\uD83C\uDDEC\uD83C\uDDE7', DE:'\uD83C\uDDE9\uD83C\uDDEA',
-  FR:'\uD83C\uDDEB\uD83C\uDDF7', JP:'\uD83C\uDDEF\uD83C\uDDF5', CN:'\uD83C\uDDE8\uD83C\uDDF3',
-  BR:'\uD83C\uDDE7\uD83C\uDDF7', IN:'\uD83C\uDDEE\uD83C\uDDF3', AU:'\uD83C\uDDE6\uD83C\uDDFA',
-  CA:'\uD83C\uDDE8\uD83C\uDDE6', MX:'\uD83C\uDDF2\uD83C\uDDFD', RU:'\uD83C\uDDF7\uD83C\uDDFA',
-  NG:'\uD83C\uDDF3\uD83C\uDDEC', ZA:'\uD83C\uDDFF\uD83C\uDDE6', EG:'\uD83C\uDDEA\uD83C\uDDEC',
-  AR:'\uD83C\uDDE6\uD83C\uDDF7', KR:'\uD83C\uDDF0\uD83C\uDDF7', ID:'\uD83C\uDDEE\uD83C\uDDE9',
-  TR:'\uD83C\uDDF9\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9',
+  US:'🇺🇸', GB:'🇬🇧', DE:'🇩🇪',
+  FR:'🇫🇷', JP:'🇯🇵', CN:'🇨🇳',
+  BR:'🇧🇷', IN:'🇮🇳', AU:'🇦🇺',
+  CA:'🇨🇦', MX:'🇲🇽', RU:'🇷🇺',
+  NG:'🇳🇬', ZA:'🇿🇦', EG:'🇪🇬',
+  AR:'🇦🇷', KR:'🇰🇷', ID:'🇮🇩',
+  TR:'🇹🇷', IT:'🇮🇹',
 }
 
 function relativeTime(ts) {
@@ -19,54 +19,100 @@ function relativeTime(ts) {
   return `${Math.floor(sec / 86400)}d ago`
 }
 
-function HighlightCard({ title, titleColor, event, accentColor, index = 0 }) {
+function HighlightCard({ title, titleColor, event, accentColor, index = 0, onFlyTo }) {
+  const [hovered, setHovered] = useState(false)
+
   if (!event) return null
   const cls = classifyEmission(event.duration, event.volume)
-  const flag = FLAG_MAP[event.country] || '\uD83C\uDF0D'
+  const flag = FLAG_MAP[event.country] || '🌍'
 
   return (
-    <div style={{
-      flex: '0 0 auto',
-      minWidth: '180px',
-      maxWidth: '220px',
-      padding: '8px 12px',
-      background: 'rgba(10,18,28,0.7)',
-      border: `1px solid ${accentColor}25`,
-      borderRadius: '6px',
-      fontFamily: 'monospace',
-      position: 'relative',
-      overflow: 'hidden',
-      animation: `highlightCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) ${index * 0.08}s both`,
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => onFlyTo?.({ lat: event.lat, lng: event.lng, altitude: 1.2 })}
+      style={{
+        flex: '0 0 auto',
+        minWidth: '180px',
+        maxWidth: '220px',
+        padding: '8px 12px',
+        background: hovered ? 'rgba(10,18,28,0.85)' : 'rgba(10,18,28,0.7)',
+        border: `1px solid ${hovered ? `${accentColor}50` : `${accentColor}25`}`,
+        borderRadius: '6px',
+        fontFamily: 'monospace',
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: onFlyTo ? 'pointer' : 'default',
+        transform: hovered ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+        boxShadow: hovered
+          ? `0 4px 16px ${accentColor}20, 0 0 12px ${accentColor}10`
+          : 'none',
+        transition: 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease',
+        animation: `highlightCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) ${index * 0.08}s both`,
+      }}
+    >
       {/* Accent top line */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
         background: `linear-gradient(90deg, ${accentColor}, transparent)`,
-        opacity: 0.6,
+        opacity: hovered ? 0.9 : 0.6,
+        transition: 'opacity 0.2s ease',
       }} />
 
       <div style={{
         fontSize: '7px', letterSpacing: '0.3em', color: titleColor,
         textTransform: 'uppercase', marginBottom: '4px', fontWeight: 'bold',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        {title}
+        <span>{title}</span>
+        {/* Fly-to hint on hover */}
+        {hovered && onFlyTo && (
+          <span style={{
+            fontSize: '7px',
+            color: 'var(--text-dim)',
+            letterSpacing: '0.08em',
+            fontWeight: 'normal',
+            animation: 'fadeIn 0.15s ease',
+          }}>
+            LOCATE ↗
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-        <span style={{ fontSize: '14px' }}>{flag}</span>
+        <span style={{
+          fontSize: '14px',
+          transform: hovered ? 'scale(1.15)' : 'scale(1)',
+          transition: 'transform 0.2s ease',
+        }}>{flag}</span>
         <span style={{
           fontSize: '10px', color: cls.color, fontWeight: 'bold', letterSpacing: '0.08em',
         }}>
           {cls.label.toUpperCase()}
         </span>
+        <span style={{
+          fontSize: '6px', color: 'var(--text-dim)',
+          padding: '1px 4px', borderRadius: '2px',
+          background: `${cls.color}10`, border: `1px solid ${cls.color}20`,
+          letterSpacing: '0.08em',
+        }}>
+          {cls.code}
+        </span>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', fontSize: '9px', color: 'var(--text-dim)' }}>
         {event.duration != null && (
-          <span>{event.duration}s</span>
+          <span style={{ color: hovered ? '#ff64ff' : undefined, transition: 'color 0.2s ease' }}>
+            {event.duration}s
+          </span>
         )}
         {event.volume != null && (
-          <span>vol {event.volume}</span>
+          <span style={{ color: hovered ? '#38f3ff' : undefined, transition: 'color 0.2s ease' }}>
+            vol {event.volume}
+          </span>
+        )}
+        {event.hasAudio && (
+          <span style={{ color: '#9dff4a', fontSize: '10px' }}>♪</span>
         )}
         <span style={{ marginLeft: 'auto', fontSize: '8px', opacity: 0.6 }}>
           {relativeTime(event.timestamp)}
@@ -76,7 +122,7 @@ function HighlightCard({ title, titleColor, event, accentColor, index = 0 }) {
   )
 }
 
-export default function HighlightsStrip({ events }) {
+export default function HighlightsStrip({ events, onFlyTo }) {
   const highlights = useMemo(() => {
     if (!events || events.length < 2) return null
 
@@ -128,6 +174,7 @@ export default function HighlightsStrip({ events }) {
             event={highlights.latest}
             accentColor="#38f3ff"
             index={cardIndex++}
+            onFlyTo={onFlyTo}
           />
         )}
         {highlights.loudest && (highlights.loudest.volume || 0) > 0 && (
@@ -137,6 +184,7 @@ export default function HighlightsStrip({ events }) {
             event={highlights.loudest}
             accentColor="#ff4d5a"
             index={cardIndex++}
+            onFlyTo={onFlyTo}
           />
         )}
         {highlights.longest && (highlights.longest.duration || 0) > 0 && (
@@ -146,6 +194,7 @@ export default function HighlightsStrip({ events }) {
             event={highlights.longest}
             accentColor="#ff64ff"
             index={cardIndex++}
+            onFlyTo={onFlyTo}
           />
         )}
 

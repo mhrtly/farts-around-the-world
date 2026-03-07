@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 // Real digestive science facts presented in OSINT briefing style
 const INTEL_BRIEFS = [
@@ -35,34 +35,56 @@ const TAG_COLORS = {
 export default function ScienceTicker() {
   const [index, setIndex] = useState(() => Math.floor(Math.random() * INTEL_BRIEFS.length))
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const intervalRef = useRef(null)
 
-  useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setIsTransitioning(true)
-      setTimeout(() => {
-        setIndex(prev => (prev + 1) % INTEL_BRIEFS.length)
-        setIsTransitioning(false)
-      }, 400)
-    }, 12000)
-
-    return () => clearInterval(intervalRef.current)
+  const goNext = useCallback(() => {
+    setIsTransitioning(true)
+    setTimeout(() => {
+      setIndex(prev => (prev + 1) % INTEL_BRIEFS.length)
+      setIsTransitioning(false)
+    }, 300)
   }, [])
+
+  const goPrev = useCallback(() => {
+    setIsTransitioning(true)
+    setTimeout(() => {
+      setIndex(prev => (prev - 1 + INTEL_BRIEFS.length) % INTEL_BRIEFS.length)
+      setIsTransitioning(false)
+    }, 300)
+  }, [])
+
+  useEffect(() => {
+    if (isPaused || hovered) {
+      clearInterval(intervalRef.current)
+      return
+    }
+
+    intervalRef.current = setInterval(goNext, 12000)
+    return () => clearInterval(intervalRef.current)
+  }, [isPaused, hovered, goNext])
 
   const brief = INTEL_BRIEFS[index]
   const tagColor = TAG_COLORS[brief.tag] || '#38f3ff'
 
   return (
-    <div style={{
-      padding: '6px 14px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      fontFamily: 'monospace',
-      borderTop: '1px solid rgba(56,243,255,0.06)',
-      background: 'rgba(6,9,13,0.6)',
-      minHeight: '28px',
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: '6px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        fontFamily: 'monospace',
+        borderTop: '1px solid rgba(56,243,255,0.06)',
+        background: hovered ? 'rgba(6,9,13,0.8)' : 'rgba(6,9,13,0.6)',
+        minHeight: '28px',
+        transition: 'background 0.2s ease',
+        userSelect: 'none',
+      }}
+    >
       {/* Label */}
       <div style={{
         display: 'flex',
@@ -94,24 +116,81 @@ export default function ScienceTicker() {
         </span>
       </div>
 
+      {/* Navigation arrows — visible on hover */}
+      <button
+        onClick={(e) => { e.stopPropagation(); goPrev() }}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'rgba(56,243,255,0.4)',
+          cursor: 'pointer',
+          padding: '0 2px',
+          fontSize: '10px',
+          lineHeight: 1,
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.2s ease, color 0.15s ease',
+          flexShrink: 0,
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.color = '#38f3ff'}
+        onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(56,243,255,0.4)'}
+        title="Previous fact"
+      >
+        ◀
+      </button>
+
       {/* Scrolling text */}
       <div style={{
         flex: 1,
         overflow: 'hidden',
         fontSize: '9px',
-        color: 'var(--text-dim)',
+        color: hovered ? 'var(--text-primary)' : 'var(--text-dim)',
         letterSpacing: '0.04em',
         lineHeight: 1.3,
         opacity: isTransitioning ? 0 : 1,
         transform: isTransitioning ? 'translateY(6px)' : 'translateY(0)',
-        transition: 'opacity 0.35s ease, transform 0.35s ease',
+        transition: 'opacity 0.3s ease, transform 0.3s ease, color 0.2s ease',
         whiteSpace: 'nowrap',
         textOverflow: 'ellipsis',
       }}>
         {brief.text}
       </div>
 
-      {/* Counter pill */}
+      {/* Next arrow */}
+      <button
+        onClick={(e) => { e.stopPropagation(); goNext() }}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'rgba(56,243,255,0.4)',
+          cursor: 'pointer',
+          padding: '0 2px',
+          fontSize: '10px',
+          lineHeight: 1,
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.2s ease, color 0.15s ease',
+          flexShrink: 0,
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.color = '#38f3ff'}
+        onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(56,243,255,0.4)'}
+        title="Next fact"
+      >
+        ▶
+      </button>
+
+      {/* Pause indicator — visible on hover */}
+      {hovered && (
+        <span style={{
+          fontSize: '7px',
+          letterSpacing: '0.15em',
+          color: 'rgba(255,176,32,0.5)',
+          flexShrink: 0,
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          PAUSED
+        </span>
+      )}
+
+      {/* Counter pill + progress */}
       <div style={{
         flexShrink: 0,
         display: 'flex',

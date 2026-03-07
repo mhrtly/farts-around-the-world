@@ -396,7 +396,7 @@ export default function App() {
 
       {!isExpressViewport && (
         <>
-          {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} />}
+          {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} onFlyTo={flyToLocation} />}
           <Timeline events={filteredEvents} />
           <ScienceTicker />
           <StatusFooter isConnected={wsConnected} lastEventTimestamp={filteredEvents[0]?.timestamp} events={filteredEvents} />

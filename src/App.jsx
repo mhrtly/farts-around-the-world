@@ -96,7 +96,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Header totalToday={stats.totalToday} />
+      <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} />
       <GasconIndicator events={events} />
 
       <div className="app-body">

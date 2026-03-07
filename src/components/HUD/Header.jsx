@@ -10,7 +10,7 @@ function useClock() {
   return time
 }
 
-export default function Header({ totalToday }) {
+export default function Header({ totalToday, totalAllTime }) {
   const now = useClock()
   const hh  = String(now.getUTCHours()).padStart(2, '0')
   const mm  = String(now.getUTCMinutes()).padStart(2, '0')
@@ -34,11 +34,19 @@ export default function Header({ totalToday }) {
 
       <div className="hud-header__center">
         <span className="header-stat">
-          EVENTS TODAY&nbsp;&nbsp;
+          TODAY&nbsp;&nbsp;
           <strong className="glow-cyan">
             <AnimatedNumber value={totalToday} />
           </strong>
         </span>
+        {totalAllTime > 0 && (
+          <span className="header-stat" style={{ marginLeft: '20px' }}>
+            ALL TIME&nbsp;&nbsp;
+            <strong className="glow-cyan" style={{ opacity: 0.7 }}>
+              <AnimatedNumber value={totalAllTime} />
+            </strong>
+          </span>
+        )}
       </div>
 
       <div className="hud-header__clock">

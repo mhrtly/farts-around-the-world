@@ -137,6 +137,7 @@ export default function GlobeCanvas({ events }) {
       .onObjectClick(obj => {
         setSelectedEvent(obj)
         g.controls().autoRotate = false
+        g.pointOfView({ lat: obj.lat, lng: obj.lng, altitude: 1.8 }, 800)
       })
       .onObjectHover(obj => {
         if (obj) {
@@ -171,6 +172,7 @@ export default function GlobeCanvas({ events }) {
       .onPointClick(point => {
         setSelectedEvent(point)
         g.controls().autoRotate = false
+        g.pointOfView({ lat: point.lat, lng: point.lng, altitude: 1.8 }, 800)
       })
       .onPointHover(point => {
         if (point) {

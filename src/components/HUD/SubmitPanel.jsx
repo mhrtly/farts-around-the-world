@@ -62,6 +62,7 @@ export default function SubmitPanel({ onClose }) {
 
   // Audio stats (after recording)
   const [audioStats, setAudioStats] = useState(null)
+  const waveformCanvasRef = useRef(null)
 
   // Location state
   const [location, setLocation] = useState(null)
@@ -73,6 +74,74 @@ export default function SubmitPanel({ onClose }) {
   const [sequence, setSequence] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState(null)
+
+  // Draw static waveform when audio blob is ready
+  useEffect(() => {
+    if (!audioBlob || !waveformCanvasRef.current) return
+    const canvas = waveformCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    const w = canvas.width
+    const h = canvas.height
+
+    // Decode audio and draw waveform
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+        const buffer = await audioCtx.decodeAudioData(reader.result)
+        const data = buffer.getChannelData(0)
+        audioCtx.close()
+
+        // Clear
+        ctx.fillStyle = 'rgba(6,9,13,0.9)'
+        ctx.fillRect(0, 0, w, h)
+
+        // Draw center line
+        ctx.strokeStyle = 'rgba(56,243,255,0.1)'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(0, h / 2)
+        ctx.lineTo(w, h / 2)
+        ctx.stroke()
+
+        // Sample the audio data into bars
+        const barCount = 120
+        const samplesPerBar = Math.floor(data.length / barCount)
+
+        for (let i = 0; i < barCount; i++) {
+          let sum = 0
+          for (let j = 0; j < samplesPerBar; j++) {
+            sum += Math.abs(data[i * samplesPerBar + j])
+          }
+          const avg = sum / samplesPerBar
+          const barH = avg * h * 1.8
+          const x = (i / barCount) * w
+          const barW = (w / barCount) * 0.7
+
+          // Gradient color based on amplitude
+          const intensity = Math.min(avg * 4, 1)
+          const r = Math.round(56 + intensity * 199)
+          const g = Math.round(243 - intensity * 166)
+          const b = Math.round(255 - intensity * 165)
+          ctx.fillStyle = `rgba(${r},${g},${b},${0.5 + intensity * 0.4})`
+          ctx.shadowColor = `rgba(${r},${g},${b},0.4)`
+          ctx.shadowBlur = 4
+
+          ctx.fillRect(x, (h - barH) / 2, barW, barH)
+        }
+        ctx.shadowBlur = 0
+      } catch {
+        // Fallback if decode fails
+        ctx.fillStyle = 'rgba(6,9,13,0.9)'
+        ctx.fillRect(0, 0, w, h)
+        ctx.fillStyle = 'rgba(56,243,255,0.3)'
+        ctx.font = '10px monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText('WAVEFORM UNAVAILABLE', w / 2, h / 2 + 4)
+      }
+    }
+    reader.readAsArrayBuffer(audioBlob)
+  }, [audioBlob])
 
   // Auto-detect location on mount
   useEffect(() => {
@@ -490,6 +559,16 @@ export default function SubmitPanel({ onClose }) {
               }}>
                 {'\u2713'} EMISSION CAPTURED
               </div>
+              <canvas
+                ref={waveformCanvasRef}
+                width={456}
+                height={60}
+                style={{
+                  width: '100%', height: '60px',
+                  border: '1px solid rgba(56,243,255,0.1)',
+                  borderRadius: '4px', marginBottom: '10px',
+                }}
+              />
               <audio controls src={audioUrl} style={{ width: '100%', height: '36px', marginBottom: '12px' }} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ textAlign: 'center' }}>

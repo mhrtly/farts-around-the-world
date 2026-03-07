@@ -289,25 +289,25 @@ export default function App() {
             ))}
           </div>
 
-          <PanelSection id="leaderboard" title="Leaderboard">
+          <PanelSection id="leaderboard" title="Leaderboard" badge={stats.leaderboard?.length > 0 ? `TOP ${stats.leaderboard.length}` : null}>
             <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
           </PanelSection>
 
-          <PanelSection id="coverage" title="Coverage" defaultOpen={false}>
+          <PanelSection id="coverage" title="Coverage" defaultOpen={false} badge={stats.uniqueCountries > 0 ? `${stats.uniqueCountries}/20` : null}>
             <GlobalCoverage
               events={events}
               onCountryClick={(code) => setShowDossier(code)}
             />
           </PanelSection>
 
-          <PanelSection id="contributions" title="My Contributions" defaultOpen={userSubmissions.length > 0}>
+          <PanelSection id="contributions" title="My Contributions" defaultOpen={userSubmissions.length > 0} badge={userSubmissions.length > 0 ? userSubmissions.length : null}>
             <MyContributions
               submissions={userSubmissions}
               totalGlobalEvents={stats.totalAllTime}
             />
           </PanelSection>
 
-          <PanelSection id="feed" title="Event Feed" defaultOpen={false}>
+          <PanelSection id="feed" title="Event Feed" defaultOpen={false} badge={filteredEvents.length > 0 ? filteredEvents.length : null}>
             <EventFeed
               events={filteredEvents}
               onEventClick={(e) => flyToLocation({ lat: e.lat, lng: e.lng, altitude: 1.2 })}

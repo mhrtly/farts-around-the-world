@@ -11,7 +11,7 @@ const FLAG_MAP = {
   TR:'\uD83C\uDDF9\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9',
 }
 
-export default function Leaderboard({ events, serverLeaderboard, windowMs = 60000 }) {
+export default function Leaderboard({ events, serverLeaderboard, windowMs = 60000, onCountryClick }) {
   // Use server leaderboard if available, fall back to client-side
   const leaderboard = useMemo(() => {
     if (serverLeaderboard && serverLeaderboard.length > 0) {
@@ -44,7 +44,13 @@ export default function Leaderboard({ events, serverLeaderboard, windowMs = 6000
           const opacity = Math.max(0.28, 1 - index * 0.16)
 
           return (
-            <div className="lb-row" key={`${entry.country}-${entry.rank}`}>
+            <div
+              className="lb-row"
+              key={`${entry.country}-${entry.rank}`}
+              onClick={() => onCountryClick?.(entry.country)}
+              style={{ cursor: onCountryClick ? 'pointer' : 'default' }}
+              title={`View ${entry.country} dossier`}
+            >
               <div className="lb-bar" style={{ width, opacity }} />
               <div className="lb-rank">#{entry.rank}</div>
               <span className="lb-flag" aria-hidden="true">{entry.flag}</span>

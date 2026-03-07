@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 const SHORTCUTS = [
   { keys: ['R'], label: 'Record a fart', category: 'ACTIONS' },
   { keys: ['B'], label: 'Browse & rate emissions', category: 'ACTIONS' },
+  { keys: ['T'], label: 'Spotlight tour', category: 'ACTIONS' },
   { keys: ['\u2318', 'K'], label: 'Command Palette', category: 'NAVIGATION', alt: ['Ctrl', 'K'] },
   { keys: ['/'], label: 'Command Palette (alt)', category: 'NAVIGATION' },
   { keys: ['?'], label: 'Show this help', category: 'NAVIGATION' },

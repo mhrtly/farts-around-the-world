@@ -11,6 +11,8 @@ import FATWAExpressPanel from './components/HUD/FATWAExpressPanel.jsx'
 import CommandPalette from './components/HUD/CommandPalette.jsx'
 import ShortcutsOverlay from './components/HUD/ShortcutsOverlay.jsx'
 import HighlightsStrip from './components/HUD/HighlightsStrip.jsx'
+import CountryDossier from './components/HUD/CountryDossier.jsx'
+import SpotlightTour from './components/HUD/SpotlightTour.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -51,6 +53,8 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showDossier, setShowDossier] = useState(null) // country code or null
+  const [showTour, setShowTour] = useState(false)
   const [timeWindow, setTimeWindow]   = useState(null) // null = all, or ms duration
   const [isExpressViewport, setIsExpressViewport] = useState(() => window.innerWidth <= 900)
   const [stats, setStats]             = useState({
@@ -144,6 +148,13 @@ export default function App() {
     return events.filter(e => e.timestamp >= cutoff)
   }, [events, timeWindow])
 
+  // Globe fly-to helper
+  const flyToLocation = useCallback((coords) => {
+    if (globeCanvasRef.current?.flyTo && coords?.lat != null && coords?.lng != null) {
+      globeCanvasRef.current.flyTo(coords)
+    }
+  }, [])
+
   // Command palette action handler
   const handleCommandAction = useCallback((type, payload) => {
     switch (type) {
@@ -151,15 +162,16 @@ export default function App() {
         setActiveModal(payload)
         break
       case 'flyTo':
-        if (globeCanvasRef.current?.flyTo) {
-          globeCanvasRef.current.flyTo(payload)
-        }
+        flyToLocation(payload)
         break
       case 'timeWindow':
         setTimeWindow(payload)
         break
+      case 'tour':
+        setShowTour(true)
+        break
     }
-  }, [])
+  }, [flyToLocation])
 
   // Keyboard shortcuts: R to record, B to browse, Cmd+K / for command palette
   useEffect(() => {
@@ -190,10 +202,20 @@ export default function App() {
         return
       }
 
+      if (e.key === 'Escape') {
+        setShowDossier(null)
+        setShowTour(false)
+        return
+      }
+
+      if (showTour) return // Let SpotlightTour handle its own keys
+
       if (e.key === 'r' || e.key === 'R') {
         setActiveModal(prev => prev === 'record' ? null : 'record')
       } else if (e.key === 'b' || e.key === 'B') {
         setActiveModal(prev => prev === 'browse' ? null : 'browse')
+      } else if (e.key === 't' || e.key === 'T') {
+        setShowTour(prev => !prev)
       }
     }
     window.addEventListener('keydown', handler)
@@ -260,7 +282,7 @@ export default function App() {
           </div>
 
           <div className="panel-divider" />
-          <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} />
+          <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
         </aside>
 
         <main className="globe-container">
@@ -326,6 +348,26 @@ export default function App() {
             </span>
           </button>
 
+          {/* Spotlight Tour button */}
+          <button
+            onClick={() => setShowTour(prev => !prev)}
+            style={{
+              ...btnBase,
+              padding: '14px 16px',
+              fontSize: '12px',
+              background: showTour ? 'rgba(255,100,255,0.15)' : 'rgba(255,100,255,0.05)',
+              borderColor: showTour ? '#ff64ff' : 'rgba(255,100,255,0.2)',
+              color: showTour ? '#ff64ff' : 'rgba(255,100,255,0.7)',
+              boxShadow: showTour ? '0 0 16px rgba(255,100,255,0.2)' : 'none',
+            }}
+          >
+            <span style={{ fontSize: '20px' }}>🔭</span>
+            <span>{showTour ? 'End Tour' : 'Spotlight Tour'}</span>
+            <span style={{ fontSize: '8px', color: 'rgba(255,100,255,0.35)', fontWeight: 'normal', letterSpacing: '0.05em' }}>
+              Press T
+            </span>
+          </button>
+
           {/* Command Palette hint */}
           <div
             onClick={() => setShowCommandPalette(true)}
@@ -367,6 +409,27 @@ export default function App() {
 
       {showShortcuts && (
         <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {showDossier && (
+        <CountryDossier
+          countryCode={showDossier}
+          events={filteredEvents}
+          allEvents={events}
+          onClose={() => setShowDossier(null)}
+          onFlyTo={(coords) => {
+            flyToLocation(coords)
+            setShowDossier(null)
+          }}
+        />
+      )}
+
+      {showTour && (
+        <SpotlightTour
+          events={filteredEvents}
+          onFlyTo={flyToLocation}
+          onStop={() => setShowTour(false)}
+        />
       )}
     </div>
   )

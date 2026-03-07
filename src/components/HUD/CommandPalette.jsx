@@ -51,6 +51,11 @@ function buildCommands({ onAction }) {
     label: 'Rate Emissions', hint: 'B',
     action: () => onAction('modal', 'browse'),
   })
+  commands.push({
+    id: 'tour', category: 'ACTIONS', icon: '\uD83D\uDD2D',
+    label: 'Spotlight Tour', hint: 'T',
+    action: () => onAction('tour'),
+  })
 
   // Regions
   for (const region of REGIONS) {

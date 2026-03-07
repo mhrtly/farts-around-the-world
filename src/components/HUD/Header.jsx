@@ -10,7 +10,7 @@ function useClock() {
   return time
 }
 
-export default function Header({ totalToday, totalAllTime }) {
+export default function Header({ totalToday, totalAllTime, timeWindowLabel }) {
   const now = useClock()
   const hh  = String(now.getUTCHours()).padStart(2, '0')
   const mm  = String(now.getUTCMinutes()).padStart(2, '0')
@@ -45,6 +45,21 @@ export default function Header({ totalToday, totalAllTime }) {
             <strong className="glow-cyan" style={{ opacity: 0.7 }}>
               <AnimatedNumber value={totalAllTime} />
             </strong>
+          </span>
+        )}
+        {timeWindowLabel && (
+          <span style={{
+            marginLeft: '16px',
+            fontSize: '9px',
+            letterSpacing: '0.15em',
+            padding: '2px 8px',
+            borderRadius: '3px',
+            background: 'rgba(255,176,32,0.12)',
+            border: '1px solid rgba(255,176,32,0.3)',
+            color: '#ffb020',
+            fontWeight: 'bold',
+          }}>
+            {'\u23F1'} {timeWindowLabel}
           </span>
         )}
       </div>

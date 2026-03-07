@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import Globe from 'globe.gl'
 import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
@@ -91,7 +91,7 @@ function formatUTC(ts) {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function GlobeCanvas({ events }) {
+const GlobeCanvasInner = forwardRef(function GlobeCanvas({ events }, ref) {
   const mountRef   = useRef(null)
   const globeRef   = useRef(null)
   const puffsRef   = useRef([])
@@ -106,6 +106,16 @@ export default function GlobeCanvas({ events }) {
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [audioLoading, setAudioLoading] = useState(false)
   const audioRef = useRef(null)
+
+  // Expose flyTo method via ref for parent (Command Palette)
+  useImperativeHandle(ref, () => ({
+    flyTo: ({ lat, lng, altitude = 1.8 }) => {
+      if (globeRef.current) {
+        globeRef.current.pointOfView({ lat, lng, altitude }, 1200)
+        globeRef.current.controls().autoRotate = false
+      }
+    }
+  }), [])
 
   // Keep ref in sync with state (for globe hover callbacks)
   useEffect(() => {
@@ -517,4 +527,6 @@ export default function GlobeCanvas({ events }) {
       )}
     </div>
   )
-}
+})
+
+export default GlobeCanvasInner

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import GlobeCanvas from './components/Globe/GlobeCanvas.jsx'
 import Header from './components/HUD/Header.jsx'
 import KPIPanel from './components/HUD/KPIPanel.jsx'
@@ -7,7 +7,23 @@ import Timeline from './components/HUD/Timeline.jsx'
 import GasconIndicator from './components/HUD/GasconIndicator.jsx'
 import SubmitPanel from './components/HUD/SubmitPanel.jsx'
 import FartBrowser from './components/HUD/FartBrowser.jsx'
+import FATWAExpressPanel from './components/HUD/FATWAExpressPanel.jsx'
+import CommandPalette from './components/HUD/CommandPalette.jsx'
 import { createStream } from './data/fartStreamFactory.js'
+
+const MAX_PERSISTED_EVENTS = 500
+
+function mergeEvents(current, incoming) {
+  const byId = new Map(current.map(event => [event.id, event]))
+
+  for (const event of incoming) {
+    byId.set(event.id, { ...byId.get(event.id), ...event })
+  }
+
+  return [...byId.values()]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, MAX_PERSISTED_EVENTS)
+}
 
 const btnBase = {
   fontFamily: 'monospace',
@@ -31,6 +47,9 @@ const btnBase = {
 export default function App() {
   const [events, setEvents]           = useState([])
   const [activeModal, setActiveModal] = useState(null)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [timeWindow, setTimeWindow]   = useState(null) // null = all, or ms duration
+  const [isExpressViewport, setIsExpressViewport] = useState(() => window.innerWidth <= 900)
   const [stats, setStats]             = useState({
     totalToday: 0,
     totalAllTime: 0,
@@ -45,6 +64,19 @@ export default function App() {
     leaderboard: [],
   })
   const streamRef = useRef(null)
+  const globeCanvasRef = useRef(null)
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/events?limit=${MAX_PERSISTED_EVENTS}`)
+      if (res.ok) {
+        const data = await res.json()
+        setEvents(prev => mergeEvents(prev, data))
+      }
+    } catch {
+      // Backend not available
+    }
+  }, [])
 
   const fetchStats = useCallback(async () => {
     try {
@@ -57,8 +89,7 @@ export default function App() {
   }, [])
 
   const handleNewEvent = useCallback((event) => {
-    setEvents(prev => [event, ...prev].slice(0, 500))
-    // Re-fetch stats when new events arrive
+    setEvents(prev => mergeEvents(prev, [event]))
     fetchStats()
   }, [fetchStats])
 
@@ -67,23 +98,88 @@ export default function App() {
     createStream(handleNewEvent).then(stream => {
       if (!cancelled) streamRef.current = stream
     })
-    // Initial stats fetch + periodic refresh
+    fetchEvents()
     fetchStats()
     const statsInterval = setInterval(fetchStats, 15000)
+    const eventsInterval = setInterval(fetchEvents, 30000)
     return () => {
       cancelled = true
       streamRef.current?.stop()
       clearInterval(statsInterval)
+      clearInterval(eventsInterval)
     }
-  }, [handleNewEvent, fetchStats])
+  }, [handleNewEvent, fetchEvents, fetchStats])
+
+  useEffect(() => {
+    const handleRecordedEvent = (e) => {
+      if (e.detail) {
+        handleNewEvent(e.detail)
+      } else {
+        fetchEvents()
+        fetchStats()
+      }
+    }
+
+    window.addEventListener('fatwa:recorded', handleRecordedEvent)
+    return () => window.removeEventListener('fatwa:recorded', handleRecordedEvent)
+  }, [fetchEvents, fetchStats, handleNewEvent])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)')
+    const updateViewport = () => setIsExpressViewport(media.matches)
+    updateViewport()
+    media.addEventListener('change', updateViewport)
+    return () => media.removeEventListener('change', updateViewport)
+  }, [])
 
   const closeModal = useCallback(() => setActiveModal(null), [])
 
-  // Keyboard shortcuts: R to record, B to browse
+  // Filter events by time window
+  const filteredEvents = useMemo(() => {
+    if (!timeWindow) return events
+    const cutoff = Date.now() - timeWindow
+    return events.filter(e => e.timestamp >= cutoff)
+  }, [events, timeWindow])
+
+  // Command palette action handler
+  const handleCommandAction = useCallback((type, payload) => {
+    switch (type) {
+      case 'modal':
+        setActiveModal(payload)
+        break
+      case 'flyTo':
+        if (globeCanvasRef.current?.flyTo) {
+          globeCanvasRef.current.flyTo(payload)
+        }
+        break
+      case 'timeWindow':
+        setTimeWindow(payload)
+        break
+    }
+  }, [])
+
+  // Keyboard shortcuts: R to record, B to browse, Cmd+K / for command palette
   useEffect(() => {
     const handler = (e) => {
-      // Don't trigger if user is typing in an input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      // Don't trigger if user is typing in an input (except for Cmd+K and Escape)
+      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'
+
+      // Cmd+K or Ctrl+K → command palette (always works)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCommandPalette(prev => !prev)
+        return
+      }
+
+      if (isInput) return
+
+      // / → open command palette (when not in an input)
+      if (e.key === '/' && !showCommandPalette && !activeModal) {
+        e.preventDefault()
+        setShowCommandPalette(true)
+        return
+      }
+
       if (e.key === 'r' || e.key === 'R') {
         setActiveModal(prev => prev === 'record' ? null : 'record')
       } else if (e.key === 'b' || e.key === 'B') {
@@ -92,28 +188,89 @@ export default function App() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [showCommandPalette, activeModal])
+
+  // Time window label for display
+  const timeWindowLabel = timeWindow === 3600000 ? '1H' :
+    timeWindow === 21600000 ? '6H' :
+    timeWindow === 86400000 ? '24H' :
+    timeWindow === 604800000 ? '7D' : null
 
   return (
-    <div className="app-shell">
-      <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} />
-      <GasconIndicator events={events} />
+    <div className={`app-shell ${isExpressViewport ? 'app-shell--express' : ''}`}>
+      <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} timeWindowLabel={timeWindowLabel} />
+      <GasconIndicator events={filteredEvents} />
 
-      <div className="app-body">
+      <div className={`app-body ${isExpressViewport ? 'app-body--express' : ''}`}>
         <aside className="panel panel-left">
           <KPIPanel stats={stats} />
+
+          {/* Time window filter chips */}
           <div className="panel-divider" />
-          <Leaderboard events={events} serverLeaderboard={stats.leaderboard} />
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {[
+              { label: 'ALL', value: null },
+              { label: '1H', value: 3600000 },
+              { label: '6H', value: 21600000 },
+              { label: '24H', value: 86400000 },
+              { label: '7D', value: 604800000 },
+            ].map(tw => (
+              <button
+                key={tw.label}
+                onClick={() => setTimeWindow(tw.value)}
+                style={{
+                  flex: 1,
+                  padding: '4px 0',
+                  fontSize: '8px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  letterSpacing: '0.15em',
+                  border: '1px solid',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  background: timeWindow === tw.value
+                    ? 'rgba(56,243,255,0.15)'
+                    : 'rgba(56,243,255,0.03)',
+                  borderColor: timeWindow === tw.value
+                    ? 'rgba(56,243,255,0.5)'
+                    : 'rgba(56,243,255,0.12)',
+                  color: timeWindow === tw.value
+                    ? '#38f3ff'
+                    : 'var(--text-dim)',
+                  boxShadow: timeWindow === tw.value
+                    ? '0 0 8px rgba(56,243,255,0.2)'
+                    : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {tw.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="panel-divider" />
+          <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} />
         </aside>
 
         <main className="globe-container">
-          <GlobeCanvas events={events} />
+          <GlobeCanvas ref={globeCanvasRef} events={filteredEvents} />
+
+          {isExpressViewport && (
+            <FATWAExpressPanel
+              stats={stats}
+              latestEvent={filteredEvents[0] || null}
+              activeModal={activeModal}
+              onOpenRecord={() => setActiveModal('record')}
+              onOpenBrowse={() => setActiveModal('browse')}
+            />
+          )}
 
           {activeModal === 'record' && (
             <SubmitPanel onClose={closeModal} />
           )}
           {activeModal === 'browse' && (
-            <FartBrowser events={events} onClose={closeModal} />
+            <FartBrowser events={filteredEvents} onClose={closeModal} />
           )}
         </main>
 
@@ -158,10 +315,40 @@ export default function App() {
               Press B
             </span>
           </button>
+
+          {/* Command Palette hint */}
+          <div
+            onClick={() => setShowCommandPalette(true)}
+            style={{
+              textAlign: 'center',
+              fontSize: '9px',
+              fontFamily: 'monospace',
+              color: 'var(--text-dim)',
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(56,243,255,0.06)',
+              background: 'rgba(56,243,255,0.02)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span style={{ color: 'rgba(56,243,255,0.3)', fontSize: '8px', letterSpacing: '0.15em' }}>
+              {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl+'}K
+            </span>
+            <span style={{ marginLeft: '6px' }}>Command Deck</span>
+          </div>
         </aside>
       </div>
 
-      <Timeline events={events} />
+      {!isExpressViewport && <Timeline events={filteredEvents} />}
+
+      {showCommandPalette && (
+        <CommandPalette
+          onClose={() => setShowCommandPalette(false)}
+          onAction={handleCommandAction}
+        />
+      )}
     </div>
   )
 }

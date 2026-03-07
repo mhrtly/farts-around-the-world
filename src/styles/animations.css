@@ -160,3 +160,21 @@
   box-shadow: 0 0 6px rgba(255, 176, 0, 0.4);
   animation: blink 1.2s ease-in-out infinite;
 }
+
+/* --- Command Palette --- */
+
+@keyframes cmdPaletteIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseOpacity {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}

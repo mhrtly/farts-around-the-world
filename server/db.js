@@ -9,6 +9,8 @@ const db = new Database(DB_PATH)
 
 // WAL mode for better concurrent read performance
 db.pragma('journal_mode = WAL')
+db.pragma('busy_timeout = 5000')
+db.pragma('synchronous = NORMAL')
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS events (
@@ -45,6 +47,15 @@ for (const col of ['duration REAL DEFAULT NULL', 'volume REAL DEFAULT NULL', 'pe
   try { db.exec(`ALTER TABLE events ADD COLUMN ${col}`) } catch { /* exists */ }
 }
 
+const legacyNonAudioCount = db.prepare(`
+  SELECT COUNT(*) as count FROM events WHERE audio_data IS NULL
+`).get().count
+
+if (legacyNonAudioCount > 0) {
+  db.prepare(`DELETE FROM events WHERE audio_data IS NULL`).run()
+  console.log(`[DB] Removed ${legacyNonAudioCount} legacy non-audio event(s) from ${DB_PATH}`)
+}
+
 // Prepared statements
 const stmts = {
   insert: db.prepare(`
@@ -56,14 +67,18 @@ const stmts = {
     SELECT id, lat, lng, intensity, country, timestamp, type,
            CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
            user_rating, duration, volume, peak_volume as peakVolume
-    FROM events ORDER BY timestamp DESC LIMIT ?
+    FROM events
+    WHERE audio_data IS NOT NULL
+    ORDER BY timestamp DESC LIMIT ?
   `),
 
   range: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
            CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
            user_rating, duration, volume, peak_volume as peakVolume
-    FROM events WHERE timestamp >= ? AND timestamp <= ?
+    FROM events
+    WHERE audio_data IS NOT NULL
+      AND timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp DESC
   `),
 
@@ -72,27 +87,33 @@ const stmts = {
   `),
 
   countToday: db.prepare(`
-    SELECT COUNT(*) as count FROM events WHERE timestamp >= ?
+    SELECT COUNT(*) as count
+    FROM events
+    WHERE audio_data IS NOT NULL AND timestamp >= ?
   `),
 
   countAll: db.prepare(`
-    SELECT COUNT(*) as count FROM events
+    SELECT COUNT(*) as count
+    FROM events
+    WHERE audio_data IS NOT NULL
   `),
 
   topCountry: db.prepare(`
     SELECT country, COUNT(*) as count FROM events
-    WHERE timestamp >= ?
+    WHERE audio_data IS NOT NULL AND timestamp >= ?
     GROUP BY country ORDER BY count DESC LIMIT 1
   `),
 
   eventsByType: db.prepare(`
     SELECT type, COUNT(*) as count FROM events
-    WHERE timestamp >= ?
+    WHERE audio_data IS NOT NULL AND timestamp >= ?
     GROUP BY type
   `),
 
   uniqueCountriesToday: db.prepare(`
-    SELECT COUNT(DISTINCT country) as count FROM events WHERE timestamp >= ?
+    SELECT COUNT(DISTINCT country) as count
+    FROM events
+    WHERE audio_data IS NOT NULL AND timestamp >= ?
   `),
 
   audioCountToday: db.prepare(`
@@ -100,16 +121,20 @@ const stmts = {
   `),
 
   avgDurationToday: db.prepare(`
-    SELECT AVG(duration) as avg, MAX(duration) as max FROM events WHERE timestamp >= ? AND duration IS NOT NULL
+    SELECT AVG(duration) as avg, MAX(duration) as max
+    FROM events
+    WHERE audio_data IS NOT NULL AND timestamp >= ? AND duration IS NOT NULL
   `),
 
   avgVolumeToday: db.prepare(`
-    SELECT AVG(volume) as avg, MAX(volume) as max FROM events WHERE timestamp >= ? AND volume IS NOT NULL
+    SELECT AVG(volume) as avg, MAX(volume) as max
+    FROM events
+    WHERE audio_data IS NOT NULL AND timestamp >= ? AND volume IS NOT NULL
   `),
 
   countryLeaderboard: db.prepare(`
     SELECT country, COUNT(*) as count FROM events
-    WHERE timestamp >= ?
+    WHERE audio_data IS NOT NULL AND timestamp >= ?
     GROUP BY country ORDER BY count DESC LIMIT 10
   `),
 
@@ -133,6 +158,10 @@ export function getEventsByRange(start, end) {
 export function getAudio(eventId) {
   const row = stmts.audio.get(eventId)
   return row?.audio_data || null
+}
+
+export function getDatabasePath() {
+  return DB_PATH
 }
 
 export function updateEventRating(id, rating) {

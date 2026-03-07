@@ -2,7 +2,7 @@
  * GFMS Live Fart Stream
  *
  * Connects to the backend WebSocket and delivers real-time fart events.
- * Designed to integrate with any state management (Zustand, vanilla, etc.)
+ * Designed to integrate with the persisted REST bootstrap path in App.jsx.
  *
  * Usage:
  *   const stream = createLiveFartStream({
@@ -54,21 +54,8 @@ export function createLiveFartStream(options: LiveStreamOptions): LiveStream {
     })
   }
 
-  socket.on('connect', async () => {
+  socket.on('connect', () => {
     onConnect?.()
-    // Load recent events to populate the view
-    try {
-      const res = await fetch(`/api/events?limit=200`)
-      if (res.ok) {
-        const events: FartEvent[] = await res.json()
-        // Deliver oldest first so the store builds up chronologically
-        for (let i = events.length - 1; i >= 0; i--) {
-          onEvent(events[i])
-        }
-      }
-    } catch {
-      console.warn('[GFMS] Failed to load recent events')
-    }
   })
 
   socket.on('disconnect', () => {

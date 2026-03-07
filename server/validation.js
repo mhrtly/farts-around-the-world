@@ -39,13 +39,11 @@ export function validateFartEvent(body) {
   // type — optional, defaults to 'standard'
   const finalType = (typeof type === 'string' && VALID_TYPES.has(type)) ? type : 'standard'
 
-  // audioData is optional — validate if present
-  if (audioData !== undefined && audioData !== null) {
-    if (typeof audioData !== 'string') {
-      errors.push('audioData must be a base64 string')
-    } else if (audioData.length > 500_000) {
-      errors.push('audioData too large (max ~375KB)')
-    }
+  // All canonical events must include an audio recording.
+  if (typeof audioData !== 'string' || audioData.trim().length === 0) {
+    errors.push('audioData is required and must be a base64 string')
+  } else if (audioData.length > 500_000) {
+    errors.push('audioData too large (max ~375KB)')
   }
 
   // duration — optional (seconds, 0-10)
@@ -90,7 +88,7 @@ export function validateFartEvent(body) {
     country: country.toUpperCase(),
     timestamp: Date.now(),
     type: finalType,
-    audioData: audioData || null,
+    audioData,
     duration: finalDuration,
     volume: finalVolume,
     peakVolume: finalPeakVolume,

@@ -30,7 +30,7 @@ export default function createRoutes(io) {
 
   // Get recent events (no audio data — use /api/events/:id/audio for that)
   router.get('/api/events', (req, res) => {
-    const limit = Math.min(parseInt(req.query.limit) || 200, 500)
+    const limit = Math.min(parseInt(req.query.limit, 10) || 500, 500)
     try {
       const events = getRecentEvents(limit)
       res.json(events)

@@ -41,6 +41,7 @@ const btnBase = {
 }
 
 export default function SubmitPanel({ onClose }) {
+  const isCompact = window.innerWidth <= 768
   // Recording state
   const [recording, setRecording] = useState(false)
   const [recordTime, setRecordTime] = useState(0)
@@ -421,6 +422,9 @@ export default function SubmitPanel({ onClose }) {
         throw new Error(body.error || `HTTP ${res.status}`)
       }
 
+      const createdEvent = await res.json()
+      window.dispatchEvent(new CustomEvent('fatwa:recorded', { detail: createdEvent }))
+
       const cls = classifyEmission(recordTime, audioStats?.avgVolume)
       setSequence(cls.label.toUpperCase())
       setConfirmed(true)
@@ -450,24 +454,26 @@ export default function SubmitPanel({ onClose }) {
         position: 'fixed',
         inset: 0,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isCompact ? 'stretch' : 'center',
         justifyContent: 'center',
         background: 'rgba(6,9,13,0.85)',
         backdropFilter: 'blur(8px)',
         zIndex: 1000,
+        padding: isCompact ? '0' : '20px',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          width: '520px',
-          maxHeight: '90%',
+          width: isCompact ? '100%' : '520px',
+          maxHeight: isCompact ? '100%' : '90%',
+          height: isCompact ? '100%' : 'auto',
           overflowY: 'auto',
           background: 'rgba(16,26,38,0.95)',
-          border: '1px solid rgba(56,243,255,0.2)',
-          borderRadius: '8px',
+          border: isCompact ? 'none' : '1px solid rgba(56,243,255,0.2)',
+          borderRadius: isCompact ? '0' : '8px',
           boxShadow: '0 0 60px rgba(56,243,255,0.1), 0 0 120px rgba(0,0,0,0.5)',
-          padding: '32px',
+          padding: isCompact ? '20px 16px calc(28px + env(safe-area-inset-bottom))' : '32px',
         }}
         onClick={e => e.stopPropagation()}
       >

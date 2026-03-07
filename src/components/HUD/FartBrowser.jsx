@@ -51,6 +51,7 @@ const SORT_OPTIONS = [
 ]
 
 export default function FartBrowser({ events, onClose }) {
+  const isCompact = window.innerWidth <= 768
   const [expandedId, setExpandedId] = useState(null)
   const [ratings, setRatings] = useState({})
   const [audioStates, setAudioStates] = useState({})
@@ -112,23 +113,25 @@ export default function FartBrowser({ events, onClose }) {
         position: 'fixed',
         inset: 0,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isCompact ? 'stretch' : 'center',
         justifyContent: 'center',
         background: 'rgba(6,9,13,0.85)',
         backdropFilter: 'blur(8px)',
         zIndex: 1000,
+        padding: isCompact ? '0' : '20px',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          width: '580px',
-          maxHeight: '85%',
+          width: isCompact ? '100%' : '580px',
+          maxHeight: isCompact ? '100%' : '85%',
+          height: isCompact ? '100%' : 'auto',
           display: 'flex',
           flexDirection: 'column',
           background: 'rgba(16,26,38,0.95)',
-          border: '1px solid rgba(56,243,255,0.2)',
-          borderRadius: '8px',
+          border: isCompact ? 'none' : '1px solid rgba(56,243,255,0.2)',
+          borderRadius: isCompact ? '0' : '8px',
           boxShadow: '0 0 60px rgba(56,243,255,0.1), 0 0 120px rgba(0,0,0,0.5)',
           overflow: 'hidden',
         }}

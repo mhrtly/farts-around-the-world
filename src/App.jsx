@@ -23,6 +23,7 @@ import MilestoneToast from './components/HUD/MilestoneToast.jsx'
 import PanelSection from './components/HUD/PanelSection.jsx'
 import CTAButton from './components/HUD/CTAButton.jsx'
 import MyContributions from './components/HUD/MyContributions.jsx'
+import RecentSignals from './components/HUD/RecentSignals.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
@@ -324,6 +325,7 @@ export default function App() {
               activeModal={activeModal}
               onOpenRecord={() => setActiveModal('record')}
               onOpenBrowse={() => setActiveModal('browse')}
+              userSubmissionCount={userSubmissions.length}
             />
           )}
 
@@ -364,6 +366,8 @@ export default function App() {
             compact
             active={showTour}
           />
+
+          <RecentSignals events={filteredEvents} />
 
           {/* Command Palette hint */}
           <div

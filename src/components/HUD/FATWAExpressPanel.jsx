@@ -23,6 +23,7 @@ export default function FATWAExpressPanel({
   activeModal,
   onOpenRecord,
   onOpenBrowse,
+  userSubmissionCount = 0,
 }) {
   const cls = latestEvent
     ? classifyEmission(latestEvent.duration, latestEvent.volume)
@@ -52,11 +53,8 @@ export default function FATWAExpressPanel({
           <strong>{stats.totalAllTime}</strong>
         </div>
         <div className="fatwa-express__stat">
-          <span className="fatwa-express__stat-label">Latest</span>
-          <strong>
-            {flag && <span style={{ marginRight: '4px' }}>{flag}</span>}
-            {latestEvent?.country?.toUpperCase() || '—'}
-          </strong>
+          <span className="fatwa-express__stat-label">Regions</span>
+          <strong>{stats.uniqueCountries || '—'}</strong>
         </div>
       </div>
 
@@ -66,33 +64,80 @@ export default function FATWAExpressPanel({
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          padding: '6px 12px',
-          margin: '0 12px',
+          padding: '8px 12px',
+          margin: '0 0 8px',
           background: `${cls.color}08`,
           border: `1px solid ${cls.color}20`,
-          borderRadius: '4px',
+          borderRadius: '10px',
+          fontFamily: 'monospace',
+        }}>
+          <span style={{ fontSize: '16px' }}>{flag}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                fontSize: '11px', fontWeight: 'bold', color: cls.color,
+                letterSpacing: '0.06em',
+              }}>
+                {cls.label}
+              </span>
+              <span style={{
+                fontSize: '7px', color: 'var(--text-dim)',
+                padding: '1px 4px', borderRadius: '2px',
+                background: 'rgba(56,243,255,0.06)',
+                letterSpacing: '0.08em',
+              }}>
+                {cls.code}
+              </span>
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              marginTop: '2px',
+            }}>
+              <span style={{
+                fontSize: '9px', color: 'var(--text-dim)',
+              }}>
+                {latestEvent.country}
+              </span>
+              {latestEvent.duration != null && (
+                <span style={{ fontSize: '9px', color: '#38f3ff' }}>
+                  {latestEvent.duration}s
+                </span>
+              )}
+              {latestEvent.volume != null && (
+                <span style={{ fontSize: '9px', color: 'var(--text-dim)' }}>
+                  vol {latestEvent.volume}
+                </span>
+              )}
+              {latestEvent.hasAudio && (
+                <span style={{ fontSize: '10px', color: '#9dff4a' }}>♪</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Your submissions badge */}
+      {userSubmissionCount > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          padding: '5px 12px',
+          margin: '0 0 8px',
+          background: 'rgba(157,255,74,0.06)',
+          border: '1px solid rgba(157,255,74,0.15)',
+          borderRadius: '8px',
           fontFamily: 'monospace',
         }}>
           <span style={{
-            fontSize: '10px', fontWeight: 'bold', color: cls.color,
-          }}>
-            {cls.label}
-          </span>
+            fontSize: '8px', letterSpacing: '0.15em', color: 'var(--text-dim)',
+            textTransform: 'uppercase',
+          }}>YOUR SUBMISSIONS</span>
           <span style={{
-            fontSize: '8px', color: 'var(--text-dim)',
-            padding: '1px 4px', borderRadius: '2px',
-            background: 'rgba(56,243,255,0.06)',
-          }}>
-            {cls.code}
-          </span>
-          {latestEvent.duration != null && (
-            <span style={{ fontSize: '9px', color: 'var(--text-dim)' }}>
-              {latestEvent.duration}s
-            </span>
-          )}
-          {latestEvent.hasAudio && (
-            <span style={{ fontSize: '10px', color: '#9dff4a' }}>♪</span>
-          )}
+            fontSize: '14px', fontWeight: 'bold', color: '#9dff4a',
+            textShadow: '0 0 8px rgba(157,255,74,0.4)',
+          }}>{userSubmissionCount}</span>
         </div>
       )}
 

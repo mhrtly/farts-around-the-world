@@ -472,9 +472,37 @@ const GlobeCanvasInner = forwardRef(function GlobeCanvas({ events }, ref) {
           )}
 
           {selectedEvent.peakVolume != null && (
-            <div style={{ marginBottom: '10px' }}>
+            <div>
               <span style={{ color: 'var(--text-label)' }}>Peak:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
               <span style={{ color: '#ff6b6b' }}>{selectedEvent.peakVolume}</span>
+            </div>
+          )}
+
+          {/* Visual volume meter */}
+          {selectedEvent.volume != null && (
+            <div style={{ margin: '8px 0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '8px', color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'monospace', width: '28px' }}>VOL</span>
+              <div style={{
+                flex: 1, height: '6px', borderRadius: '3px',
+                background: 'rgba(56,243,255,0.08)',
+                border: '1px solid rgba(56,243,255,0.1)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${Math.min((selectedEvent.volume / 60) * 100, 100)}%`,
+                  height: '100%',
+                  borderRadius: '2px',
+                  background: selectedEvent.volume > 40
+                    ? 'linear-gradient(90deg, #38f3ff, #ff4d5a)'
+                    : selectedEvent.volume > 20
+                      ? 'linear-gradient(90deg, #38f3ff, #ffb020)'
+                      : '#38f3ff',
+                  boxShadow: selectedEvent.volume > 30
+                    ? '0 0 6px rgba(255,77,90,0.4)'
+                    : '0 0 4px rgba(56,243,255,0.3)',
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
             </div>
           )}
 

@@ -8,7 +8,14 @@ const FLAG_EMOJIS = {
   AR:'\uD83C\uDDE6\uD83C\uDDF7', KR:'\uD83C\uDDF0\uD83C\uDDF7', ID:'\uD83C\uDDEE\uD83C\uDDE9', TR:'\uD83C\uDDF9\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9',
 }
 
-const RATING_LABELS = ['Mild', 'Medium', 'Strong', 'Brutal', 'Nuclear']
+// Community tone reactions (Peace & Planet UX inspired — positive, never cruel)
+const REACTIONS = [
+  { emoji: '\uD83D\uDE36', label: 'Stealth', color: '#9dff4a' },
+  { emoji: '\uD83D\uDE0F', label: 'Cheeky', color: '#38f3ff' },
+  { emoji: '\uD83C\uDFB6', label: 'Operatic', color: '#ff64ff' },
+  { emoji: '\uD83D\uDC51', label: 'Legendary', color: '#ffb020' },
+  { emoji: '\u2604\uFE0F', label: 'Catastrophic', color: '#ff4d5a' },
+]
 
 const btnBase = {
   fontFamily: 'monospace',
@@ -194,12 +201,28 @@ export default function FartBrowser({ events, onClose }) {
               textAlign: 'center', padding: '48px 24px',
               fontFamily: 'monospace', color: 'var(--text-dim)',
             }}>
-              <div style={{ fontSize: '36px', marginBottom: '16px' }}>{'\uD83D\uDCA8'}</div>
-              <div style={{ fontSize: '13px', letterSpacing: '0.15em', marginBottom: '8px', color: 'var(--text-label)' }}>
-                NO EMISSIONS RECORDED YET
+              <div style={{ fontSize: '48px', marginBottom: '16px', filter: 'grayscale(0.3)' }}>
+                {'\uD83C\uDF0D'}
               </div>
-              <div style={{ fontSize: '10px', letterSpacing: '0.1em' }}>
-                Be the first to contribute to the global dataset
+              <div style={{
+                fontSize: '14px', letterSpacing: '0.2em', marginBottom: '8px',
+                color: '#38f3ff', fontWeight: 'bold',
+                textShadow: '0 0 12px rgba(56,243,255,0.3)',
+              }}>
+                THE ATMOSPHERE AWAITS
+              </div>
+              <div style={{
+                fontSize: '10px', letterSpacing: '0.1em', lineHeight: 1.8,
+                maxWidth: '300px', margin: '0 auto',
+              }}>
+                No emissions recorded yet. Press <span style={{ color: '#ff6b6b' }}>R</span> to capture
+                your first contribution to the global dataset.
+              </div>
+              <div style={{
+                marginTop: '20px', fontSize: '9px', letterSpacing: '0.15em',
+                color: 'rgba(56,243,255,0.3)',
+              }}>
+                SAME ATMOSPHERE {'\u00B7'} SAME SPECIES {'\u00B7'} SAME RIDICULOUS NOISES
               </div>
             </div>
           ) : (
@@ -351,36 +374,39 @@ export default function FartBrowser({ events, onClose }) {
                           </button>
                         )}
 
-                        <div style={{ fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace', letterSpacing: '0.15em', marginBottom: '6px' }}>
-                          RATE THIS EMISSION
+                        <div style={{ fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace', letterSpacing: '0.15em', marginBottom: '8px' }}>
+                          COMMUNITY REACTION
                         </div>
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          {RATING_LABELS.map((label, i) => {
-                            const isActive = userRating !== undefined && i <= userRating
+                          {REACTIONS.map((reaction, i) => {
+                            const isActive = userRating === i
                             return (
                               <button
                                 key={i}
                                 onClick={() => handleRate(e.id, i)}
-                                title={label}
+                                title={reaction.label}
                                 style={{
                                   ...btnBase,
-                                  width: '28px', height: '28px', borderRadius: '50%', padding: 0,
-                                  fontSize: '12px',
-                                  border: `1px solid ${isActive ? '#38f3ff' : 'rgba(56,243,255,0.2)'}`,
-                                  background: isActive ? 'rgba(56,243,255,0.3)' : 'rgba(56,243,255,0.05)',
-                                  boxShadow: isActive ? '0 0 10px rgba(56,243,255,0.3)' : 'none',
-                                  color: isActive ? '#38f3ff' : 'rgba(56,243,255,0.4)',
+                                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                  gap: '2px', padding: '6px 8px', borderRadius: '6px',
+                                  fontSize: '16px', minWidth: '52px',
+                                  border: `1px solid ${isActive ? reaction.color + '66' : 'rgba(56,243,255,0.1)'}`,
+                                  background: isActive ? reaction.color + '18' : 'rgba(56,243,255,0.03)',
+                                  boxShadow: isActive ? `0 0 12px ${reaction.color}30` : 'none',
+                                  transition: 'all 0.15s ease',
                                 }}
                               >
-                                {'\uD83D\uDCA8'}
+                                <span>{reaction.emoji}</span>
+                                <span style={{
+                                  fontSize: '7px', letterSpacing: '0.1em',
+                                  color: isActive ? reaction.color : 'var(--text-dim)',
+                                  fontWeight: isActive ? 'bold' : 'normal',
+                                }}>
+                                  {reaction.label.toUpperCase()}
+                                </span>
                               </button>
                             )
                           })}
-                          {userRating !== undefined && (
-                            <span style={{ fontSize: '10px', color: '#38f3ff', fontFamily: 'monospace', marginLeft: '6px' }}>
-                              {RATING_LABELS[userRating]}
-                            </span>
-                          )}
                         </div>
                       </div>
                     )}

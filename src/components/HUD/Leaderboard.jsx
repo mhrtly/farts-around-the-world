@@ -32,7 +32,12 @@ export default function Leaderboard({ events, serverLeaderboard, windowMs = 6000
       <div className="panel-title">COUNTRY LEADERBOARD</div>
 
       {leaderboard.length === 0 ? (
-        <div className="lb-empty">No emissions recorded today.</div>
+        <div className="lb-empty" style={{ textAlign: 'center', padding: '12px 4px' }}>
+          <div style={{ fontSize: '18px', marginBottom: '6px', opacity: 0.4 }}>{'\uD83C\uDF0D'}</div>
+          <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: 'var(--text-dim)' }}>
+            Awaiting global data
+          </div>
+        </div>
       ) : (
         leaderboard.map((entry, index) => {
           const width = leaderCount > 0 ? `${(entry.count / leaderCount) * 100}%` : '0%'

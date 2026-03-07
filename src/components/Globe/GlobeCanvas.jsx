@@ -101,6 +101,11 @@ export default function GlobeCanvas({ events }) {
   const [selectedEvent, setSelectedEvent] = useState(null)
   const analystNote = useRef('')
 
+  // Audio playback state
+  const [audioPlaying, setAudioPlaying] = useState(false)
+  const [audioLoading, setAudioLoading] = useState(false)
+  const audioRef = useRef(null)
+
   // ── Init ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mountRef.current || globeRef.current) return
@@ -328,6 +333,45 @@ export default function GlobeCanvas({ events }) {
 
   }, [events])
 
+  // ── Stop audio when selected event changes ──────────────────────────────
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    setAudioPlaying(false)
+    setAudioLoading(false)
+  }, [selectedEvent])
+
+  const playAudio = async (eventId) => {
+    // Toggle off if already playing
+    if (audioPlaying && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+      setAudioPlaying(false)
+      return
+    }
+    setAudioLoading(true)
+    try {
+      const res = await fetch(`/api/events/${eventId}/audio`)
+      if (!res.ok) throw new Error('No audio')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audio.onended = () => {
+        setAudioPlaying(false)
+        URL.revokeObjectURL(url)
+      }
+      audioRef.current = audio
+      await audio.play()
+      setAudioPlaying(true)
+    } catch {
+      // silently fail — no audio available
+    } finally {
+      setAudioLoading(false)
+    }
+  }
+
   // ── Escape key → dismiss overlay ─────────────────────────────────────────
   useEffect(() => {
     const onKey = e => {
@@ -410,6 +454,30 @@ export default function GlobeCanvas({ events }) {
             <span style={{ color: 'var(--text-label)' }}>Time:&nbsp;&nbsp;&nbsp;&nbsp;</span>
             <span style={{ color: 'var(--text-primary)' }}>{formatUTC(selectedEvent.timestamp)}</span>
           </div>
+
+          {selectedEvent.hasAudio && (
+            <div style={{ marginBottom: '10px' }}>
+              <button
+                onClick={() => playAudio(selectedEvent.id)}
+                disabled={audioLoading}
+                style={{
+                  width:           '100%',
+                  padding:         '8px',
+                  background:      audioPlaying ? 'rgba(255,77,90,0.15)' : 'rgba(56,243,255,0.1)',
+                  border:          `1px solid ${audioPlaying ? 'rgba(255,77,90,0.4)' : 'rgba(56,243,255,0.3)'}`,
+                  borderRadius:    '4px',
+                  color:           audioPlaying ? '#ff4d5a' : '#38f3ff',
+                  fontFamily:      'monospace',
+                  fontSize:        '11px',
+                  fontWeight:      'bold',
+                  letterSpacing:   '0.12em',
+                  cursor:          audioLoading ? 'wait' : 'pointer',
+                }}
+              >
+                {audioLoading ? '⏳ LOADING...' : audioPlaying ? '⏹ STOP PLAYBACK' : '🔊 PLAY FART AUDIO'}
+              </button>
+            </div>
+          )}
 
           <div style={{
             borderTop:     '1px solid rgba(56,243,255,0.12)',

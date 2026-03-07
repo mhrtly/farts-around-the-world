@@ -26,22 +26,35 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_events_country ON events(country);
 `)
 
+// Add audio column if it doesn't exist (migration-safe)
+try {
+  db.exec(`ALTER TABLE events ADD COLUMN audio_data TEXT DEFAULT NULL`)
+} catch {
+  // Column already exists — ignore
+}
+
 // Prepared statements
 const stmts = {
   insert: db.prepare(`
-    INSERT INTO events (id, lat, lng, intensity, country, timestamp, type)
-    VALUES (@id, @lat, @lng, @intensity, @country, @timestamp, @type)
+    INSERT INTO events (id, lat, lng, intensity, country, timestamp, type, audio_data)
+    VALUES (@id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData)
   `),
 
   recent: db.prepare(`
-    SELECT id, lat, lng, intensity, country, timestamp, type
+    SELECT id, lat, lng, intensity, country, timestamp, type,
+           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio
     FROM events ORDER BY timestamp DESC LIMIT ?
   `),
 
   range: db.prepare(`
-    SELECT id, lat, lng, intensity, country, timestamp, type
+    SELECT id, lat, lng, intensity, country, timestamp, type,
+           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio
     FROM events WHERE timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp DESC
+  `),
+
+  audio: db.prepare(`
+    SELECT audio_data FROM events WHERE id = ?
   `),
 
   countToday: db.prepare(`
@@ -75,6 +88,11 @@ export function getRecentEvents(limit = 200) {
 
 export function getEventsByRange(start, end) {
   return stmts.range.all(start, end)
+}
+
+export function getAudio(eventId) {
+  const row = stmts.audio.get(eventId)
+  return row?.audio_data || null
 }
 
 export function getStats() {

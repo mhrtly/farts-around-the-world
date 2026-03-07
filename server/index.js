@@ -26,7 +26,7 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors())
-app.use(express.json({ limit: '1kb' }))
+app.use(express.json({ limit: '500kb' })) // increased for audio uploads
 
 // Rate limiting
 app.use('/api/events', rateLimit({

@@ -14,7 +14,7 @@ export function validateFartEvent(body) {
     return { valid: false, errors: ['Request body must be a JSON object'], event: null }
   }
 
-  const { lat, lng, intensity, country, type } = body
+  const { lat, lng, intensity, country, type, audioData } = body
 
   // lat
   if (typeof lat !== 'number' || !Number.isFinite(lat)) {
@@ -51,19 +51,28 @@ export function validateFartEvent(body) {
     errors.push(`type must be one of: ${[...VALID_TYPES].join(', ')}`)
   }
 
+  // audioData is optional — validate if present
+  if (audioData !== undefined && audioData !== null) {
+    if (typeof audioData !== 'string') {
+      errors.push('audioData must be a base64 string')
+    } else if (audioData.length > 500_000) {
+      errors.push('audioData too large (max ~375KB)')
+    }
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors, event: null }
   }
 
-  // Build canonical event — id and timestamp are always server-generated
   const event = {
     id: uuidv4(),
-    lat: Math.round(lat * 1e6) / 1e6,   // 6 decimal places (~0.1m precision)
+    lat: Math.round(lat * 1e6) / 1e6,
     lng: Math.round(lng * 1e6) / 1e6,
     intensity: Math.round(intensity),
     country: country.toUpperCase(),
     timestamp: Date.now(),
     type,
+    audioData: audioData || null,
   }
 
   return { valid: true, errors: [], event }

@@ -212,6 +212,62 @@ export const CLOCK_CITIES: { real: string; pun: string; tz: string }[] = [
 // Distributed to all commands via OPREP-3 FLATULENCE PINNACLE.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// EMISSION CLASSIFICATION SYSTEM
+// Categorizes recorded emissions based on acoustic analysis parameters
+// per Standard Operating Procedure: Flatulence Taxonomy v3.2
+// ---------------------------------------------------------------------------
+
+export interface EmissionClassification {
+  label: string;
+  code: string;
+  color: string;
+  description: string;
+}
+
+/**
+ * Classifies a fart based on duration and volume measurements.
+ * Returns a structured classification with label, tactical code,
+ * display color, and operational description.
+ */
+export function classifyEmission(duration: number | null, volume: number | null): EmissionClassification {
+  const d = duration ?? 0;
+  const v = volume ?? 0;
+
+  // Duration bands: short (<1s), medium (1-3s), long (3-6s), epic (6+s)
+  // Volume bands: silent (<5), quiet (5-15), moderate (15-30), loud (30-50), thunderous (50+)
+
+  if (d < 1) {
+    if (v < 5)  return { label: 'Ghost Puff',       code: 'SBD-1', color: '#b088ff', description: 'Detected by chemical sensors only. Zero acoustic signature.' };
+    if (v < 15) return { label: 'Cheeky Pop',       code: 'POP-1', color: '#9dff4a', description: 'Brief, playful emission. Low collateral impact.' };
+    if (v < 30) return { label: 'Quick Snap',       code: 'SNP-2', color: '#ffb020', description: 'Sharp burst of moderate intensity. Rapid dispersal expected.' };
+    if (v < 50) return { label: 'Firecracker',      code: 'FRC-3', color: '#ff6b6b', description: 'High-energy short-duration blast. Immediate area affected.' };
+    return            { label: 'Sonic Blip',        code: 'SON-4', color: '#ff4d5a', description: 'Extreme acoustic event compressed into sub-second window.' };
+  }
+
+  if (d < 3) {
+    if (v < 5)  return { label: 'Stealth Drift',    code: 'STL-1', color: '#b088ff', description: 'Extended silent emission. Maximum deniability achieved.' };
+    if (v < 15) return { label: 'Soft Roller',      code: 'ROL-2', color: '#38f3ff', description: 'Gentle sustained release. Moderate ambient contamination.' };
+    if (v < 30) return { label: 'Standard Issue',   code: 'STD-2', color: '#38f3ff', description: 'Textbook emission. Well within operational parameters.' };
+    if (v < 50) return { label: 'Brass Section',    code: 'BRS-3', color: '#ffb020', description: 'Muscular sustained output with distinct tonal qualities.' };
+    return            { label: 'Power Chord',       code: 'PWR-4', color: '#ff6b6b', description: 'Sustained high-volume emission. Building management notified.' };
+  }
+
+  if (d < 6) {
+    if (v < 5)  return { label: 'Silent Assassin',  code: 'ASN-2', color: '#b088ff', description: 'Prolonged covert emission. Casualties discovered retroactively.' };
+    if (v < 15) return { label: 'Low Rumbler',      code: 'RMB-2', color: '#38f3ff', description: 'Extended low-frequency emission with seismic undertones.' };
+    if (v < 30) return { label: 'Rolling Thunder',  code: 'THD-3', color: '#ffb020', description: 'Sustained multi-phase event with variable acoustic profile.' };
+    if (v < 50) return { label: 'Foghorn',          code: 'FOG-4', color: '#ff6b6b', description: 'Dominant sustained blast. Audible across multiple rooms.' };
+    return            { label: 'Tectonic Event',    code: 'TEC-5', color: '#ff4d5a', description: 'Structural vibrations detected. Richter scale consultation advised.' };
+  }
+
+  // Epic duration (6+ seconds)
+  if (v < 15) return  { label: 'Marathon Drift',    code: 'MRT-3', color: '#ff64ff', description: 'Extraordinary sustained silent emission. Record-setting endurance.' };
+  if (v < 30) return  { label: 'Grand Passage',     code: 'GRP-4', color: '#ff64ff', description: 'Extended ceremonial emission. Witnesses report temporal distortion.' };
+  if (v < 50) return  { label: 'Extinction Event',  code: 'EXT-5', color: '#ff4d5a', description: 'Catastrophic sustained emission. Area quarantine recommended.' };
+  return              { label: 'Chamber of Horrors', code: 'COH-5', color: '#ff4d5a', description: 'Beyond classification. Multiple international treaties violated.' };
+}
+
 export const GASCON_DESCRIPTIONS: Record<GasconLevel, string> = {
   1: 'Global atmospheric contamination at critical threshold. All military and civilian installations on maximum alert. Respiratory protection equipment mandatory for all personnel. Non-essential movement prohibited. Strategic reserve of air freshener activated. The National Command Authority has been briefed.',
   2: 'Widespread high-intensity gaseous events across multiple continents. Allied olfactory networks reporting sensor saturation. Regional evacuation plans on standby. International Flatulence Treaty Organization (IFTO) emergency session convened. Population advised to seal windows.',

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { REPORTER_ALIASES } from '../../config/humor.ts'
+import { REPORTER_ALIASES, classifyEmission } from '../../config/humor.ts'
 
 const FLAG_EMOJIS = {
   US:'\uD83C\uDDFA\uD83C\uDDF8', GB:'\uD83C\uDDEC\uD83C\uDDE7', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', JP:'\uD83C\uDDEF\uD83C\uDDF5',
@@ -170,6 +170,33 @@ export default function FartBrowser({ events, onClose }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {/* Highlights bar */}
+              {events.length >= 2 && (() => {
+                const withDuration = events.filter(e => e.duration != null)
+                const withVolume = events.filter(e => e.volume != null)
+                const longest = withDuration.length > 0 ? withDuration.reduce((a, b) => (b.duration > a.duration ? b : a)) : null
+                const loudest = withVolume.length > 0 ? withVolume.reduce((a, b) => (b.volume > a.volume ? b : a)) : null
+                const highlights = [
+                  longest && { label: 'LONGEST', value: `${longest.duration}s`, color: '#38f3ff', country: longest.country },
+                  loudest && { label: 'LOUDEST', value: volumeLabel(loudest.volume), color: '#ff6b6b', country: loudest.country },
+                  { label: 'LATEST', value: timeSince(events[0].timestamp), color: '#9dff4a', country: events[0].country },
+                ].filter(Boolean)
+                return (
+                  <div style={{
+                    display: 'flex', gap: '8px', marginBottom: '12px',
+                    padding: '10px', borderRadius: '4px',
+                    background: 'rgba(6,9,13,0.5)', border: '1px solid rgba(56,243,255,0.08)',
+                  }}>
+                    {highlights.map((h, i) => (
+                      <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.2em', fontFamily: 'monospace', marginBottom: '3px' }}>{h.label}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: h.color, fontFamily: 'monospace' }}>{h.value}</div>
+                        <div style={{ fontSize: '10px' }}>{FLAG_EMOJIS[h.country] || '\uD83C\uDF0D'}</div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
               {events.slice(0, 50).map(e => {
                 const isExpanded = expandedId === e.id
                 const audioState = audioStates[e.id] || 'idle'
@@ -223,6 +250,30 @@ export default function FartBrowser({ events, onClose }) {
                         style={{ paddingTop: '12px', borderTop: '1px solid rgba(56,243,255,0.08)', marginTop: '10px' }}
                         onClick={ev => ev.stopPropagation()}
                       >
+                        {/* Classification badge */}
+                        {(() => {
+                          const cls = classifyEmission(e.duration, e.volume)
+                          return (
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              marginBottom: '10px', padding: '8px 10px', borderRadius: '4px',
+                              background: `${cls.color}0a`, border: `1px solid ${cls.color}22`,
+                            }}>
+                              <span style={{
+                                fontSize: '8px', padding: '2px 5px', borderRadius: '3px',
+                                background: `${cls.color}22`, border: `1px solid ${cls.color}44`,
+                                color: cls.color, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em',
+                              }}>{cls.code}</span>
+                              <span style={{ fontSize: '11px', fontWeight: 'bold', color: cls.color, fontFamily: 'monospace' }}>
+                                {cls.label.toUpperCase()}
+                              </span>
+                              <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontFamily: 'monospace', flex: 1, textAlign: 'right' }}>
+                                {cls.description.split('.')[0]}
+                              </span>
+                            </div>
+                          )
+                        })()}
+
                         <div style={{
                           display: 'flex', gap: '16px', marginBottom: '12px',
                           fontSize: '10px', fontFamily: 'monospace', color: 'var(--text-label)',

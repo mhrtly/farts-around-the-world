@@ -33,33 +33,49 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null)
   const [stats, setStats]             = useState({
     totalToday: 0,
-    activeFarters: 0,
+    totalAllTime: 0,
     topCountry: '\u2014',
-    epicCount: 0,
+    topCountryCount: 0,
+    uniqueCountries: 0,
+    audioCount: 0,
+    avgDuration: null,
+    maxDuration: null,
+    avgVolume: null,
+    maxVolume: null,
+    leaderboard: [],
   })
   const streamRef = useRef(null)
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/stats')
+      if (res.ok) {
+        const data = await res.json()
+        setStats(data)
+      }
+    } catch { /* server not available */ }
+  }, [])
+
   const handleNewEvent = useCallback((event) => {
     setEvents(prev => [event, ...prev].slice(0, 500))
-
-    setStats(prev => ({
-      totalToday:    prev.totalToday + 1,
-      activeFarters: Math.min(prev.activeFarters + (Math.random() > 0.7 ? 1 : 0), 9999),
-      topCountry:    event.country,
-      epicCount:     prev.epicCount + (event.type === 'epic' ? 1 : 0),
-    }))
-  }, [])
+    // Re-fetch stats when new events arrive
+    fetchStats()
+  }, [fetchStats])
 
   useEffect(() => {
     let cancelled = false
     createStream(handleNewEvent).then(stream => {
       if (!cancelled) streamRef.current = stream
     })
+    // Initial stats fetch + periodic refresh
+    fetchStats()
+    const statsInterval = setInterval(fetchStats, 15000)
     return () => {
       cancelled = true
       streamRef.current?.stop()
+      clearInterval(statsInterval)
     }
-  }, [handleNewEvent])
+  }, [handleNewEvent, fetchStats])
 
   const closeModal = useCallback(() => setActiveModal(null), [])
 
@@ -72,7 +88,7 @@ export default function App() {
         <aside className="panel panel-left">
           <KPIPanel stats={stats} />
           <div className="panel-divider" />
-          <Leaderboard events={events} />
+          <Leaderboard events={events} serverLeaderboard={stats.leaderboard} />
         </aside>
 
         <main className="globe-container">

@@ -91,6 +91,28 @@ const stmts = {
     GROUP BY type
   `),
 
+  uniqueCountriesToday: db.prepare(`
+    SELECT COUNT(DISTINCT country) as count FROM events WHERE timestamp >= ?
+  `),
+
+  audioCountToday: db.prepare(`
+    SELECT COUNT(*) as count FROM events WHERE timestamp >= ? AND audio_data IS NOT NULL
+  `),
+
+  avgDurationToday: db.prepare(`
+    SELECT AVG(duration) as avg, MAX(duration) as max FROM events WHERE timestamp >= ? AND duration IS NOT NULL
+  `),
+
+  avgVolumeToday: db.prepare(`
+    SELECT AVG(volume) as avg, MAX(volume) as max FROM events WHERE timestamp >= ? AND volume IS NOT NULL
+  `),
+
+  countryLeaderboard: db.prepare(`
+    SELECT country, COUNT(*) as count FROM events
+    WHERE timestamp >= ?
+    GROUP BY country ORDER BY count DESC LIMIT 10
+  `),
+
   updateRating: db.prepare(`
     UPDATE events SET user_rating = ? WHERE id = ?
   `),
@@ -127,6 +149,11 @@ export function getStats() {
   const totalAllTime = stmts.countAll.get().count
   const topRow = stmts.topCountry.get(todayEpoch)
   const typeRows = stmts.eventsByType.all(todayEpoch)
+  const uniqueCountries = stmts.uniqueCountriesToday.get(todayEpoch).count
+  const audioCount = stmts.audioCountToday.get(todayEpoch).count
+  const durationStats = stmts.avgDurationToday.get(todayEpoch)
+  const volumeStats = stmts.avgVolumeToday.get(todayEpoch)
+  const leaderboard = stmts.countryLeaderboard.all(todayEpoch)
 
   const eventsByType = {}
   for (const row of typeRows) {
@@ -136,8 +163,16 @@ export function getStats() {
   return {
     totalToday,
     totalAllTime,
-    topCountry: topRow?.country ?? '—',
+    topCountry: topRow?.country ?? '\u2014',
+    topCountryCount: topRow?.count ?? 0,
     eventsByType,
+    uniqueCountries,
+    audioCount,
+    avgDuration: durationStats?.avg ? Math.round(durationStats.avg * 10) / 10 : null,
+    maxDuration: durationStats?.max ? Math.round(durationStats.max * 10) / 10 : null,
+    avgVolume: volumeStats?.avg ? Math.round(volumeStats.avg * 10) / 10 : null,
+    maxVolume: volumeStats?.max ? Math.round(volumeStats.max * 10) / 10 : null,
+    leaderboard,
   }
 }
 

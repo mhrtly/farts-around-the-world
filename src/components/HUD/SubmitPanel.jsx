@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { classifyEmission } from '../../config/humor.ts'
 
 // Reverse geocode via free BigDataCloud API (no key needed, client-side)
 async function reverseGeocode(lat, lng) {
@@ -490,7 +491,7 @@ export default function SubmitPanel({ onClose }) {
                 {'\u2713'} EMISSION CAPTURED
               </div>
               <audio controls src={audioUrl} style={{ width: '100%', height: '36px', marginBottom: '12px' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '8px', color: 'var(--text-dim)', letterSpacing: '0.2em', fontFamily: 'monospace', marginBottom: '4px' }}>DURATION</div>
                   <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#38f3ff', fontFamily: 'monospace' }}>{recordTime}s</div>
@@ -505,6 +506,32 @@ export default function SubmitPanel({ onClose }) {
                   <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ff6b6b', fontFamily: 'monospace' }}>{audioStats?.peakVolume?.toFixed(1) || '0'}</div>
                 </div>
               </div>
+              {(() => {
+                const cls = classifyEmission(recordTime, audioStats?.avgVolume)
+                return (
+                  <div style={{
+                    padding: '12px', borderRadius: '4px',
+                    background: 'rgba(6,9,13,0.6)',
+                    border: `1px solid ${cls.color}33`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <span style={{
+                        fontSize: '8px', padding: '2px 6px', borderRadius: '3px',
+                        background: `${cls.color}22`, border: `1px solid ${cls.color}44`,
+                        color: cls.color, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.15em',
+                      }}>
+                        {cls.code}
+                      </span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: cls.color, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                        {cls.label.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-label)', fontFamily: 'monospace', lineHeight: 1.5 }}>
+                      {cls.description}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             <button
               onClick={resetRecording}

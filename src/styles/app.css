@@ -7,7 +7,7 @@ html, body, #root {
   background: var(--bg-0);
   color: var(--text-primary);
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.04em;
 }
 
@@ -191,7 +191,7 @@ html, body, #root {
   border-right: 1px solid var(--panel-border);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 12px;
+  padding: 18px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -244,7 +244,7 @@ html, body, #root {
 }
 
 .panel-title {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.35em;
   color: var(--text-dim);
   text-transform: uppercase;

@@ -1,35 +1,37 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-// Real digestive science facts presented in OSINT briefing style
 const INTEL_BRIEFS = [
-  { tag: 'SIGINT', text: 'Average human produces 0.5–1.5 liters of intestinal gas per day across 14–23 emission events.' },
-  { tag: 'ANALYSIS', text: 'Only 1% of flatus contains odorous compounds. Primary olfactory agents: hydrogen sulfide, methanethiol, dimethyl sulfide.' },
-  { tag: 'HUMINT', text: 'Nitrogen (20–90%), hydrogen (0–50%), and CO₂ (10–30%) constitute the non-odorous majority of emissions.' },
-  { tag: 'GEOINT', text: 'Dietary fiber intake correlates with emission volume. Populations with high-legume diets show elevated baseline readings.' },
-  { tag: 'TECHINT', text: 'Sound frequency of emissions ranges 100–500 Hz. Pitch determined by sphincter tension and gas velocity, not volume.' },
-  { tag: 'ANALYSIS', text: 'Gut microbiome contains ~100 trillion organisms across 1,000+ species. Bacterial fermentation is the primary gas source.' },
-  { tag: 'SIGINT', text: 'Methane detected in only 33% of population. Methanogenic archaea (M. smithii) responsible. Trait partially genetic.' },
-  { tag: 'HUMINT', text: 'Post-meal emission latency: 2–6 hours typical. Transit time from ingestion to emission varies 12–36 hours.' },
-  { tag: 'GEOINT', text: 'Altitude reduces atmospheric pressure, causing intestinal gas to expand ~20% at cruising altitude (35,000 ft).' },
-  { tag: 'TECHINT', text: 'Activated charcoal underwear reduces sulfide concentration by 55–77%. Field-tested by NASA for space missions.' },
-  { tag: 'ANALYSIS', text: 'Swallowed air (aerophagia) accounts for significant nitrogen content. Carbonated beverages increase baseline readings by 30%.' },
-  { tag: 'SIGINT', text: 'Cruciferous vegetables (broccoli, cabbage) contain raffinose — a trisaccharide humans cannot digest. Microbes can.' },
-  { tag: 'HUMINT', text: 'Cultural emission norms vary significantly. In some cultures, post-meal emissions signal satisfaction to the host.' },
-  { tag: 'GEOINT', text: 'Bovine emissions contribute ~14.5% of global greenhouse gases. Single cow: 70–120 kg methane/year.' },
-  { tag: 'TECHINT', text: 'The Rome IV diagnostic criteria classify excessive flatulence as functional abdominal bloating/distension (H3).' },
-  { tag: 'ANALYSIS', text: 'Lactose intolerance affects ~68% of world population. Undigested lactose ferments in colon, producing H₂ and CO₂.' },
-  { tag: 'SIGINT', text: 'Hydrogen breath tests detect bacterial overgrowth. Exhaled H₂ > 20 ppm above baseline indicates fermentation.' },
-  { tag: 'HUMINT', text: 'Beans contain oligosaccharides (stachyose, verbascose) that reach the colon intact. Alpha-galactosidase enzyme (Beano) helps.' },
-  { tag: 'GEOINT', text: 'Termites produce more methane than all industrial sources combined. Nature\'s most prolific emitters per body mass.' },
-  { tag: 'TECHINT', text: 'Rectal gas composition analyzable via gas chromatography-mass spectrometry. Clinical tool for diagnosing malabsorption.' },
+  { tag: 'DATA', text: 'Average human produces 0.5–1.5 liters of intestinal gas per day across 14–23 emission events.' },
+  { tag: 'HEALTH', text: 'Only about 1% of flatus contains odor-causing compounds such as hydrogen sulfide, methanethiol, and dimethyl sulfide.' },
+  { tag: 'SCIENCE', text: 'Nitrogen (20–90%), hydrogen (0–50%), and CO₂ (10–30%) make up most recorded intestinal gas volume.' },
+  { tag: 'DIET', text: 'Dietary fiber intake correlates with emission volume. Populations with high-legume diets often show higher baseline readings.' },
+  { tag: 'AUDIO', text: 'Sound frequency of emissions ranges 100–500 Hz. Pitch is shaped more by muscle tension and gas velocity than volume.' },
+  { tag: 'SCIENCE', text: 'The gut microbiome contains roughly 100 trillion organisms across more than 1,000 species. Bacterial fermentation is the primary gas source.' },
+  { tag: 'DATA', text: 'Methane is detected in only about 33% of the population. Methanogenic archaea such as M. smithii drive that variation.' },
+  { tag: 'HEALTH', text: 'Post-meal emission latency is often 2–6 hours, while total transit time from ingestion to emission can range from 12–36 hours.' },
+  { tag: 'SCIENCE', text: 'Altitude reduces atmospheric pressure, causing intestinal gas to expand by about 20% at cruising altitude.' },
+  { tag: 'RESEARCH', text: 'Activated charcoal garments have been shown to reduce sulfide concentration by roughly 55–77% in controlled testing.' },
+  { tag: 'HEALTH', text: 'Swallowed air contributes significantly to nitrogen content. Carbonated beverages can raise baseline readings.' },
+  { tag: 'DIET', text: 'Cruciferous vegetables such as broccoli and cabbage contain raffinose, a sugar humans cannot digest without microbial help.' },
+  { tag: 'CULTURE', text: 'Cultural norms around emissions vary widely. In some traditions, post-meal emissions can signal satisfaction to the host.' },
+  { tag: 'CLIMATE', text: 'Bovine emissions contribute materially to greenhouse gases. A single cow can emit roughly 70–120 kg of methane per year.' },
+  { tag: 'HEALTH', text: 'The Rome IV diagnostic criteria classify excessive flatulence under functional abdominal bloating and distension.' },
+  { tag: 'SCIENCE', text: 'Lactose intolerance affects about 68% of the global population. Undigested lactose ferments in the colon and produces H₂ and CO₂.' },
+  { tag: 'RESEARCH', text: 'Hydrogen breath tests can help detect bacterial overgrowth when exhaled H₂ rises more than 20 ppm above baseline.' },
+  { tag: 'DIET', text: 'Beans contain oligosaccharides such as stachyose and verbascose that reach the colon intact. Alpha-galactosidase can help break them down.' },
+  { tag: 'CLIMATE', text: 'Termites produce more methane than many industrial systems combined, making them a major emitter relative to body mass.' },
+  { tag: 'RESEARCH', text: 'Gas chromatography-mass spectrometry can analyze rectal gas composition and assist in diagnosing malabsorption.' },
 ]
 
 const TAG_COLORS = {
-  SIGINT: '#38f3ff',
-  ANALYSIS: '#9dff4a',
-  HUMINT: '#ffb020',
-  GEOINT: '#ff64ff',
-  TECHINT: '#ff4d5a',
+  DATA: '#38f3ff',
+  HEALTH: '#9dff4a',
+  SCIENCE: '#ffb020',
+  DIET: '#ff64ff',
+  AUDIO: '#ff4d5a',
+  RESEARCH: '#38f3ff',
+  CULTURE: '#ffb020',
+  CLIMATE: '#ff64ff',
 }
 
 export default function ScienceTicker() {
@@ -98,7 +100,7 @@ export default function ScienceTicker() {
           color: 'var(--text-dim)',
           textTransform: 'uppercase',
         }}>
-          INTEL
+          FACT
         </span>
         <span style={{
           fontSize: '8px',

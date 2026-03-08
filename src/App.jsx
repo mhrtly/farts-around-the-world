@@ -7,6 +7,7 @@ import Timeline from './components/HUD/Timeline.jsx'
 import GasconIndicator from './components/HUD/GasconIndicator.jsx'
 import SubmitPanel from './components/HUD/SubmitPanel.jsx'
 import FartBrowser from './components/HUD/FartBrowser.jsx'
+import FartTagLab from './components/HUD/FartTagLab.jsx'
 import FATWAExpressPanel from './components/HUD/FATWAExpressPanel.jsx'
 import CommandPalette from './components/HUD/CommandPalette.jsx'
 import ShortcutsOverlay from './components/HUD/ShortcutsOverlay.jsx'
@@ -178,7 +179,7 @@ export default function App() {
     }
   }, [flyToLocation])
 
-  // Keyboard shortcuts: R to record, B to browse, Cmd+K / for command palette
+  // Keyboard shortcuts: R to record, B to browse, L to tag archive, Cmd+K / for command palette
   useEffect(() => {
     const handler = (e) => {
       // Don't trigger if user is typing in an input (except for Cmd+K and Escape)
@@ -219,6 +220,8 @@ export default function App() {
         setActiveModal(prev => prev === 'record' ? null : 'record')
       } else if (e.key === 'b' || e.key === 'B') {
         setActiveModal(prev => prev === 'browse' ? null : 'browse')
+      } else if (e.key === 'l' || e.key === 'L') {
+        setActiveModal(prev => prev === 'tag-lab' ? null : 'tag-lab')
       } else if (e.key === 't' || e.key === 'T') {
         setShowTour(prev => !prev)
       }
@@ -285,6 +288,7 @@ export default function App() {
               activeModal={activeModal}
               onOpenRecord={() => setActiveModal('record')}
               onOpenBrowse={() => setActiveModal('browse')}
+              onOpenTagLab={() => setActiveModal('tag-lab')}
               userSubmissionCount={userSubmissions.length}
             />
           )}
@@ -295,14 +299,17 @@ export default function App() {
           {activeModal === 'browse' && (
             <FartBrowser events={filteredEvents} onClose={closeModal} />
           )}
+          {activeModal === 'tag-lab' && (
+            <FartTagLab onClose={closeModal} />
+          )}
         </main>
 
         <aside className="panel panel-right" style={{ justifyContent: 'center', gap: '16px' }}>
           <CTAButton
             onClick={() => setActiveModal('record')}
             icon={'\uD83C\uDFA4'}
-            label="Record a Fart"
-            sublabel="Contribute to the global dataset"
+            label="Submit Event"
+            sublabel="Add a verified entry to the global dataset"
             shortcut="R"
             color="#ff6b6b"
             pulse
@@ -311,10 +318,19 @@ export default function App() {
           <CTAButton
             onClick={() => setActiveModal('browse')}
             icon={'\uD83D\uDCA8'}
-            label="Rate Emissions"
-            sublabel="Listen, rate, and classify"
+            label="Review Archive"
+            sublabel="Listen, score, and classify recordings"
             shortcut="B"
             color="#38f3ff"
+          />
+
+          <CTAButton
+            onClick={() => setActiveModal('tag-lab')}
+            icon={'\uD83C\uDFF7\uFE0F'}
+            label="Classify Archive"
+            sublabel="Help organize the public dataset"
+            shortcut="L"
+            color="#9dff4a"
           />
 
           <CTAButton

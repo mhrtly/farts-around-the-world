@@ -144,7 +144,7 @@ export default function StatusFooter({ isConnected, lastEventTimestamp, events }
 
       {sep}
 
-      {/* Events witnessed */}
+      {/* Events observed during this session */}
       <span style={{ color: 'var(--text-dim)', fontSize: '8px' }}>
         <span style={{
           color: eventsWitnessed > 0 ? '#38f3ff' : 'var(--text-dim)',
@@ -153,7 +153,7 @@ export default function StatusFooter({ isConnected, lastEventTimestamp, events }
         }}>
           {eventsWitnessed}
         </span>
-        {' '}witnessed
+        {' '}observed
       </span>
 
       {sep}
@@ -170,7 +170,7 @@ export default function StatusFooter({ isConnected, lastEventTimestamp, events }
         letterSpacing: '0.12em',
         userSelect: 'none',
       }}>
-        FATWA v2.0
+        Farts Around the World v2.0
       </span>
     </div>
   )

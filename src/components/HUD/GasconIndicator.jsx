@@ -69,7 +69,7 @@ export default function GasconIndicator({ events }) {
       className={`gascon-strip ${flash ? 'gascon-strip--flash' : ''} ${isCritical ? 'gascon-strip--critical' : ''}`}
       style={{ '--gascon-color': gascon.color, '--gascon-glow': gascon.glow }}
     >
-      <span className="gascon-prefix">GASCON</span>
+      <span className="gascon-prefix">ACTIVITY</span>
 
       <div className="gascon-blocks">
         {LEVELS.slice().reverse().map(l => (
@@ -117,11 +117,11 @@ export default function GasconIndicator({ events }) {
         <span style={{ color: countriesActive > 0 ? '#38f3ff' : 'var(--text-dim)' }}>
           {countriesActive}
         </span>
-        {' '}RGN
+        {' '}REGIONS
       </span>
 
       {burstMode && (
-        <span className="gascon-burst">⚡ BURST DETECTED</span>
+        <span className="gascon-burst">⚡ SPIKE DETECTED</span>
       )}
     </div>
   )

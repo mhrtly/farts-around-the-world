@@ -80,7 +80,7 @@ export default function ShortcutsOverlay({ onClose }) {
               fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.1em',
               fontFamily: 'monospace', marginTop: '2px',
             }}>
-              FATWA OPERATOR QUICK REFERENCE
+              Farts Around the World quick reference
             </div>
           </div>
           <span style={{

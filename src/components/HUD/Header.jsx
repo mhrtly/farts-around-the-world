@@ -51,7 +51,7 @@ function LivePulse({ lastEventTimestamp }) {
         transition: 'background 0.5s ease, box-shadow 0.5s ease',
       }} />
       <span style={{
-        fontSize: '8px',
+        fontSize: '10px',
         letterSpacing: '0.2em',
         color,
         fontWeight: 'bold',
@@ -105,19 +105,19 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
         }}>💨</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
           <span className="logo-text" style={{
-            fontSize: '20px',
-            letterSpacing: '0.35em',
+            fontSize: '22px',
+            letterSpacing: '0.18em',
             textShadow: isActive
               ? '0 0 20px rgba(56,243,255,0.4), 0 0 40px rgba(56,243,255,0.15)'
               : undefined,
             transition: 'text-shadow 0.5s ease',
-          }}>FATWA</span>
+          }}>Farts Around the World</span>
           <span style={{
-            fontSize: '8px',
+            fontSize: '10px',
             letterSpacing: '0.15em',
             color: 'var(--text-dim)',
             textTransform: 'uppercase',
-          }}>Farts Around The World App</span>
+          }}>Global dashboard and analytics</span>
         </div>
       </div>
 
@@ -144,7 +144,7 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
         {totalToday > 0 && (
           <span style={{
             marginLeft: '16px',
-            fontSize: '8px',
+            fontSize: '9px',
             letterSpacing: '0.12em',
             color: 'var(--text-dim)',
             display: 'flex',
@@ -185,9 +185,9 @@ export default function Header({ totalToday, totalAllTime, timeWindowLabel, last
             background: 'none',
             border: `1px solid ${muted ? 'rgba(255,77,90,0.2)' : 'rgba(157,255,74,0.2)'}`,
             borderRadius: '3px',
-            padding: '2px 6px',
+            padding: '4px 7px',
             cursor: 'pointer',
-            fontSize: '10px',
+            fontSize: '11px',
             fontFamily: 'monospace',
             color: muted ? '#ff4d5a' : '#9dff4a',
             letterSpacing: '0.1em',

@@ -1,8 +1,59 @@
 import { Router } from 'express'
 import { validateFartEvent } from './validation.js'
-import { insertEvent, getRecentEvents, getEventsByRange, getStats, getAudio, updateEventRating } from './db.js'
+import {
+  insertEvent,
+  getRecentEvents,
+  getEventsByRange,
+  getStats,
+  getAudio,
+  updateEventRating,
+  getArchiveAudioDir,
+  getArchiveClip,
+  getArchiveClipCount,
+  getArchiveAudioPath,
+  insertArchiveTags,
+  isArchiveAudioAvailable,
+  listArchiveClips,
+} from './db.js'
+import { ensureArchiveDataset, getArchiveStatus } from './archiveDataset.js'
 
 const startTime = Date.now()
+const ARCHIVE_SORT_OPTIONS = new Set(['random', 'untagged', 'most-tagged'])
+
+function normalizeArchiveTag(rawTag) {
+  if (typeof rawTag !== 'string') {
+    return null
+  }
+
+  const displayTag = rawTag
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[^a-zA-Z0-9\s'-]/g, '')
+    .slice(0, 32)
+
+  if (!displayTag || displayTag.length < 2) {
+    return null
+  }
+
+  return {
+    displayTag,
+    normalizedTag: displayTag.toLowerCase(),
+  }
+}
+
+function serializeArchiveClip(clip) {
+  if (!clip) {
+    return null
+  }
+
+  return {
+    id: clip.id,
+    fileName: clip.fileName,
+    tagCount: clip.tagCount,
+    tags: clip.tags,
+    audioUrl: `/api/archive/clips/${encodeURIComponent(clip.id)}/audio`,
+  }
+}
 
 export default function createRoutes(io) {
   const router = Router()
@@ -105,6 +156,103 @@ export default function createRoutes(io) {
     }
   })
 
+  router.get('/api/archive/clips', (req, res) => {
+    if (!isArchiveAudioAvailable()) {
+      ensureArchiveDataset().catch(err => {
+        console.error('[ARCHIVE ERROR]', err.message)
+      })
+      return res.status(503).json({
+        error: 'Archive dataset is still syncing to server storage',
+        archiveAudioDir: getArchiveAudioDir(),
+        ...getArchiveStatus(),
+      })
+    }
+
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 24)
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0)
+    const sort = ARCHIVE_SORT_OPTIONS.has(req.query.sort) ? req.query.sort : 'random'
+
+    try {
+      const clips = listArchiveClips({ limit, offset, sort }).map(serializeArchiveClip)
+      res.json({
+        clips,
+        total: getArchiveClipCount(),
+        limit,
+        offset,
+        sort,
+      })
+    } catch (err) {
+      console.error('[ARCHIVE ERROR]', err.message)
+      res.status(500).json({ error: 'Failed to load archive clips' })
+    }
+  })
+
+  router.get('/api/archive/clips/:clipId/audio', (req, res) => {
+    try {
+      const filePath = getArchiveAudioPath(req.params.clipId)
+      if (!filePath) {
+        if (!isArchiveAudioAvailable()) {
+          ensureArchiveDataset().catch(err => {
+            console.error('[ARCHIVE ERROR]', err.message)
+          })
+          return res.status(503).json({
+            error: 'Archive dataset is still syncing to server storage',
+            archiveAudioDir: getArchiveAudioDir(),
+            ...getArchiveStatus(),
+          })
+        }
+
+        return res.status(404).json({ error: 'Archive clip not found' })
+      }
+
+      res.type('audio/wav')
+      res.sendFile(filePath)
+    } catch (err) {
+      console.error('[ARCHIVE ERROR]', err.message)
+      res.status(500).json({ error: 'Failed to stream archive audio' })
+    }
+  })
+
+  router.post('/api/archive/clips/:clipId/tags', (req, res) => {
+    try {
+      if (!getArchiveClip(req.params.clipId)) {
+        return res.status(404).json({ error: 'Archive clip not found' })
+      }
+
+      const submittedTags = Array.isArray(req.body?.tags) ? req.body.tags : []
+      const normalizedTags = []
+      const seen = new Set()
+
+      for (const rawTag of submittedTags) {
+        const normalized = normalizeArchiveTag(rawTag)
+        if (!normalized) {
+          continue
+        }
+
+        if (seen.has(normalized.normalizedTag)) {
+          continue
+        }
+
+        seen.add(normalized.normalizedTag)
+        normalizedTags.push(normalized)
+      }
+
+      if (!normalizedTags.length) {
+        return res.status(400).json({ error: 'Provide at least one valid tag' })
+      }
+
+      if (normalizedTags.length > 8) {
+        return res.status(400).json({ error: 'Limit tag submissions to 8 at a time' })
+      }
+
+      const clip = insertArchiveTags(req.params.clipId, normalizedTags)
+      res.status(201).json({ clip: serializeArchiveClip(clip) })
+    } catch (err) {
+      console.error('[ARCHIVE ERROR]', err.message)
+      res.status(500).json({ error: 'Failed to save archive tags' })
+    }
+  })
+
   // Health check
   router.get('/api/health', (_req, res) => {
     try {
@@ -113,6 +261,8 @@ export default function createRoutes(io) {
         status: 'ok',
         uptime: Math.round((Date.now() - startTime) / 1000),
         eventCount: stats.totalAllTime,
+        archiveClipsAvailable: getArchiveClipCount(),
+        archiveStatus: getArchiveStatus(),
       })
     } catch (err) {
       res.status(500).json({ status: 'error', error: err.message })

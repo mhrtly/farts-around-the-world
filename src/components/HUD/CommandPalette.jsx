@@ -379,7 +379,7 @@ export default function CommandPalette({ onClose, onAction }) {
             <span style={{ fontSize: '10px', opacity: 0.5 }}>esc</span> close
           </span>
           <span style={{ marginLeft: 'auto', color: 'rgba(56,243,255,0.3)' }}>
-            FATWA COMMAND DECK
+            Farts Around the World command deck
           </span>
         </div>
       </div>

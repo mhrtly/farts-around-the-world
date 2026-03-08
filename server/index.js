@@ -8,6 +8,7 @@ import { dirname, join, resolve } from 'path'
 import { existsSync } from 'fs'
 import createRoutes from './routes.js'
 import { getStats } from './db.js'
+import { primeArchiveDataset } from './archiveDataset.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 3001
@@ -35,6 +36,14 @@ app.use('/api/events', rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' },
+}))
+
+app.use('/api/archive', rateLimit({
+  windowMs: 60_000,
+  max: (req) => req.method === 'POST' ? 90 : 180,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many archive requests, please try again later' },
 }))
 
 // Routes
@@ -72,6 +81,7 @@ if (existsSync(DIST_DIR)) {
 
 // Start
 httpServer.listen(PORT, () => {
+  primeArchiveDataset()
   console.log(`
   ╔══════════════════════════════════════════════╗
   ║  GFMS Backend Server v1.0                    ║

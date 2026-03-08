@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FATWA — Farts Around The World App</title>
-    <meta name="description" content="Bringing the world together, one fart at a time. A POTATO PROPAGANDA production." />
+    <title>Farts Around the World</title>
+    <meta name="description" content="Farts Around the World is a global dashboard for live flatulence data, geographic coverage, and analytics." />
     <style>
       /* Inline critical boot screen CSS — no JS dependency */
       html, body { margin: 0; padding: 0; background: #06090d; overflow: hidden; }
@@ -28,38 +28,42 @@
         animation: twinkle 3s ease-in-out infinite alternate;
       }
 
-      /* ── POTATO PROPAGANDA presents ── */
+      /* ── POTATO PROPOGANDA presents ── */
       .pp-presents {
         position: relative; z-index: 2;
         text-align: center; opacity: 0;
         animation: ppFadeIn 1.5s ease 0.8s forwards;
-      }
-      .pp-label {
-        font-size: 10px; letter-spacing: 0.5em; color: #555;
-        text-transform: uppercase; margin-bottom: 12px;
       }
       .pp-logo {
         font-size: 22px; font-weight: 900; letter-spacing: 0.25em;
         color: #d4a843;
         text-shadow: 0 0 20px rgba(212,168,67,0.4), 0 0 60px rgba(212,168,67,0.15);
       }
+      .pp-presents-word {
+        margin-top: 28px;
+        font-size: 11px;
+        letter-spacing: 0.45em;
+        color: rgba(212,168,67,0.65);
+        text-transform: uppercase;
+      }
       .pp-potato {
         display: inline-block; font-size: 32px; margin-right: 8px;
         animation: potatoSpin 3s ease-in-out infinite;
       }
 
-      /* ── Main title: FATWA ── */
+      /* ── Main title ── */
       .fatwa-title {
         position: relative; z-index: 2;
         text-align: center; opacity: 0; margin-top: 48px;
         animation: fatwaReveal 1.2s ease 2.8s forwards;
       }
       .fatwa-name {
-        font-size: 72px; font-weight: 900; letter-spacing: 0.3em;
+        font-size: clamp(40px, 7vw, 72px); font-weight: 900; letter-spacing: 0.14em;
         color: #38f3ff;
         text-shadow: 0 0 40px rgba(56,243,255,0.6), 0 0 80px rgba(56,243,255,0.3),
                      0 0 120px rgba(56,243,255,0.15), 0 2px 0 rgba(0,0,0,0.8);
         line-height: 1;
+        text-transform: uppercase;
       }
       .fatwa-subtitle {
         font-size: 12px; letter-spacing: 0.35em; color: rgba(56,243,255,0.5);
@@ -108,6 +112,28 @@
         font-size: 9px; color: rgba(56,243,255,0.6);
         margin-top: 4px; letter-spacing: 0.2em;
         text-align: right;
+      }
+      .boot-skip {
+        position: absolute;
+        right: 24px;
+        bottom: 24px;
+        z-index: 4;
+        border: 1px solid rgba(56,243,255,0.24);
+        background: rgba(6,9,13,0.72);
+        color: rgba(56,243,255,0.9);
+        font: inherit;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+      }
+      .boot-skip:hover {
+        background: rgba(56,243,255,0.12);
+        border-color: rgba(56,243,255,0.48);
+        transform: translateY(-1px);
       }
 
       /* ── Scanline overlay ── */
@@ -163,42 +189,43 @@
       <div class="boot-scanlines"></div>
       <div class="boot-vignette"></div>
 
-      <!-- POTATO PROPAGANDA presents -->
+      <!-- POTATO PROPOGANDA presents -->
       <div class="pp-presents">
-        <div class="pp-label">a production of</div>
         <div class="pp-logo">
-          <span class="pp-potato">&#x1F954;</span>POTATO PROPAGANDA
+          <span class="pp-potato">&#x1F954;</span>POTATO PROPOGANDA
         </div>
+        <div class="pp-presents-word">presents</div>
       </div>
 
-      <!-- FATWA title -->
+      <!-- Main title -->
       <div class="fatwa-title">
-        <div class="fatwa-name">FATWA</div>
-        <div class="fatwa-subtitle">Farts Around The World App</div>
+        <div class="fatwa-name">Farts Around the World</div>
+        <div class="fatwa-subtitle">Global dashboard and analytics</div>
       </div>
 
       <!-- Mission -->
       <div class="fatwa-mission">
         <p>
-          <span class="highlight">Uniting humanity</span> through the one thing we all share.
+          <span class="highlight">A world-class dashboard</span> for live submissions, trend analysis, and global coverage.
         </p>
         <p>
-          Because nothing says <span class="highlight">world peace</span> like knowing
-          someone on the other side of the planet just let one rip too.
+          Built to treat the data seriously, present it beautifully, and make the signal easy to understand.
         </p>
       </div>
 
       <!-- Terminal boot sequence -->
       <div class="boot-terminal" id="boot-terminal">
-        <div class="boot-line" id="bl-1" style="animation-delay:5.5s"><span class="boot-ok">[OK]</span>&nbsp; Olfactory sensor array online</div>
-        <div class="boot-line" id="bl-2" style="animation-delay:5.9s"><span class="boot-ok">[OK]</span>&nbsp; Acoustic detection grid calibrated</div>
-        <div class="boot-line" id="bl-3" style="animation-delay:6.3s"><span class="boot-loading" id="boot-geo-tag">[..]</span>&nbsp; Connecting global monitoring network...</div>
+        <div class="boot-line" id="bl-1" style="animation-delay:5.5s"><span class="boot-ok">[OK]</span>&nbsp; Event dataset ready</div>
+        <div class="boot-line" id="bl-2" style="animation-delay:5.9s"><span class="boot-ok">[OK]</span>&nbsp; Analytics modules calibrated</div>
+        <div class="boot-line" id="bl-3" style="animation-delay:6.3s"><span class="boot-loading" id="boot-geo-tag">[..]</span>&nbsp; Connecting global event network...</div>
         <div class="boot-line" id="bl-4" style="animation-delay:0s;opacity:0"></div>
         <div class="boot-line" style="animation-delay:6.6s">
           <div class="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
           <div class="boot-pct" id="boot-pct">INITIALIZING</div>
         </div>
       </div>
+
+      <button class="boot-skip" id="boot-skip" type="button">Skip intro</button>
     </div>
 
     <div id="root"></div>
@@ -229,10 +256,20 @@
         var geoTag = document.getElementById('boot-geo-tag')
         var streamLine = document.getElementById('bl-4')
         var boot   = document.getElementById('boot-screen')
+        var skip   = document.getElementById('boot-skip')
         var start  = null
         var dur    = 2000
+        var dismissed = false
+
+        function dismissBoot() {
+          if (dismissed) return
+          dismissed = true
+          boot.classList.add('fade-out')
+          setTimeout(function() { boot.style.display = 'none' }, 1100)
+        }
 
         function step(ts) {
+          if (dismissed) return
           if (!start) start = ts
           var progress = Math.min((ts - start) / dur, 1)
           var pctVal   = Math.round(progress * 100)
@@ -244,7 +281,7 @@
             geoTag.style.color  = '#44ff88'
             streamLine.style.opacity   = '1'
             streamLine.style.animation = 'none'
-            streamLine.innerHTML = '<span style="color:#38f3ff">[OK]</span>&nbsp; Monitoring active. Welcome to FATWA.'
+            streamLine.innerHTML = '<span style="color:#38f3ff">[OK]</span>&nbsp; Live dashboard ready. Welcome to Farts Around the World.'
           }
 
           if (progress < 1) {
@@ -252,11 +289,12 @@
           } else {
             pct.textContent = 'READY'
             setTimeout(function() {
-              boot.classList.add('fade-out')
-              setTimeout(function() { boot.style.display = 'none' }, 1100)
+              dismissBoot()
             }, 600)
           }
         }
+
+        skip.addEventListener('click', dismissBoot)
 
         // Start bar after boot lines appear (~6.8s)
         setTimeout(function() { requestAnimationFrame(step) }, 7000)

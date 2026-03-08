@@ -23,6 +23,7 @@ export default function FATWAExpressPanel({
   activeModal,
   onOpenRecord,
   onOpenBrowse,
+  onOpenTagLab,
   userSubmissionCount = 0,
 }) {
   const cls = latestEvent
@@ -34,8 +35,8 @@ export default function FATWAExpressPanel({
     <div className="fatwa-express">
       <div className="fatwa-express__header">
         <div>
-          <div className="fatwa-express__eyebrow">FATWA Express</div>
-          <div className="fatwa-express__title">Mobile upload lane</div>
+          <div className="fatwa-express__eyebrow">Farts Around the World</div>
+          <div className="fatwa-express__title">Mobile contribution lane</div>
         </div>
         <div className="fatwa-express__sync">
           <span className="fatwa-express__sync-dot" />
@@ -147,7 +148,7 @@ export default function FATWAExpressPanel({
           onClick={onOpenRecord}
         >
           <span className="fatwa-express__button-icon">Record</span>
-          <span className="fatwa-express__button-copy">Capture and upload with geotagging</span>
+          <span className="fatwa-express__button-copy">Submit a new event with location data</span>
         </button>
 
         <button
@@ -155,7 +156,15 @@ export default function FATWAExpressPanel({
           onClick={onOpenBrowse}
         >
           <span className="fatwa-express__button-icon">Browse</span>
-          <span className="fatwa-express__button-copy">Play back and verify persisted recordings</span>
+          <span className="fatwa-express__button-copy">Review recordings and verify the dataset</span>
+        </button>
+
+        <button
+          className={`fatwa-express__button fatwa-express__button--browse ${activeModal === 'tag-lab' ? 'is-active' : ''}`}
+          onClick={onOpenTagLab}
+        >
+          <span className="fatwa-express__button-icon">Tag</span>
+          <span className="fatwa-express__button-copy">Help classify patterns in the public archive</span>
         </button>
       </div>
     </div>

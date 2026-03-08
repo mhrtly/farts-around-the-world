@@ -159,7 +159,7 @@ export default function MilestoneToast({ events, userSubmissions = [] }) {
         newMilestones.push({
           id: `country-${code}-${Date.now()}`,
           type: 'new-country',
-          message: `${flag} First signal from ${name}!`,
+          message: `${flag} First submission from ${name}!`,
           sub: `${tracked.countries.size}/20 nations reporting`,
         })
       }
@@ -217,15 +217,15 @@ export default function MilestoneToast({ events, userSubmissions = [] }) {
           1: 'First emission submitted!',
           3: '3 submissions — building momentum!',
           5: '5 submissions — prolific contributor!',
-          10: '10 submissions — elite field agent!',
-          25: '25 submissions — SIGINT specialist!',
-          50: '50 submissions — legendary operator!',
+          10: '10 submissions — top contributor!',
+          25: '25 submissions — dataset builder!',
+          50: '50 submissions — legendary contributor!',
         }
         personalMilestones.push({
           id: `personal-${m}-${Date.now()}`,
           type: 'daily-record',
           message: messages[m] || `${m} personal submissions!`,
-          sub: 'Your contribution to global intelligence',
+          sub: 'Your contribution to the global dataset',
         })
       }
     }

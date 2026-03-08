@@ -1,0 +1,113 @@
+[
+  {
+    "size": 34,
+    "headline": "higher crest_factor, lower rms, higher silence_ratio",
+    "feature_highlights": [
+      "higher crest_factor",
+      "lower rms",
+      "higher silence_ratio"
+    ],
+    "sample_files": [
+      "1364.wav",
+      "1434.wav",
+      "1438.wav",
+      "1461.wav",
+      "1532.wav"
+    ],
+    "top_tags": [
+      "mid-length",
+      "peaky",
+      "sustained",
+      "sparse"
+    ],
+    "cluster_id": 0
+  },
+  {
+    "size": 10,
+    "headline": "higher spectral_flatness, higher spectral_centroid_hz, higher high_band_ratio",
+    "feature_highlights": [
+      "higher spectral_flatness",
+      "higher spectral_centroid_hz",
+      "higher high_band_ratio"
+    ],
+    "sample_files": [
+      "4081.wav",
+      "4871.wav",
+      "4986.wav",
+      "5102.wav",
+      "5129.wav"
+    ],
+    "top_tags": [
+      "high-texture",
+      "noisy",
+      "mid-length",
+      "buzzy"
+    ],
+    "cluster_id": 1
+  },
+  {
+    "size": 14,
+    "headline": "higher low_band_ratio, lower mid_band_ratio, higher duration_s",
+    "feature_highlights": [
+      "higher low_band_ratio",
+      "lower mid_band_ratio",
+      "higher duration_s"
+    ],
+    "sample_files": [
+      "1275.wav",
+      "1341.wav",
+      "1426.wav",
+      "1632.wav",
+      "1693.wav"
+    ],
+    "top_tags": [
+      "low-heavy",
+      "tonal",
+      "sustained",
+      "staccato"
+    ],
+    "cluster_id": 2
+  },
+  {
+    "size": 1,
+    "headline": "higher spectral_centroid_hz, higher spectral_bandwidth_hz, higher spectral_flatness",
+    "feature_highlights": [
+      "higher spectral_centroid_hz",
+      "higher spectral_bandwidth_hz",
+      "higher spectral_flatness"
+    ],
+    "sample_files": [
+      "4659.wav"
+    ],
+    "top_tags": [
+      "high-texture",
+      "long-tail",
+      "micro-burst",
+      "noisy"
+    ],
+    "cluster_id": 3
+  },
+  {
+    "size": 37,
+    "headline": "lower crest_factor, higher rms, higher mid_band_ratio",
+    "feature_highlights": [
+      "lower crest_factor",
+      "higher rms",
+      "higher mid_band_ratio"
+    ],
+    "sample_files": [
+      "1354.wav",
+      "1454.wav",
+      "1513.wav",
+      "1538.wav",
+      "1601.wav"
+    ],
+    "top_tags": [
+      "mid-length",
+      "tonal",
+      "low-heavy",
+      "high-texture"
+    ],
+    "cluster_id": 4
+  }
+]

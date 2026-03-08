@@ -1,0 +1,170 @@
+[
+  {
+    "query_file": "1275.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1275.wav",
+    "neighbors": [
+      {
+        "file_name": "1693.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1693.wav",
+        "distance": 0.989
+      },
+      {
+        "file_name": "521.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/521.wav",
+        "distance": 1.9985
+      },
+      {
+        "file_name": "2830.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2830.wav",
+        "distance": 2.4568
+      }
+    ]
+  },
+  {
+    "query_file": "1341.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1341.wav",
+    "neighbors": [
+      {
+        "file_name": "1911.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1911.wav",
+        "distance": 2.2407
+      },
+      {
+        "file_name": "2384.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2384.wav",
+        "distance": 3.5191
+      },
+      {
+        "file_name": "2061.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2061.wav",
+        "distance": 3.584
+      }
+    ]
+  },
+  {
+    "query_file": "1354.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1354.wav",
+    "neighbors": [
+      {
+        "file_name": "474.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/474.wav",
+        "distance": 1.0906
+      },
+      {
+        "file_name": "2517.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2517.wav",
+        "distance": 1.6085
+      },
+      {
+        "file_name": "1538.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1538.wav",
+        "distance": 1.6137
+      }
+    ]
+  },
+  {
+    "query_file": "1364.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1364.wav",
+    "neighbors": [
+      {
+        "file_name": "1532.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1532.wav",
+        "distance": 1.6928
+      },
+      {
+        "file_name": "2830.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2830.wav",
+        "distance": 1.7202
+      },
+      {
+        "file_name": "1538.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1538.wav",
+        "distance": 1.8499
+      }
+    ]
+  },
+  {
+    "query_file": "1426.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1426.wav",
+    "neighbors": [
+      {
+        "file_name": "2330.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2330.wav",
+        "distance": 1.0859
+      },
+      {
+        "file_name": "2384.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2384.wav",
+        "distance": 2.6951
+      },
+      {
+        "file_name": "2323.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2323.wav",
+        "distance": 3.1932
+      }
+    ]
+  },
+  {
+    "query_file": "1434.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1434.wav",
+    "neighbors": [
+      {
+        "file_name": "474.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/474.wav",
+        "distance": 2.0271
+      },
+      {
+        "file_name": "4649.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/4649.wav",
+        "distance": 2.2463
+      },
+      {
+        "file_name": "1438.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1438.wav",
+        "distance": 2.2733
+      }
+    ]
+  },
+  {
+    "query_file": "1438.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1438.wav",
+    "neighbors": [
+      {
+        "file_name": "3120.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/3120.wav",
+        "distance": 1.2709
+      },
+      {
+        "file_name": "495.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/495.wav",
+        "distance": 1.3542
+      },
+      {
+        "file_name": "4089.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/4089.wav",
+        "distance": 1.5005
+      }
+    ]
+  },
+  {
+    "query_file": "1454.wav",
+    "query_path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/1454.wav",
+    "neighbors": [
+      {
+        "file_name": "2517.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2517.wav",
+        "distance": 1.2093
+      },
+      {
+        "file_name": "6377.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/6377.wav",
+        "distance": 1.3195
+      },
+      {
+        "file_name": "2773.wav",
+        "path": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset/2773.wav",
+        "distance": 1.419
+      }
+    ]
+  }
+]

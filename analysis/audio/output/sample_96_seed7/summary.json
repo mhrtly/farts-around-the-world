@@ -1,0 +1,135 @@
+{
+  "dataset_dir": "/Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset",
+  "sample_size": 96,
+  "seed": 7,
+  "cluster_count": 5,
+  "total_available_files": 7610,
+  "feature_stats": {
+    "duration_s": {
+      "min": 0.40585,
+      "median": 1.746803,
+      "mean": 2.07259,
+      "max": 7.801406
+    },
+    "trimmed_duration_s": {
+      "min": 0.098912,
+      "median": 1.434875,
+      "mean": 1.772686,
+      "max": 7.717075
+    },
+    "burst_count": {
+      "min": 1.0,
+      "median": 2.0,
+      "mean": 3.333333,
+      "max": 14.0
+    },
+    "zero_crossing_rate": {
+      "min": 0.022764,
+      "median": 0.09727,
+      "mean": 0.115925,
+      "max": 0.341256
+    },
+    "silence_ratio": {
+      "min": 0.357811,
+      "median": 0.825017,
+      "mean": 0.797031,
+      "max": 0.959325
+    },
+    "spectral_centroid_hz": {
+      "min": 145.568243,
+      "median": 1118.857557,
+      "mean": 1557.539388,
+      "max": 7856.606144
+    },
+    "spectral_bandwidth_hz": {
+      "min": 437.449527,
+      "median": 1896.791529,
+      "mean": 2340.037779,
+      "max": 8227.537908
+    },
+    "spectral_flatness": {
+      "min": 0.000427,
+      "median": 0.019287,
+      "mean": 0.041469,
+      "max": 0.244399
+    },
+    "dominant_freq_hz": {
+      "min": 46.430969,
+      "median": 288.343048,
+      "mean": 432.610461,
+      "max": 5015.857444
+    },
+    "low_band_ratio": {
+      "min": 0.000161,
+      "median": 0.140515,
+      "mean": 0.227454,
+      "max": 0.973366
+    },
+    "mid_band_ratio": {
+      "min": 0.015365,
+      "median": 0.6325,
+      "mean": 0.611405,
+      "max": 0.955456
+    },
+    "high_band_ratio": {
+      "min": 0.001437,
+      "median": 0.075855,
+      "mean": 0.161141,
+      "max": 0.806889
+    }
+  },
+  "tag_counts": [
+    [
+      "mid-length",
+      59
+    ],
+    [
+      "tonal",
+      43
+    ],
+    [
+      "sustained",
+      30
+    ],
+    [
+      "low-heavy",
+      27
+    ],
+    [
+      "staccato",
+      27
+    ],
+    [
+      "high-texture",
+      25
+    ],
+    [
+      "peaky",
+      20
+    ],
+    [
+      "sparse",
+      17
+    ],
+    [
+      "noisy",
+      16
+    ],
+    [
+      "buzzy",
+      15
+    ],
+    [
+      "long-tail",
+      15
+    ],
+    [
+      "single-roll",
+      15
+    ],
+    [
+      "micro-burst",
+      7
+    ]
+  ]
+}

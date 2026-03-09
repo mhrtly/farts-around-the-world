@@ -55,6 +55,58 @@ function serializeArchiveClip(clip) {
   }
 }
 
+function classifyStorageError(error) {
+  const message = String(error?.message || '')
+  const lowered = message.toLowerCase()
+
+  if (lowered.includes('database is locked') || lowered.includes('database is busy') || lowered.includes('sqlite_busy')) {
+    return {
+      code: 'DATABASE_LOCKED',
+      details: 'SQLite write lock was still active when the event tried to save.',
+    }
+  }
+
+  if (lowered.includes('readonly')) {
+    return {
+      code: 'DATABASE_READ_ONLY',
+      details: 'SQLite opened in read-only mode on the server disk.',
+    }
+  }
+
+  if (lowered.includes('no such column') || lowered.includes('has no column')) {
+    return {
+      code: 'DATABASE_SCHEMA_MISMATCH',
+      details: 'The server database schema is missing one or more expected columns.',
+    }
+  }
+
+  if (lowered.includes('constraint failed')) {
+    return {
+      code: 'DATABASE_CONSTRAINT_FAILED',
+      details: 'SQLite rejected the event because a table constraint failed.',
+    }
+  }
+
+  if (lowered.includes('disk i/o')) {
+    return {
+      code: 'DATABASE_IO_ERROR',
+      details: 'The server disk reported an I/O error while saving the event.',
+    }
+  }
+
+  if (lowered.includes('database or disk is full')) {
+    return {
+      code: 'DATABASE_FULL',
+      details: 'The server database disk is full.',
+    }
+  }
+
+  return {
+    code: 'EVENT_STORE_FAILED',
+    details: null,
+  }
+}
+
 export default function createRoutes(io) {
   const router = Router()
 
@@ -89,11 +141,13 @@ export default function createRoutes(io) {
       io.emit('fart:new', broadcastEvent)
       res.status(201).json(broadcastEvent)
     } catch (err) {
+      const classified = classifyStorageError(err)
       console.error(`[INGEST STORE] ${requestId} ${err.stack || err.message}`)
       res.status(500).json({
         error: 'Failed to store event',
         stage: 'storage',
-        code: 'EVENT_STORE_FAILED',
+        code: classified.code,
+        details: classified.details,
         requestId,
       })
     }

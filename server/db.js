@@ -6,12 +6,13 @@ import { getArchiveAudioDir as resolveArchiveAudioDir } from './archiveDataset.j
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DB_PATH = process.env.DB_PATH || join(__dirname, 'farts.db')
+const JOURNAL_MODE = process.env.NODE_ENV === 'production' ? 'DELETE' : 'WAL'
 
 const db = new Database(DB_PATH)
 let archiveCatalogCache = { dir: null, clips: [] }
 
 // WAL mode for better concurrent read performance
-db.pragma('journal_mode = WAL')
+db.pragma(`journal_mode = ${JOURNAL_MODE}`)
 db.pragma('busy_timeout = 5000')
 db.pragma('synchronous = NORMAL')
 
@@ -297,8 +298,34 @@ function shuffleArray(items) {
   return copy
 }
 
+function shouldRetryWrite(error) {
+  const message = String(error?.message || '').toLowerCase()
+  return message.includes('database is locked') || message.includes('database is busy') || message.includes('sqlite_busy')
+}
+
+function sleep(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+}
+
 export function insertEvent(event) {
-  stmts.insert.run(event)
+  let lastError = null
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      stmts.insert.run(event)
+      return
+    } catch (error) {
+      lastError = error
+
+      if (!shouldRetryWrite(error) || attempt === 2) {
+        throw error
+      }
+
+      sleep(120 * (attempt + 1))
+    }
+  }
+
+  throw lastError
 }
 
 export function getRecentEvents(limit = 200) {

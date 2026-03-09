@@ -6,13 +6,11 @@ import { getArchiveAudioDir as resolveArchiveAudioDir } from './archiveDataset.j
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DB_PATH = process.env.DB_PATH || join(__dirname, 'farts.db')
-const JOURNAL_MODE = process.env.NODE_ENV === 'production' ? 'DELETE' : 'WAL'
-
 const db = new Database(DB_PATH)
 let archiveCatalogCache = { dir: null, clips: [] }
 
 // WAL mode for better concurrent read performance
-db.pragma(`journal_mode = ${JOURNAL_MODE}`)
+db.pragma('journal_mode = WAL')
 db.pragma('busy_timeout = 5000')
 db.pragma('synchronous = NORMAL')
 

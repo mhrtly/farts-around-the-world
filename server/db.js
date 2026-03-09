@@ -5,22 +5,14 @@ import { existsSync, readdirSync } from 'fs'
 import { getArchiveAudioDir as resolveArchiveAudioDir } from './archiveDataset.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const CONFIGURED_DB_PATH = process.env.DB_PATH || join(__dirname, 'farts.db')
-const DB_PATH =
-  process.env.NODE_ENV === 'production' && CONFIGURED_DB_PATH.startsWith('/data/')
-    ? '/tmp/farts.db'
-    : CONFIGURED_DB_PATH
+const DB_PATH = process.env.DB_PATH || join(__dirname, 'farts.db')
 const db = new Database(DB_PATH)
 let archiveCatalogCache = { dir: null, clips: [] }
 
 // WAL mode for better concurrent read performance
-db.pragma(process.env.NODE_ENV === 'production' ? 'journal_mode = DELETE' : 'journal_mode = WAL')
+db.pragma('journal_mode = WAL')
 db.pragma('busy_timeout = 5000')
 db.pragma('synchronous = NORMAL')
-
-if (process.env.NODE_ENV === 'production' && DB_PATH !== CONFIGURED_DB_PATH) {
-  console.warn(`[DB] Falling back to local event database at ${DB_PATH} (configured ${CONFIGURED_DB_PATH})`)
-}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS events (

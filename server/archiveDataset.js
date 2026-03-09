@@ -24,8 +24,10 @@ const DEFAULT_LOCAL_ARCHIVE_DIR = resolve(
   'fart_dataset',
 )
 
+// Archive audio goes to ephemeral /tmp — it's re-downloadable from Kaggle
+// and must NOT share the persistent disk with the SQLite database.
 const DEFAULT_PRODUCTION_ARCHIVE_DIR = resolve(
-  '/data',
+  '/tmp',
   'archive-cache',
   'datasets',
   DATASET_OWNER,

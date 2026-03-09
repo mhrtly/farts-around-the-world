@@ -147,7 +147,7 @@ export default function createRoutes(io) {
         error: 'Failed to store event',
         stage: 'storage',
         code: classified.code,
-        details: classified.details,
+        details: classified.details || String(err?.message || 'Unknown storage error').slice(0, 240),
         requestId,
       })
     }

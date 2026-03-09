@@ -29,7 +29,7 @@
   --glow-amber-sm: 0 0 8px rgba(255, 176, 32, 0.5);
 
   /* Layout */
-  --header-height: 56px;
-  --panel-width: 260px;
+  --header-height: 68px;
+  --panel-width: 300px;
   --radius: 6px;
 }

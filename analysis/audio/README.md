@@ -48,3 +48,26 @@ This is not trying to prove a taxonomy up front. The script emits "provisional t
 - add a hand-label template for a small listening set
 - compare handcrafted features against pretrained audio embeddings
 - add a mixed positive/negative benchmark for fart detection
+
+## Sommelier Loop
+
+There is now a second experiment path aimed at the "house of competing fart critics" idea:
+
+- `sommelier_strategies.py` is the editable critic strategy surface
+- `sommelier_autoresearch.py` is the fixed evaluator
+- `sommelier_program.md` describes the intended Karpathy-style loop
+
+This harness does not try to classify clips directly. Instead, it asks whether a generated tasting note helps recover the correct fart from a 3-clip lineup. That keeps the goal small, funny, and scientifically legible.
+
+### Example
+
+```bash
+python3 analysis/audio/sommelier_autoresearch.py \
+  --dataset-dir /Users/markhartley/.cache/kagglehub/datasets/alecledoux/fart-recordings-dataset/versions/12/fart_dataset \
+  --sample-size 72 \
+  --lineup-count 36 \
+  --generations 18 \
+  --population 6 \
+  --seed 11 \
+  --output-dir analysis/audio/output/sommelier_latest
+```

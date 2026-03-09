@@ -5,9 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Farts Around the World</title>
     <meta name="description" content="Farts Around the World is a global dashboard for live flatulence data, geographic coverage, and analytics." />
+    <script>
+      document.documentElement.dataset.routeMode = window.location.pathname === '/' ? 'home' : 'subpage'
+    </script>
     <style>
       /* Inline critical boot screen CSS — no JS dependency */
       html, body { margin: 0; padding: 0; background: #06090d; overflow: hidden; }
+      html[data-route-mode="subpage"],
+      html[data-route-mode="subpage"] body {
+        overflow: auto;
+      }
+      html[data-route-mode="subpage"] #boot-screen {
+        display: none;
+      }
 
       #boot-screen {
         position: fixed; inset: 0; z-index: 99999;
@@ -17,6 +27,21 @@
         overflow: hidden;
       }
       #boot-screen.fade-out { opacity: 0; pointer-events: none; transition: opacity 1s ease; }
+      .boot-shell {
+        position: relative;
+        z-index: 2;
+        width: min(760px, calc(100vw - 48px));
+        padding: 44px 40px 36px;
+        border: 1px solid rgba(56,243,255,0.12);
+        border-radius: 28px;
+        background:
+          radial-gradient(circle at top, rgba(56,243,255,0.12), transparent 42%),
+          linear-gradient(180deg, rgba(7,12,18,0.78), rgba(6,9,13,0.92));
+        box-shadow:
+          0 24px 90px rgba(0,0,0,0.45),
+          inset 0 0 60px rgba(56,243,255,0.04);
+        backdrop-filter: blur(6px);
+      }
 
       /* ── Starfield background ── */
       .starfield {
@@ -54,7 +79,7 @@
       /* ── Main title ── */
       .fatwa-title {
         position: relative; z-index: 2;
-        text-align: center; opacity: 0; margin-top: 48px;
+        text-align: center; opacity: 0; margin-top: 40px;
         animation: fatwaReveal 1.2s ease 2.8s forwards;
       }
       .fatwa-name {
@@ -73,13 +98,13 @@
       /* ── Mission statement ── */
       .fatwa-mission {
         position: relative; z-index: 2;
-        text-align: center; opacity: 0; margin-top: 32px;
-        max-width: 480px; line-height: 1.7;
+        text-align: center; opacity: 0; margin: 30px auto 0;
+        max-width: 560px; line-height: 1.8;
         animation: missionFade 1.5s ease 4s forwards;
       }
       .fatwa-mission p {
         margin: 0 0 8px;
-        font-size: 11px; letter-spacing: 0.12em; color: rgba(255,255,255,0.35);
+        font-size: 12px; letter-spacing: 0.1em; color: rgba(255,255,255,0.45);
       }
       .fatwa-mission .highlight {
         color: rgba(56,243,255,0.6); font-weight: 600;
@@ -88,9 +113,9 @@
       /* ── Boot sequence (terminal lines) ── */
       .boot-terminal {
         position: relative; z-index: 2;
-        margin-top: 40px; opacity: 0;
+        margin: 36px auto 0; opacity: 0;
         animation: fadeIn 0.5s ease 5.2s forwards;
-        font-size: 11px; color: #00ff41; width: 440px;
+        font-size: 11px; color: #00ff41; width: min(500px, 100%);
       }
       .boot-line {
         opacity: 0; transform: translateY(4px);
@@ -115,8 +140,8 @@
       }
       .boot-skip {
         position: absolute;
-        right: 24px;
-        bottom: 24px;
+        right: 28px;
+        top: 28px;
         z-index: 4;
         border: 1px solid rgba(56,243,255,0.24);
         background: rgba(6,9,13,0.72);
@@ -178,6 +203,31 @@
         0% { opacity: 0.3; }
         100% { opacity: 1; }
       }
+
+      @media (max-width: 760px) {
+        .boot-shell {
+          width: min(100vw - 24px, 760px);
+          padding: 72px 22px 28px;
+          border-radius: 20px;
+        }
+        .pp-logo {
+          font-size: 18px;
+          letter-spacing: 0.18em;
+        }
+        .pp-presents-word {
+          margin-top: 18px;
+          font-size: 10px;
+          letter-spacing: 0.32em;
+        }
+        .fatwa-subtitle,
+        .boot-pct {
+          letter-spacing: 0.2em;
+        }
+        .boot-skip {
+          right: 16px;
+          top: 16px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -189,39 +239,41 @@
       <div class="boot-scanlines"></div>
       <div class="boot-vignette"></div>
 
-      <!-- POTATO PROPOGANDA presents -->
-      <div class="pp-presents">
-        <div class="pp-logo">
-          <span class="pp-potato">&#x1F954;</span>POTATO PROPOGANDA
+      <div class="boot-shell">
+        <!-- POTATO PROPOGANDA presents -->
+        <div class="pp-presents">
+          <div class="pp-logo">
+            <span class="pp-potato">&#x1F954;</span>POTATO PROPOGANDA
+          </div>
+          <div class="pp-presents-word">presents</div>
         </div>
-        <div class="pp-presents-word">presents</div>
-      </div>
 
-      <!-- Main title -->
-      <div class="fatwa-title">
-        <div class="fatwa-name">Farts Around the World</div>
-        <div class="fatwa-subtitle">Global dashboard and analytics</div>
-      </div>
+        <!-- Main title -->
+        <div class="fatwa-title">
+          <div class="fatwa-name">Farts Around the World</div>
+          <div class="fatwa-subtitle">Global dashboard and analytics</div>
+        </div>
 
-      <!-- Mission -->
-      <div class="fatwa-mission">
-        <p>
-          <span class="highlight">A world-class dashboard</span> for live submissions, trend analysis, and global coverage.
-        </p>
-        <p>
-          Built to treat the data seriously, present it beautifully, and make the signal easy to understand.
-        </p>
-      </div>
+        <!-- Mission -->
+        <div class="fatwa-mission">
+          <p>
+            <span class="highlight">A world-class dashboard</span> for live submissions, trend analysis, and global coverage.
+          </p>
+          <p>
+            Built to treat the data seriously, present it beautifully, and make the signal easy to understand.
+          </p>
+        </div>
 
-      <!-- Terminal boot sequence -->
-      <div class="boot-terminal" id="boot-terminal">
-        <div class="boot-line" id="bl-1" style="animation-delay:5.5s"><span class="boot-ok">[OK]</span>&nbsp; Event dataset ready</div>
-        <div class="boot-line" id="bl-2" style="animation-delay:5.9s"><span class="boot-ok">[OK]</span>&nbsp; Analytics modules calibrated</div>
-        <div class="boot-line" id="bl-3" style="animation-delay:6.3s"><span class="boot-loading" id="boot-geo-tag">[..]</span>&nbsp; Connecting global event network...</div>
-        <div class="boot-line" id="bl-4" style="animation-delay:0s;opacity:0"></div>
-        <div class="boot-line" style="animation-delay:6.6s">
-          <div class="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
-          <div class="boot-pct" id="boot-pct">INITIALIZING</div>
+        <!-- Terminal boot sequence -->
+        <div class="boot-terminal" id="boot-terminal">
+          <div class="boot-line" id="bl-1" style="animation-delay:5.5s"><span class="boot-ok">[OK]</span>&nbsp; Event dataset ready</div>
+          <div class="boot-line" id="bl-2" style="animation-delay:5.9s"><span class="boot-ok">[OK]</span>&nbsp; Analytics modules calibrated</div>
+          <div class="boot-line" id="bl-3" style="animation-delay:6.3s"><span class="boot-loading" id="boot-geo-tag">[..]</span>&nbsp; Connecting global event network...</div>
+          <div class="boot-line" id="bl-4" style="animation-delay:0s;opacity:0"></div>
+          <div class="boot-line" style="animation-delay:6.6s">
+            <div class="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
+            <div class="boot-pct" id="boot-pct">INITIALIZING</div>
+          </div>
         </div>
       </div>
 
@@ -233,6 +285,7 @@
     <script>
       // Generate starfield
       ;(function() {
+        if (document.documentElement.dataset.routeMode === 'subpage') return
         var sf = document.getElementById('starfield')
         for (var i = 0; i < 120; i++) {
           var s = document.createElement('div')
@@ -251,6 +304,7 @@
 
       // Boot sequence animation
       ;(function() {
+        if (document.documentElement.dataset.routeMode === 'subpage') return
         var fill   = document.getElementById('boot-fill')
         var pct    = document.getElementById('boot-pct')
         var geoTag = document.getElementById('boot-geo-tag')

@@ -12,6 +12,17 @@
   backdrop-filter: blur(14px);
 }
 
+.archive-tag-lab--page {
+  position: relative;
+  inset: auto;
+  align-items: stretch;
+  justify-content: stretch;
+  min-height: calc(100vh - 180px);
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
 .archive-tag-lab__dialog {
   width: min(1120px, 100%);
   max-height: min(88vh, 980px);
@@ -26,6 +37,13 @@
     0 20px 80px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(56, 243, 255, 0.06) inset,
     0 0 48px rgba(56, 243, 255, 0.08);
+}
+
+.archive-tag-lab__dialog--page {
+  width: 100%;
+  max-height: none;
+  min-height: calc(100vh - 180px);
+  border-radius: 28px;
 }
 
 .archive-tag-lab__header {
@@ -45,7 +63,7 @@
 
 .archive-tag-lab__title {
   margin-top: 8px;
-  font-size: 24px;
+  font-size: 28px;
   letter-spacing: 0.04em;
   color: var(--text-primary);
 }
@@ -53,7 +71,7 @@
 .archive-tag-lab__subtitle {
   margin-top: 8px;
   max-width: 680px;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text-dim);
 }
@@ -132,7 +150,7 @@
 }
 
 .archive-tag-lab__meta {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-dim);
@@ -161,7 +179,7 @@
 }
 
 .archive-tag-lab__empty-title {
-  font-size: 15px;
+  font-size: 18px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-primary);
@@ -199,7 +217,7 @@
 
 .archive-tag-card__title {
   margin-top: 6px;
-  font-size: 16px;
+  font-size: 18px;
   color: var(--text-primary);
 }
 
@@ -214,7 +232,7 @@
 
 .archive-tag-card__count strong {
   display: block;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--accent-cyan);
 }
 

@@ -45,12 +45,12 @@ export default function CTAButton({
         textTransform: 'uppercase',
         width: '100%',
         padding: compact ? '14px 16px' : '24px 16px',
-        fontSize: compact ? '12px' : '16px',
+        fontSize: compact ? '12px' : '17px',
         textAlign: 'center',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '6px',
+        gap: '8px',
         position: 'relative',
         overflow: 'hidden',
         background: active
@@ -91,11 +91,16 @@ export default function CTAButton({
           {icon}
         </span>
       )}
-      {label && <span>{label}</span>}
+      {label && (
+        <span style={{ lineHeight: 1.2 }}>
+          {label}
+        </span>
+      )}
       {sublabel && (
         <span style={{
-          fontSize: '9px',
-          letterSpacing: '0.1em',
+          fontSize: '11px',
+          lineHeight: 1.55,
+          letterSpacing: '0.08em',
           color: `${color}88`,
           fontWeight: 'normal',
         }}>

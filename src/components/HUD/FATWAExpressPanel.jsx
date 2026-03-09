@@ -24,6 +24,7 @@ export default function FATWAExpressPanel({
   onOpenRecord,
   onOpenBrowse,
   onOpenTagLab,
+  onOpenSommelier,
   userSubmissionCount = 0,
 }) {
   const cls = latestEvent
@@ -165,6 +166,14 @@ export default function FATWAExpressPanel({
         >
           <span className="fatwa-express__button-icon">Tag</span>
           <span className="fatwa-express__button-copy">Help classify patterns in the public archive</span>
+        </button>
+
+        <button
+          className={`fatwa-express__button fatwa-express__button--sommelier ${activeModal === 'sommelier' ? 'is-active' : ''}`}
+          onClick={onOpenSommelier}
+        >
+          <span className="fatwa-express__button-icon">Taste</span>
+          <span className="fatwa-express__button-copy">Match rival tasting notes to the right archive clips</span>
         </button>
       </div>
     </div>

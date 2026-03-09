@@ -8,6 +8,7 @@ import GasconIndicator from './components/HUD/GasconIndicator.jsx'
 import SubmitPanel from './components/HUD/SubmitPanel.jsx'
 import FartBrowser from './components/HUD/FartBrowser.jsx'
 import FartTagLab from './components/HUD/FartTagLab.jsx'
+import FartSommelierSalon from './components/HUD/FartSommelierSalon.jsx'
 import FATWAExpressPanel from './components/HUD/FATWAExpressPanel.jsx'
 import CommandPalette from './components/HUD/CommandPalette.jsx'
 import ShortcutsOverlay from './components/HUD/ShortcutsOverlay.jsx'
@@ -29,6 +30,28 @@ import TimeFilter from './components/HUD/TimeFilter.jsx'
 import { createStream } from './data/fartStreamFactory.js'
 
 const MAX_PERSISTED_EVENTS = 500
+const HOME_ROUTE = '/'
+const ROUTE_LABELS = [
+  { path: '/', label: 'Home' },
+  { path: '/sommelier', label: 'Sommelier Salon' },
+  { path: '/archive-lab', label: 'Archive Lab' },
+]
+
+function normalizeRoute(pathname) {
+  if (!pathname || pathname === '/') {
+    return HOME_ROUTE
+  }
+
+  if (pathname.startsWith('/sommelier')) {
+    return '/sommelier'
+  }
+
+  if (pathname.startsWith('/archive-lab')) {
+    return '/archive-lab'
+  }
+
+  return HOME_ROUTE
+}
 
 function mergeEvents(current, incoming) {
   const byId = new Map(current.map(event => [event.id, event]))
@@ -46,6 +69,7 @@ function mergeEvents(current, incoming) {
 export default function App() {
   const [events, setEvents]           = useState([])
   const [activeModal, setActiveModal] = useState(null)
+  const [currentRoute, setCurrentRoute] = useState(() => normalizeRoute(window.location.pathname))
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showDossier, setShowDossier] = useState(null) // country code or null
@@ -143,6 +167,20 @@ export default function App() {
   }, [])
 
   const closeModal = useCallback(() => setActiveModal(null), [])
+  const navigateTo = useCallback((path, { replace = false } = {}) => {
+    const nextRoute = normalizeRoute(path)
+    const currentPath = normalizeRoute(window.location.pathname)
+
+    if (currentPath !== nextRoute) {
+      const method = replace ? 'replaceState' : 'pushState'
+      window.history[method]({}, '', nextRoute)
+    }
+
+    setCurrentRoute(nextRoute)
+    setActiveModal(null)
+    setShowCommandPalette(false)
+    setShowShortcuts(false)
+  }, [])
 
   // Filter events by time window
   const filteredEvents = useMemo(() => {
@@ -176,10 +214,23 @@ export default function App() {
       case 'toggleRotate':
         globeCanvasRef.current?.toggleAutoRotate?.()
         break
+      case 'navigate':
+        navigateTo(payload)
+        break
     }
-  }, [flyToLocation])
+  }, [flyToLocation, navigateTo])
 
-  // Keyboard shortcuts: R to record, B to browse, L to tag archive, Cmd+K / for command palette
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(normalizeRoute(window.location.pathname))
+      setActiveModal(null)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  // Keyboard shortcuts: R record, B browse, L archive lab, S sommelier, Cmd+K / for command palette
   useEffect(() => {
     const handler = (e) => {
       // Don't trigger if user is typing in an input (except for Cmd+K and Escape)
@@ -221,14 +272,16 @@ export default function App() {
       } else if (e.key === 'b' || e.key === 'B') {
         setActiveModal(prev => prev === 'browse' ? null : 'browse')
       } else if (e.key === 'l' || e.key === 'L') {
-        setActiveModal(prev => prev === 'tag-lab' ? null : 'tag-lab')
+        navigateTo('/archive-lab')
+      } else if (e.key === 's' || e.key === 'S') {
+        navigateTo('/sommelier')
       } else if (e.key === 't' || e.key === 'T') {
         setShowTour(prev => !prev)
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [showCommandPalette, activeModal])
+  }, [showCommandPalette, activeModal, navigateTo, showTour])
 
   // Time window label for display
   const timeWindowLabel = timeWindow === 3600000 ? '1H' :
@@ -239,8 +292,22 @@ export default function App() {
   return (
     <div className={`app-shell ${isExpressViewport ? 'app-shell--express' : ''}`}>
       <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} timeWindowLabel={timeWindowLabel} lastEventTimestamp={filteredEvents[0]?.timestamp} />
-      <GasconIndicator events={filteredEvents} />
+      <nav className="site-nav" aria-label="Site sections">
+        {ROUTE_LABELS.map(route => (
+          <button
+            key={route.path}
+            type="button"
+            className={`site-nav__link ${currentRoute === route.path ? 'is-active' : ''}`}
+            onClick={() => navigateTo(route.path)}
+          >
+            {route.label}
+          </button>
+        ))}
+      </nav>
 
+      {currentRoute === HOME_ROUTE && <GasconIndicator events={filteredEvents} />}
+
+      {currentRoute === HOME_ROUTE ? (
       <div className={`app-body ${isExpressViewport ? 'app-body--express' : ''}`}>
         <aside className="panel panel-left">
           <PanelSection id="telemetry" title="Telemetry">
@@ -288,7 +355,8 @@ export default function App() {
               activeModal={activeModal}
               onOpenRecord={() => setActiveModal('record')}
               onOpenBrowse={() => setActiveModal('browse')}
-              onOpenTagLab={() => setActiveModal('tag-lab')}
+              onOpenTagLab={() => navigateTo('/archive-lab')}
+              onOpenSommelier={() => navigateTo('/sommelier')}
               userSubmissionCount={userSubmissions.length}
             />
           )}
@@ -298,9 +366,6 @@ export default function App() {
           )}
           {activeModal === 'browse' && (
             <FartBrowser events={filteredEvents} onClose={closeModal} />
-          )}
-          {activeModal === 'tag-lab' && (
-            <FartTagLab onClose={closeModal} />
           )}
         </main>
 
@@ -325,12 +390,21 @@ export default function App() {
           />
 
           <CTAButton
-            onClick={() => setActiveModal('tag-lab')}
+            onClick={() => navigateTo('/archive-lab')}
             icon={'\uD83C\uDFF7\uFE0F'}
             label="Classify Archive"
-            sublabel="Help organize the public dataset"
+            sublabel="Enter the public archive and shape the shared vocabulary"
             shortcut="L"
             color="#9dff4a"
+          />
+
+          <CTAButton
+            onClick={() => navigateTo('/sommelier')}
+            icon={'\uD83C\uDF77'}
+            label="Sommelier Flight"
+            sublabel="Visit the tasting room and match sincere notes to the right clip"
+            shortcut="S"
+            color="#ff9fcf"
           />
 
           <CTAButton
@@ -369,14 +443,33 @@ export default function App() {
           </div>
         </aside>
       </div>
+      ) : (
+        <main className={`route-stage route-stage--${currentRoute === '/sommelier' ? 'sommelier' : 'archive'}`}>
+          <div className="route-stage__inner">
+            {currentRoute === '/sommelier' && (
+              <FartSommelierSalon onClose={() => navigateTo('/')} pageMode />
+            )}
+            {currentRoute === '/archive-lab' && (
+              <FartTagLab onClose={() => navigateTo('/')} pageMode />
+            )}
+          </div>
+        </main>
+      )}
 
-      {!isExpressViewport && (
+      {currentRoute === HOME_ROUTE && !isExpressViewport && (
         <>
           {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} onFlyTo={flyToLocation} />}
           <Timeline events={filteredEvents} />
           <ScienceTicker />
           <StatusFooter isConnected={wsConnected} lastEventTimestamp={filteredEvents[0]?.timestamp} events={filteredEvents} />
         </>
+      )}
+
+      {activeModal === 'record' && currentRoute !== HOME_ROUTE && (
+        <SubmitPanel onClose={closeModal} />
+      )}
+      {activeModal === 'browse' && currentRoute !== HOME_ROUTE && (
+        <FartBrowser events={filteredEvents} onClose={closeModal} />
       )}
 
       {showCommandPalette && (

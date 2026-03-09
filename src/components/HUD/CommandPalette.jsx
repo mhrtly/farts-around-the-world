@@ -52,6 +52,16 @@ function buildCommands({ onAction }) {
     action: () => onAction('modal', 'browse'),
   })
   commands.push({
+    id: 'sommelier', category: 'ACTIONS', icon: '\uD83C\uDF77',
+    label: 'Open Sommelier Salon', hint: 'S',
+    action: () => onAction('navigate', '/sommelier'),
+  })
+  commands.push({
+    id: 'archive-lab', category: 'ACTIONS', icon: '\uD83C\uDFF7\uFE0F',
+    label: 'Open Archive Lab', hint: 'L',
+    action: () => onAction('navigate', '/archive-lab'),
+  })
+  commands.push({
     id: 'tour', category: 'ACTIONS', icon: '\uD83D\uDD2D',
     label: 'Spotlight Tour', hint: 'T',
     action: () => onAction('tour'),

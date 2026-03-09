@@ -17,6 +17,41 @@ const DIST_DIR = resolve(__dirname, '..', 'dist')
 const app = express()
 const httpServer = createServer(app)
 
+function normalizeJsonContentTypeHeader(contentType) {
+  if (typeof contentType !== 'string') {
+    return contentType
+  }
+
+  const [mimeType, ...params] = contentType.split(';')
+  if (!/^\s*application\/(?:[a-z0-9.+-]+\+)?json\s*$/i.test(mimeType)) {
+    return contentType
+  }
+
+  const sanitizedParams = []
+
+  for (const rawParam of params) {
+    const [rawKey, ...rawValueParts] = rawParam.split('=')
+    const key = rawKey?.trim().toLowerCase()
+    const value = rawValueParts.join('=').trim().replace(/^"+|"+$/g, '')
+
+    if (!key) {
+      continue
+    }
+
+    if (key === 'charset') {
+      const normalizedValue = value.toLowerCase()
+      if (normalizedValue === 'utf-8' || normalizedValue === 'utf8') {
+        sanitizedParams.push('charset=utf-8')
+      }
+      continue
+    }
+
+    sanitizedParams.push(`${key}=${value}`)
+  }
+
+  return [mimeType.trim(), ...sanitizedParams].join('; ')
+}
+
 // Socket.IO — allow any origin in production (single server serves everything)
 const io = new Server(httpServer, {
   cors: {
@@ -27,7 +62,39 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors())
-app.use(express.json({ limit: '500kb' })) // increased for audio uploads
+app.use((req, _res, next) => {
+  req.requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  req.headers['content-type'] = normalizeJsonContentTypeHeader(req.headers['content-type'])
+  next()
+})
+app.use(express.json({ limit: '2mb' })) // allows 10s fallback formats like AAC/MP4/WAV with base64 overhead
+app.use((err, req, res, next) => {
+  if (!err) {
+    return next()
+  }
+
+  if (err.type === 'entity.too.large') {
+    console.error(`[INGEST PARSE] ${req.requestId} payload too large`)
+    return res.status(413).json({
+      error: 'Audio payload is too large',
+      stage: 'parse',
+      code: 'PAYLOAD_TOO_LARGE',
+      requestId: req.requestId,
+    })
+  }
+
+  if (err.type === 'entity.parse.failed' || err.type === 'charset.unsupported' || err.status === 415) {
+    console.error(`[INGEST PARSE] ${req.requestId} ${err.message}`)
+    return res.status(err.status || 400).json({
+      error: 'Request body could not be parsed as JSON',
+      stage: 'parse',
+      code: err.type === 'charset.unsupported' ? 'UNSUPPORTED_CHARSET' : 'INVALID_JSON_BODY',
+      requestId: req.requestId,
+    })
+  }
+
+  return next(err)
+})
 
 // Rate limiting
 app.use('/api/events', rateLimit({

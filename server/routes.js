@@ -61,21 +61,41 @@ export default function createRoutes(io) {
   // Submit a fart event (with optional audio)
   router.post('/api/events', (req, res) => {
     const { valid, errors, event } = validateFartEvent(req.body)
+    const requestId = req.requestId || `req-${Date.now().toString(36)}`
 
     if (!valid) {
-      return res.status(400).json({ error: 'Validation failed', details: errors })
+      console.warn(`[INGEST VALIDATION] ${requestId} ${errors.join(' | ')}`)
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors,
+        stage: 'validation',
+        code: 'INVALID_EVENT_PAYLOAD',
+        requestId,
+      })
     }
 
     try {
       insertEvent(event)
       // Broadcast without audio data (too heavy for broadcast)
       const { audioData, ...eventWithoutAudio } = event
-      const broadcastEvent = { ...eventWithoutAudio, hasAudio: !!audioData }
+      const broadcastEvent = {
+        ...eventWithoutAudio,
+        hasAudio: !!audioData,
+        ingest: {
+          stage: 'stored',
+          requestId,
+        },
+      }
       io.emit('fart:new', broadcastEvent)
       res.status(201).json(broadcastEvent)
     } catch (err) {
-      console.error('[DB ERROR]', err.message)
-      res.status(500).json({ error: 'Failed to store event' })
+      console.error(`[INGEST STORE] ${requestId} ${err.stack || err.message}`)
+      res.status(500).json({
+        error: 'Failed to store event',
+        stage: 'storage',
+        code: 'EVENT_STORE_FAILED',
+        requestId,
+      })
     }
   })
 
@@ -94,13 +114,13 @@ export default function createRoutes(io) {
   // Get audio for a specific event
   router.get('/api/events/:id/audio', (req, res) => {
     try {
-      const audioData = getAudio(req.params.id)
-      if (!audioData) {
+      const audio = getAudio(req.params.id)
+      if (!audio) {
         return res.status(404).json({ error: 'No audio for this event' })
       }
       // Return as binary audio
-      const buffer = Buffer.from(audioData, 'base64')
-      res.setHeader('Content-Type', 'audio/webm')
+      const buffer = Buffer.from(audio.audioData, 'base64')
+      res.setHeader('Content-Type', audio.audioMimeType || 'audio/webm')
       res.setHeader('Content-Length', buffer.length)
       res.end(buffer)
     } catch (err) {

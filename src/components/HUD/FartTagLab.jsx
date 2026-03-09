@@ -32,7 +32,7 @@ function parseCustomTags(value) {
     .filter(Boolean)
 }
 
-export default function FartTagLab({ onClose }) {
+export default function FartTagLab({ onClose, pageMode = false }) {
   const [clips, setClips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -169,19 +169,25 @@ export default function FartTagLab({ onClose }) {
   }, [clips])
 
   return (
-    <div className="archive-tag-lab" onClick={onClose}>
-      <div className="archive-tag-lab__dialog" onClick={event => event.stopPropagation()}>
+    <div
+      className={`archive-tag-lab ${pageMode ? 'archive-tag-lab--page' : ''}`}
+      onClick={pageMode ? undefined : onClose}
+    >
+      <div
+        className={`archive-tag-lab__dialog ${pageMode ? 'archive-tag-lab__dialog--page' : ''}`}
+        onClick={event => event.stopPropagation()}
+      >
         <header className="archive-tag-lab__header">
           <div>
             <div className="archive-tag-lab__eyebrow">Community Archive Lab</div>
             <h2 className="archive-tag-lab__title">Crowdsource the fart taxonomy</h2>
             <p className="archive-tag-lab__subtitle">
-              Listen to raw clips, vote on existing labels, and propose new tag language.
+              Listen to raw clips, vote on existing labels, and propose the language people actually use to hear them.
             </p>
           </div>
 
           <button className="archive-tag-lab__close" onClick={onClose} type="button">
-            Close
+            {pageMode ? 'Back Home' : 'Close'}
           </button>
         </header>
 

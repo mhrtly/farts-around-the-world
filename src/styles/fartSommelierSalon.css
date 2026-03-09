@@ -1,0 +1,622 @@
+.sommelier-salon {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 159, 207, 0.16), transparent 34%),
+    radial-gradient(circle at top right, rgba(108, 239, 255, 0.14), transparent 32%),
+    radial-gradient(circle at bottom center, rgba(183, 255, 112, 0.1), transparent 42%),
+    rgba(3, 7, 10, 0.84);
+  backdrop-filter: blur(18px);
+  animation: modalBackdropIn 0.22s ease;
+}
+
+.sommelier-salon--page {
+  position: relative;
+  inset: auto;
+  display: block;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.sommelier-salon__dialog {
+  width: min(1180px, 100%);
+  max-height: min(92vh, 980px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(233, 244, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(9, 16, 23, 0.98), rgba(5, 9, 14, 0.98)),
+    radial-gradient(circle at top left, rgba(255, 159, 207, 0.12), transparent 28%);
+  box-shadow:
+    0 34px 120px rgba(0, 0, 0, 0.56),
+    0 0 46px rgba(255, 159, 207, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: modalContentIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sommelier-salon__dialog--page {
+  width: 100%;
+  max-height: none;
+  min-height: calc(100vh - 180px);
+  border-radius: 30px;
+}
+
+.sommelier-salon__header,
+.sommelier-salon__toolbar,
+.sommelier-salon__footer {
+  padding: 22px 26px;
+}
+
+.sommelier-salon__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 159, 207, 0.1), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+}
+
+.sommelier-salon__eyebrow {
+  margin-bottom: 8px;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 209, 233, 0.78);
+}
+
+.sommelier-salon__title {
+  font-size: clamp(24px, 4vw, 38px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: #f8fbff;
+}
+
+.sommelier-salon__subtitle {
+  max-width: 720px;
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(216, 232, 244, 0.82);
+}
+
+.sommelier-salon__close,
+.sommelier-salon__button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sommelier-salon__close {
+  align-self: flex-start;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(238, 246, 255, 0.88);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.sommelier-salon__close:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 159, 207, 0.45);
+  background: rgba(255, 159, 207, 0.08);
+}
+
+.sommelier-salon__toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sommelier-salon__house-note {
+  flex: 1;
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(135deg, rgba(255, 159, 207, 0.08), rgba(108, 239, 255, 0.04)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.sommelier-salon__house-note strong {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 214, 235, 0.85);
+}
+
+.sommelier-salon__house-note span {
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(230, 239, 247, 0.82);
+}
+
+.sommelier-salon__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: min(320px, 100%);
+}
+
+.sommelier-salon__stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sommelier-salon__stat span {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(194, 211, 223, 0.7);
+}
+
+.sommelier-salon__stat strong {
+  font-size: 21px;
+  color: #fff8fb;
+}
+
+.sommelier-salon__body {
+  overflow: auto;
+  padding: 22px 26px 8px;
+  display: grid;
+  gap: 22px;
+}
+
+.sommelier-salon__section {
+  display: grid;
+  gap: 16px;
+}
+
+.sommelier-salon__section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+}
+
+.sommelier-salon__section-eyebrow {
+  margin-bottom: 7px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(183, 255, 112, 0.78);
+}
+
+.sommelier-salon__section-head h3 {
+  font-size: 24px;
+  color: #f8fbff;
+}
+
+.sommelier-salon__microcopy {
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(191, 210, 223, 0.72);
+}
+
+.sommelier-salon__clips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sommelier-clip-card,
+.sommelier-critic-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    rgba(6, 11, 16, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.sommelier-clip-card {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.sommelier-clip-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sommelier-clip-card__slot {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(108, 239, 255, 0.22), rgba(108, 239, 255, 0.08));
+  color: #d8f9ff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.sommelier-clip-card__eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(183, 207, 220, 0.68);
+}
+
+.sommelier-clip-card__title {
+  margin-top: 4px;
+  font-size: 16px;
+  color: #f8fbff;
+}
+
+.sommelier-clip-card__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sommelier-clip-card__metrics span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(108, 239, 255, 0.08);
+  border: 1px solid rgba(108, 239, 255, 0.12);
+  font-size: 11px;
+  color: rgba(219, 247, 255, 0.84);
+}
+
+.sommelier-salon__critics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sommelier-critic-card {
+  padding: 18px;
+  display: grid;
+  gap: 15px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sommelier-critic-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--critic-color), transparent);
+  opacity: 0.9;
+}
+
+.sommelier-critic-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sommelier-critic-card__title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sommelier-critic-card__title-row h4 {
+  font-size: 20px;
+  color: #fff7fb;
+}
+
+.sommelier-critic-card__title-row span {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--critic-color);
+}
+
+.sommelier-critic-card__header p {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(201, 215, 226, 0.75);
+}
+
+.sommelier-critic-card__accuracy {
+  min-width: 82px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: right;
+}
+
+.sommelier-critic-card__accuracy strong {
+  display: block;
+  font-size: 16px;
+  color: #fff8fc;
+}
+
+.sommelier-critic-card__accuracy span {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: rgba(190, 205, 217, 0.68);
+}
+
+.sommelier-critic-card__note {
+  min-height: 156px;
+  padding: 16px 16px 14px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+  line-height: 1.72;
+  color: rgba(244, 248, 253, 0.92);
+}
+
+.sommelier-critic-card__quote {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(197, 212, 223, 0.72);
+}
+
+.sommelier-critic-card__facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sommelier-critic-card__facet {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--critic-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--critic-color) 22%, transparent);
+  font-size: 11px;
+  color: color-mix(in srgb, var(--critic-color) 62%, white);
+  text-transform: lowercase;
+}
+
+.sommelier-critic-card__answers {
+  display: grid;
+  gap: 8px;
+}
+
+.sommelier-critic-card__answer {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  color: #f5fbff;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.sommelier-critic-card__answer:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--critic-color) 50%, transparent);
+  background: color-mix(in srgb, var(--critic-color) 12%, rgba(255, 255, 255, 0.02));
+}
+
+.sommelier-critic-card__answer:disabled {
+  cursor: default;
+}
+
+.sommelier-critic-card__answer span {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--critic-color);
+}
+
+.sommelier-critic-card__answer small {
+  font-size: 11px;
+  color: rgba(204, 218, 228, 0.78);
+}
+
+.sommelier-critic-card__answer.is-selected {
+  border-color: color-mix(in srgb, var(--critic-color) 55%, transparent);
+  background: color-mix(in srgb, var(--critic-color) 14%, rgba(255, 255, 255, 0.02));
+}
+
+.sommelier-critic-card__answer.is-correct {
+  box-shadow: inset 0 0 0 1px rgba(183, 255, 112, 0.36);
+}
+
+.sommelier-critic-card__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 16px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sommelier-critic-card__result strong {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sommelier-critic-card__result.is-right {
+  border-color: rgba(183, 255, 112, 0.26);
+  background: rgba(183, 255, 112, 0.08);
+  color: #efffdc;
+}
+
+.sommelier-critic-card__result.is-wrong {
+  border-color: rgba(255, 159, 207, 0.26);
+  background: rgba(255, 159, 207, 0.08);
+  color: #ffeaf5;
+}
+
+.sommelier-salon__empty {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 10px;
+  border-radius: 24px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at top center, rgba(255, 159, 207, 0.08), transparent 40%),
+    rgba(255, 255, 255, 0.02);
+  padding: 30px;
+}
+
+.sommelier-salon__empty--error {
+  border-color: rgba(255, 107, 107, 0.22);
+}
+
+.sommelier-salon__empty-title {
+  font-size: 22px;
+  color: #f8fbff;
+}
+
+.sommelier-salon__empty-copy {
+  max-width: 560px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(205, 219, 229, 0.78);
+}
+
+.sommelier-salon__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sommelier-salon__footer-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.sommelier-salon__footer-copy strong {
+  font-size: 21px;
+  color: #fff7fb;
+}
+
+.sommelier-salon__footer-copy span {
+  font-size: 13px;
+  color: rgba(199, 213, 223, 0.76);
+}
+
+.sommelier-salon__footer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sommelier-salon__button {
+  padding: 14px 18px;
+  border-radius: 16px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.sommelier-salon__button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.sommelier-salon__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sommelier-salon__button--secondary {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(230, 240, 248, 0.85);
+}
+
+.sommelier-salon__button--primary {
+  border-color: rgba(255, 209, 233, 0.36);
+  background: linear-gradient(180deg, rgba(255, 159, 207, 0.22), rgba(255, 159, 207, 0.12));
+  color: #fff0f7;
+  box-shadow: 0 18px 40px rgba(255, 159, 207, 0.16);
+}
+
+@media (max-width: 1080px) {
+  .sommelier-salon {
+    padding: 18px;
+  }
+
+  .sommelier-salon__toolbar,
+  .sommelier-salon__section-head,
+  .sommelier-salon__footer {
+    grid-auto-flow: row;
+    display: grid;
+  }
+
+  .sommelier-salon__clips,
+  .sommelier-salon__critics {
+    grid-template-columns: 1fr;
+  }
+
+  .sommelier-critic-card__note {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .sommelier-salon {
+    padding: 8px;
+  }
+
+  .sommelier-salon__dialog {
+    max-height: 100vh;
+    border-radius: 22px;
+  }
+
+  .sommelier-salon__header,
+  .sommelier-salon__toolbar,
+  .sommelier-salon__body,
+  .sommelier-salon__footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .sommelier-salon__header {
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .sommelier-salon__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .sommelier-salon__footer-actions {
+    flex-direction: column;
+  }
+}

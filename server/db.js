@@ -49,6 +49,15 @@ try {
   // Column already exists — ignore
 }
 
+// Preserve the original browser MIME type for playback compatibility.
+try {
+  db.exec(`ALTER TABLE events ADD COLUMN audio_mime_type TEXT DEFAULT NULL`)
+} catch (err) {
+  if (!String(err?.message || '').includes('duplicate column name')) {
+    console.warn(`[DB] Unable to add audio_mime_type column: ${err.message}`)
+  }
+}
+
 // Add user_rating column (migration-safe)
 try {
   db.exec(`ALTER TABLE events ADD COLUMN user_rating INTEGER DEFAULT NULL`)
@@ -65,6 +74,15 @@ const legacyNonAudioCount = db.prepare(`
   SELECT COUNT(*) as count FROM events WHERE audio_data IS NULL
 `).get().count
 
+const eventColumns = new Set(
+  db.prepare(`PRAGMA table_info(events)`).all().map(column => column.name)
+)
+const hasAudioMimeTypeColumn = eventColumns.has('audio_mime_type')
+
+if (!hasAudioMimeTypeColumn) {
+  console.warn('[DB] events.audio_mime_type unavailable; falling back to legacy audio storage')
+}
+
 if (legacyNonAudioCount > 0) {
   db.prepare(`DELETE FROM events WHERE audio_data IS NULL`).run()
   console.log(`[DB] Removed ${legacyNonAudioCount} legacy non-audio event(s) from ${DB_PATH}`)
@@ -73,14 +91,19 @@ if (legacyNonAudioCount > 0) {
 // Prepared statements
 const stmts = {
   insert: db.prepare(`
-    INSERT INTO events (id, lat, lng, intensity, country, timestamp, type, audio_data, duration, volume, peak_volume)
-    VALUES (@id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData, @duration, @volume, @peakVolume)
+    INSERT INTO events (
+      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, duration, volume, peak_volume
+    )
+    VALUES (
+      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @duration, @volume, @peakVolume
+    )
   `),
 
   recent: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
            CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
-           user_rating, duration, volume, peak_volume as peakVolume
+           user_rating, duration, volume, peak_volume as peakVolume,
+           ${hasAudioMimeTypeColumn ? 'audio_mime_type' : 'NULL'} as audioMimeType
     FROM events
     WHERE audio_data IS NOT NULL
     ORDER BY timestamp DESC LIMIT ?
@@ -89,7 +112,8 @@ const stmts = {
   range: db.prepare(`
     SELECT id, lat, lng, intensity, country, timestamp, type,
            CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
-           user_rating, duration, volume, peak_volume as peakVolume
+           user_rating, duration, volume, peak_volume as peakVolume,
+           ${hasAudioMimeTypeColumn ? 'audio_mime_type' : 'NULL'} as audioMimeType
     FROM events
     WHERE audio_data IS NOT NULL
       AND timestamp >= ? AND timestamp <= ?
@@ -97,7 +121,7 @@ const stmts = {
   `),
 
   audio: db.prepare(`
-    SELECT audio_data FROM events WHERE id = ?
+    SELECT audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type as audioMimeType' : ''} FROM events WHERE id = ?
   `),
 
   countToday: db.prepare(`
@@ -287,7 +311,14 @@ export function getEventsByRange(start, end) {
 
 export function getAudio(eventId) {
   const row = stmts.audio.get(eventId)
-  return row?.audio_data || null
+  if (!row?.audio_data) {
+    return null
+  }
+
+  return {
+    audioData: row.audio_data,
+    audioMimeType: row.audioMimeType || 'audio/webm',
+  }
 }
 
 export function getDatabasePath() {

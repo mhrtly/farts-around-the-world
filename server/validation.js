@@ -9,7 +9,7 @@ export function validateFartEvent(body) {
     return { valid: false, errors: ['Request body must be a JSON object'], event: null }
   }
 
-  const { lat, lng, intensity, country, type, audioData, duration, volume, peakVolume } = body
+  const { lat, lng, intensity, country, type, audioData, audioMimeType, duration, volume, peakVolume } = body
 
   // lat
   if (typeof lat !== 'number' || !Number.isFinite(lat)) {
@@ -42,8 +42,22 @@ export function validateFartEvent(body) {
   // All canonical events must include an audio recording.
   if (typeof audioData !== 'string' || audioData.trim().length === 0) {
     errors.push('audioData is required and must be a base64 string')
-  } else if (audioData.length > 500_000) {
-    errors.push('audioData too large (max ~375KB)')
+  } else if (audioData.length > 1_500_000) {
+    errors.push('audioData too large (max ~1.1MB raw audio)')
+  }
+
+  let finalAudioMimeType = null
+  if (audioMimeType !== undefined && audioMimeType !== null) {
+    if (typeof audioMimeType !== 'string') {
+      errors.push('audioMimeType must be a string when provided')
+    } else {
+      const normalizedMimeType = audioMimeType.trim().slice(0, 128)
+      if (!/^audio\/[a-z0-9.+-]+(?:\s*;.*)?$/i.test(normalizedMimeType)) {
+        errors.push('audioMimeType must be a valid audio MIME type')
+      } else {
+        finalAudioMimeType = normalizedMimeType
+      }
+    }
   }
 
   // duration — optional (seconds, 0-10)
@@ -89,6 +103,7 @@ export function validateFartEvent(body) {
     timestamp: Date.now(),
     type: finalType,
     audioData,
+    audioMimeType: finalAudioMimeType,
     duration: finalDuration,
     volume: finalVolume,
     peakVolume: finalPeakVolume,

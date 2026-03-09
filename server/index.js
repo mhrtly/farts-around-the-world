@@ -6,9 +6,19 @@ import rateLimit from 'express-rate-limit'
 import { fileURLToPath } from 'url'
 import { dirname, join, resolve } from 'path'
 import { existsSync } from 'fs'
+import { rm } from 'fs/promises'
 import createRoutes from './routes.js'
 import { getStats } from './db.js'
 import { primeArchiveDataset } from './archiveDataset.js'
+
+// One-time cleanup: remove old archive cache from persistent disk.
+// Archive audio now lives in /tmp (ephemeral) to free disk space for SQLite.
+const OLD_ARCHIVE_PATH = '/data/archive-cache'
+if (existsSync(OLD_ARCHIVE_PATH)) {
+  rm(OLD_ARCHIVE_PATH, { recursive: true, force: true })
+    .then(() => console.log('[CLEANUP] Removed old archive cache from persistent disk'))
+    .catch(err => console.warn('[CLEANUP] Could not remove old archive cache:', err.message))
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 3001

@@ -9,22 +9,34 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
-    <header id="title-bar">
-      <span class="title-arrow">&#9650;</span>
-      <h1 class="title">Cmd + Up</h1>
-    </header>
-    <div id="trail"></div>
-    <div id="stage">
-      <h2 id="question"></h2>
-      <form id="input-area" autocomplete="off">
-        <textarea id="answer" rows="1" placeholder="Type here..." autofocus></textarea>
-        <div id="hint">PRESS ENTER</div>
-      </form>
-      <div id="buttons"></div>
+  <header id="title-bar">
+    <span class="title-arrow">&#9650;</span>
+    <h1 class="title">Cmd + Up</h1>
+  </header>
+
+  <div id="layout">
+    <!-- Main question panel (starts centered, shifts left when archive appears) -->
+    <div id="main-panel">
+      <div id="stage">
+        <h2 id="question"></h2>
+        <form id="input-area" autocomplete="off">
+          <textarea id="answer" rows="1" placeholder="Type here..." autofocus></textarea>
+          <div id="hint">PRESS ENTER</div>
+        </form>
+        <div id="buttons"></div>
+      </div>
+      <!-- Trail goes BELOW the active question -->
+      <div id="trail"></div>
     </div>
-    <div id="result"></div>
+
+    <!-- Archive panel (appears on right after first chain completes) -->
+    <div id="archive-panel" class="hidden">
+      <div id="archive-header">COMPLETED</div>
+      <div id="archive-list"></div>
+    </div>
   </div>
+
+  <div id="result"></div>
 
   <button id="fb-toggle" title="Send feedback">&#9998;</button>
   <div id="fb-panel" class="hidden">

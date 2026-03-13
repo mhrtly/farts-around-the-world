@@ -2,6 +2,7 @@
   'use strict';
 
   // ── DOM ──
+  const $layout = document.getElementById('layout');
   const $trail = document.getElementById('trail');
   const $stage = document.getElementById('stage');
   const $question = document.getElementById('question');
@@ -10,6 +11,8 @@
   const $hint = document.getElementById('hint');
   const $buttons = document.getElementById('buttons');
   const $result = document.getElementById('result');
+  const $archivePanel = document.getElementById('archive-panel');
+  const $archiveList = document.getElementById('archive-list');
 
   // ── State ──
   const chains = [];
@@ -19,6 +22,8 @@
   let rankRemaining = [];
 
   const MAX_CHAINS = 4;
+
+  const LEVEL_LABELS = ['CONCERN', 'WHY IT MATTERS', 'WHAT IT GIVES YOU', 'WHAT IT MEANS'];
 
   function whyQuestion(level) {
     switch (level) {
@@ -32,6 +37,8 @@
   // ── Engine ──
 
   function start() {
+    // Clear trail for new chain
+    $trail.innerHTML = '';
     showQuestion(
       chains.length === 0
         ? "What is on your mind?"
@@ -49,29 +56,30 @@
       case 'gather':
         currentChain = { items: [text] };
         chains.push(currentChain);
-        addTrailLabel('CONCERN #' + chains.length);
-        addTrailItem(text, 0, 0);
+        addTrailItem(text, 0);
         phase = 'why1';
         transitionQuestion(whyQuestion(1));
         break;
 
       case 'why1':
         currentChain.items.push(text);
-        addTrailItem(text, 0, 1);
+        addTrailItem(text, 1);
         phase = 'why2';
         transitionQuestion(whyQuestion(2));
         break;
 
       case 'why2':
         currentChain.items.push(text);
-        addTrailItem(text, 0, 2);
+        addTrailItem(text, 2);
         phase = 'why3';
         transitionQuestion(whyQuestion(3));
         break;
 
       case 'why3':
         currentChain.items.push(text);
-        addTrailItem(text, 0, 3);
+        addTrailItem(text, 3);
+        // Chain complete — archive it
+        archiveChain(currentChain, chains.length);
         currentChain = null;
         askMore();
         break;
@@ -85,6 +93,7 @@
     }
     phase = 'askMore';
     hideInput();
+    $trail.innerHTML = '';
     transitionQuestion("Is something else competing for your attention?");
     showButtons([
       { label: "YES \u2014 THERE\u2019S MORE", action: () => { clearButtons(); start(); } },
@@ -101,6 +110,7 @@
     rankRemaining = chains.map((_, i) => i);
     rankOrder = [];
     hideInput();
+    $trail.innerHTML = '';
     promptRank();
   }
 
@@ -134,12 +144,59 @@
     })));
   }
 
+  // ── Archive panel ──
+
+  function archiveChain(chain, num) {
+    // Show archive panel
+    $archivePanel.classList.remove('hidden');
+    $layout.classList.add('has-archive');
+
+    const concern = chain.items[0];
+    const outcome = chain.items[chain.items.length - 1];
+
+    const card = document.createElement('div');
+    card.className = 'archive-card';
+
+    // Summary (always visible)
+    card.innerHTML =
+      '<div class="archive-concern">' + esc(concern) + '</div>' +
+      '<div class="archive-arrow">\u25BC</div>' +
+      '<div class="archive-outcome">' + esc(outcome) + '</div>';
+
+    // Expanded details (hidden until clicked)
+    const details = document.createElement('div');
+    details.className = 'archive-details';
+
+    chain.items.forEach((item, i) => {
+      const label = document.createElement('div');
+      label.className = 'archive-step-label';
+      label.textContent = LEVEL_LABELS[i] || ('LEVEL ' + i);
+      details.appendChild(label);
+
+      const step = document.createElement('div');
+      step.className = 'archive-step step-' + i;
+      step.textContent = item;
+      details.appendChild(step);
+    });
+
+    card.appendChild(details);
+
+    // Toggle expand
+    card.addEventListener('click', () => {
+      card.classList.toggle('expanded');
+    });
+
+    $archiveList.appendChild(card);
+  }
+
   // ── Result ──
 
   function showResult() {
     phase = 'done';
     $stage.classList.add('hidden');
     $trail.classList.add('hidden');
+    $archivePanel.classList.add('hidden');
+    $layout.classList.remove('has-archive');
     $result.classList.add('visible');
 
     let html = '';
@@ -218,6 +275,9 @@
     rankRemaining = [];
     $trail.innerHTML = '';
     $trail.classList.remove('hidden');
+    $archiveList.innerHTML = '';
+    $archivePanel.classList.add('hidden');
+    $layout.classList.remove('has-archive');
     $result.innerHTML = '';
     $result.classList.remove('visible');
     $stage.classList.remove('hidden');
@@ -268,24 +328,11 @@
     $buttons.innerHTML = '';
   }
 
-  function addTrailLabel(text) {
+  function addTrailItem(text, level) {
     const el = document.createElement('div');
-    el.className = 'trail-item level-label';
+    el.className = 'trail-item level-' + level;
     el.textContent = text;
     $trail.appendChild(el);
-    scrollTrail();
-  }
-
-  function addTrailItem(text, depth, height) {
-    const el = document.createElement('div');
-    el.className = 'trail-item depth-' + depth + ' height-' + height;
-    el.textContent = text;
-    $trail.appendChild(el);
-    scrollTrail();
-  }
-
-  function scrollTrail() {
-    $trail.scrollTop = $trail.scrollHeight;
   }
 
   function esc(s) {

@@ -1,12 +1,18 @@
+import dotenv from 'dotenv'
+import { fileURLToPath } from 'url'
+import { dirname, join, resolve } from 'path'
+
+// Load .env from server/ directory (cwd may be project root)
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') })
+
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
-import { fileURLToPath } from 'url'
-import { dirname, join, resolve } from 'path'
+import { clerkMiddleware } from '@clerk/express'
 import { existsSync } from 'fs'
-import { rm } from 'fs/promises'
+import { rm, appendFile } from 'fs/promises'
 import createRoutes from './routes.js'
 import { getStats } from './db.js'
 import { primeArchiveDataset } from './archiveDataset.js'
@@ -72,6 +78,7 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors())
+app.use(clerkMiddleware())
 app.use((req, _res, next) => {
   req.requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   req.headers['content-type'] = normalizeJsonContentTypeHeader(req.headers['content-type'])
@@ -144,12 +151,35 @@ setInterval(() => {
   }
 }, 5000)
 
+// Serve Cmd+Up as a standalone static app
+const CMD_UP_DIR = resolve(__dirname, '..', 'cmd-up')
+const CMD_UP_FEEDBACK = join(CMD_UP_DIR, 'FEEDBACK.md')
+
+app.post('/cmd-up/feedback', async (req, res) => {
+  try {
+    const { message } = req.body || {}
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Empty message' })
+    }
+    const ts = new Date().toISOString().replace('T', ' ').slice(0, 19)
+    const entry = `\n---\n**${ts}**\n\n${message.trim()}\n`
+    await appendFile(CMD_UP_FEEDBACK, entry)
+    console.log(`[CMD-UP FEEDBACK] ${ts}: ${message.trim().slice(0, 80)}`)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[CMD-UP FEEDBACK ERROR]', err.message)
+    res.status(500).json({ error: 'Failed to save feedback' })
+  }
+})
+
+app.use('/cmd-up', express.static(CMD_UP_DIR))
+
 // Serve built frontend (production mode)
 if (existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR))
   // SPA fallback: serve index.html for any non-API route
   app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/cmd-up')) {
       res.sendFile(join(DIST_DIR, 'index.html'))
     }
   })

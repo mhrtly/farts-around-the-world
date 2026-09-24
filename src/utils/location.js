@@ -116,7 +116,11 @@ export async function locate({ onUpdate } = {}) {
     const lng = roundCoord(coords.longitude)
     const base = { lat, lng, country: 'XX', place: null, source: 'gps' }
     try {
-      const named = await reverseGeocode(coords.latitude, coords.longitude)
+      // ~100 m is plenty to name the neighborhood; no need to share the exact spot
+      const named = await reverseGeocode(
+        Math.round(coords.latitude * 1000) / 1000,
+        Math.round(coords.longitude * 1000) / 1000,
+      )
       return { ...base, ...named }
     } catch {
       return base

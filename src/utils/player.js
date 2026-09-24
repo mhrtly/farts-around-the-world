@@ -15,7 +15,7 @@ if (audio) {
 }
 
 let state = { id: null, status: 'idle', duration: 0, error: null }
-let playbackWindow = { id: null, start: 0, end: null }
+const playbackWindows = new Map() // recording id → { start, end }
 let stoppingAtWindowEnd = false
 let watchFrame = 0
 const listeners = new Set()
@@ -26,7 +26,7 @@ function emit(patch) {
 }
 
 function windowFor(id) {
-  return playbackWindow.id === id ? playbackWindow : null
+  return playbackWindows.get(id) || null
 }
 
 function friendlyError(error) {
@@ -88,8 +88,20 @@ if (audio) {
     if (Number.isFinite(audio.duration) && audio.duration > 0) emit({ duration: audio.duration })
   })
   on('error', () => {
-    if (!audio.getAttribute('src') || state.id === null) return
+    const src = audio.getAttribute('src')
+    if (!src || state.id === null) return
+    const failedId = state.id
     emit({ status: 'error', error: friendlyError() })
+    // A missing file looks like a format problem to the media element; ask the server.
+    if (audio.error?.code === 4 && src.startsWith('/api/events/')) {
+      fetch(src, { method: 'HEAD' })
+        .then(res => {
+          if (res.status === 404 && state.id === failedId && state.status === 'error') {
+            emit({ error: 'This fart has been deleted.' })
+          }
+        })
+        .catch(() => {})
+    }
   })
 }
 
@@ -140,7 +152,8 @@ export function play(id, src, { duration } = {}) {
   unlocking = false
   audio.muted = false
   const win = windowFor(id)
-  if (state.id !== id || audio.getAttribute('src') !== src) {
+  // A different recording, or a retry after an error: (re)load the file
+  if (state.id !== id || audio.getAttribute('src') !== src || state.status === 'error' || audio.error) {
     audio.setAttribute('src', src)
     emit({ id, status: 'loading', duration: duration || 0, error: null })
     if (win?.start > 0.05) seekQuietly(win.start)
@@ -166,7 +179,8 @@ export function play(id, src, { duration } = {}) {
 // Called once a recording has been analyzed. If it's already playing from the
 // top of a long silence, hop straight to the sound.
 export function setPlaybackWindow(id, start, end) {
-  playbackWindow = { id, start: start || 0, end: end ?? null }
+  playbackWindows.set(id, { start: start || 0, end: end ?? null })
+  if (playbackWindows.size > 200) playbackWindows.delete(playbackWindows.keys().next().value)
   if (!audio || state.id !== id) return
   if ((state.status === 'playing' || state.status === 'loading') && audio.currentTime < start - 0.25) {
     seekQuietly(start)

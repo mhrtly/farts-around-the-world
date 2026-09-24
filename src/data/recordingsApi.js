@@ -38,10 +38,25 @@ function blobToBase64(blob) {
   })
 }
 
-export async function postRecording({ blob, mimeType, lat, lng, country, place, duration, volume, peakVolume, intensity, type }) {
+function randomHex(bytes) {
+  const values = new Uint8Array(bytes)
+  crypto.getRandomValues(values)
+  return Array.from(values, value => value.toString(16).padStart(2, '0')).join('')
+}
+
+// One per recording, reused if the upload is retried, so the server can tell
+// a retry from a new post (and the delete key keeps working either way).
+export function newPostKey() {
+  return {
+    clientPostId: crypto.randomUUID ? crypto.randomUUID() : randomHex(16),
+    deleteToken: randomHex(24),
+  }
+}
+
+export async function postRecording({ blob, mimeType, lat, lng, country, place, duration, volume, peakVolume, intensity, type, postKey }) {
   const audioData = await blobToBase64(blob)
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 45000)
+  const timeout = setTimeout(() => controller.abort(), 60000)
   try {
     const res = await fetch('/api/events', {
       method: 'POST',
@@ -59,9 +74,13 @@ export async function postRecording({ blob, mimeType, lat, lng, country, place, 
         duration,
         volume,
         peakVolume,
+        clientPostId: postKey?.clientPostId,
+        deleteToken: postKey?.deleteToken,
       }),
     })
-    return await readJson(res)
+    const created = await readJson(res)
+    // Older servers generate their own token; otherwise it's the one we sent.
+    return { ...created, deleteToken: created.deleteToken || postKey?.deleteToken }
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('Upload timed out — check your connection and try again.')
     if (error instanceof TypeError) throw new Error("Couldn't reach the server — check your connection and try again.")

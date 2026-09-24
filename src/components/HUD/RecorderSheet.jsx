@@ -4,7 +4,7 @@ import Icon from './Icon.jsx'
 import WaveformPlayer from './WaveformPlayer.jsx'
 import { prepareRecording } from '../../utils/audioAnalysis.js'
 import { locate } from '../../utils/location.js'
-import { postRecording } from '../../data/recordingsApi.js'
+import { newPostKey, postRecording } from '../../data/recordingsApi.js'
 import { pause as pausePlayback, stop as stopPlayback } from '../../utils/player.js'
 import {
   countryName,
@@ -109,7 +109,7 @@ function classify(duration, peakDb) {
   return { intensity, type }
 }
 
-export default function RecorderSheet({ open, onClose, onPosted, onActiveChange }) {
+export default function RecorderSheet({ open, onClose, onPosted, onPostFailed, onActiveChange }) {
   const [phase, setPhase] = useState('idle')
   const [count, setCount] = useState(3)
   const [micError, setMicError] = useState(null)
@@ -137,6 +137,8 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
   const locateRunRef = useRef(0)
   const locStatusRef = useRef('idle')
   const recButtonRef = useRef(null)
+  const openRef = useRef(open)
+  openRef.current = open
 
   // Keyboard users land on the big button: Space/Enter starts recording
   useEffect(() => {
@@ -305,9 +307,10 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
     if (session !== sessionRef.current) return
 
     draftCountRef.current += 1
+    const postKey = newPostKey()
     setDraft(prev => {
       if (prev?.url) URL.revokeObjectURL(prev.url)
-      return { ...prepared, id: `draft-${draftCountRef.current}`, url: URL.createObjectURL(prepared.blob) }
+      return { ...prepared, id: `draft-${draftCountRef.current}`, url: URL.createObjectURL(prepared.blob), postKey }
     })
     buzz([12, 40, 12])
     setPhaseBoth('review')
@@ -464,6 +467,7 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
         peakVolume: draft.peakVolume,
         intensity,
         type,
+        postKey: draft.postKey,
       })
       buzz([10, 60, 30])
       blip(audioCtxRef.current, { freq: 660, gain: 0.06, duration: 0.12 })
@@ -471,8 +475,11 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
       setPhaseBoth('posted')
       onPosted?.(created)
     } catch (error) {
-      setPostError(error.message || 'Posting failed. Try again?')
+      const message = error.message || 'Posting failed. Try again?'
+      setPostError(message)
       setPhaseBoth('review')
+      // If they closed the sheet mid-upload, tell them (the recording is kept).
+      if (!openRef.current) onPostFailed?.(message)
     }
   }
 
@@ -485,22 +492,25 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
       cancelCapture()
       setPhaseBoth('idle')
     }
-    if (current === 'posted') {
-      const timer = setTimeout(() => {
-        setDraft(prev => {
-          if (prev?.url) URL.revokeObjectURL(prev.url)
-          return null
-        })
-        // Re-locate next time in case you've moved on (the browser caches a fresh fix).
-        locateRunRef.current++
-        setLoc({ status: 'idle', value: null })
-        setPhaseBoth('idle')
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-    stopPlayback()
-    return undefined
+    if (current !== 'posted' && current !== 'posting') stopPlayback()
   }, [open, cancelCapture, setPhaseBoth])
+
+  // Once a post has landed and the sheet is closed, get ready for the next one.
+  // (Also covers an upload that finishes after someone closed the sheet.)
+  useEffect(() => {
+    if (open || phase !== 'posted') return undefined
+    const timer = setTimeout(() => {
+      setDraft(prev => {
+        if (prev?.url) URL.revokeObjectURL(prev.url)
+        return null
+      })
+      // Re-locate next time in case you've moved on (the browser caches a fresh fix).
+      locateRunRef.current++
+      setLoc({ status: 'idle', value: null })
+      setPhaseBoth('idle')
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [open, phase, setPhaseBoth])
 
   useEffect(() => () => {
     cancelCapture()

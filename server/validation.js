@@ -30,7 +30,26 @@ export function validateFartEvent(body) {
     return { valid: false, errors: ['Request body must be a JSON object'], event: null }
   }
 
-  const { lat, lng, intensity, country, type, audioData, audioMimeType, duration, volume, peakVolume, place } = body
+  const { lat, lng, intensity, country, type, audioData, audioMimeType, duration, volume, peakVolume, place, clientPostId, deleteToken } = body
+
+  // Optional: the client's own id for this post (so a retried upload is
+  // recognized) and the secret it will use to delete it later.
+  let finalClientPostId = null
+  if (clientPostId !== undefined && clientPostId !== null) {
+    if (typeof clientPostId !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(clientPostId)) {
+      errors.push('clientPostId must be 8-64 letters, digits or dashes')
+    } else {
+      finalClientPostId = clientPostId
+    }
+  }
+  let finalDeleteToken = null
+  if (deleteToken !== undefined && deleteToken !== null) {
+    if (typeof deleteToken !== 'string' || !/^[a-f0-9]{32,128}$/i.test(deleteToken)) {
+      errors.push('deleteToken must be 32-128 hex characters')
+    } else {
+      finalDeleteToken = deleteToken
+    }
+  }
 
   // lat
   if (typeof lat !== 'number' || !Number.isFinite(lat)) {
@@ -130,7 +149,8 @@ export function validateFartEvent(body) {
     duration: finalDuration,
     volume: finalVolume,
     peakVolume: finalPeakVolume,
+    clientPostId: finalClientPostId,
   }
 
-  return { valid: true, errors: [], event }
+  return { valid: true, errors: [], event, clientDeleteToken: finalDeleteToken }
 }

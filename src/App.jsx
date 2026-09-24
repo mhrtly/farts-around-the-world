@@ -114,13 +114,25 @@ export default function App({ authEnabled = false }) {
   }, [dismissToast])
 
   // ── Data ──────────────────────────────────────────────────────────────────
+  const loadSeqRef = useRef(0)
+  const selectionRef = useRef(null)
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current
     try {
       const [list, stats] = await Promise.all([fetchRecordings(MAX_EVENTS), fetchStats().catch(() => null)])
-      setEvents(list.map(cleanEvent))
+      if (seq !== loadSeqRef.current) return // a newer refresh already answered
+      const fresh = list.map(cleanEvent)
+      const freshIds = new Set(fresh.map(event => event.id))
+      setEvents(prev => mergeEvents(fresh, prev.filter(event => (
+        // Keep what the server list can't know about yet: the open recording
+        // (e.g. an older shared link) and anything that arrived in the last minutes.
+        !freshIds.has(event.id) &&
+        (event.id === selectionRef.current?.id || Date.now() - event.timestamp < 3 * 60 * 1000)
+      ))))
       if (stats) setServerTotal(stats.totalAllTime || 0)
       setLoadState('ready')
     } catch {
+      if (seq !== loadSeqRef.current) return
       setLoadState(state => (state === 'ready' ? 'ready' : 'error'))
     }
   }, [])
@@ -167,6 +179,10 @@ export default function App({ authEnabled = false }) {
         .catch(() => {})
     }
   }, [sites])
+
+  const eventsRef = useRef(events)
+  eventsRef.current = events
+  selectionRef.current = selection
 
   const eventsById = useMemo(() => new Map(events.map(event => [event.id, event])), [events])
   const chronological = events // already newest-first
@@ -222,8 +238,9 @@ export default function App({ authEnabled = false }) {
   // ── Live feed ─────────────────────────────────────────────────────────────
   const handleIncoming = useCallback(raw => {
     const event = cleanEvent(raw)
+    const isNew = !eventsRef.current.some(existing => existing.id === event.id)
     setEvents(prev => mergeEvents(prev, [event]))
-    setServerTotal(total => total + 1)
+    if (isNew) setServerTotal(total => total + 1)
     // Give our own POST a moment to register so we don't announce ourselves.
     setTimeout(() => {
       if (ownIdsRef.current.has(event.id)) return
@@ -239,8 +256,11 @@ export default function App({ authEnabled = false }) {
     }, 1200)
   }, [pushToast, select])
 
+  // Runs for our own deletes and again when the server broadcasts them.
+  const removedIdsRef = useRef(new Set())
   const handleRemoved = useCallback(id => {
-    if (!id) return
+    if (!id || removedIdsRef.current.has(id)) return
+    removedIdsRef.current.add(id)
     setEvents(prev => prev.filter(event => event.id !== id))
     setServerTotal(total => Math.max(0, total - 1))
     setSelection(current => {
@@ -301,9 +321,13 @@ export default function App({ authEnabled = false }) {
     }
   }, [loadState, globeReady, events, eventsById, select, compact, pushToast])
 
-  // Never leave the splash up forever if the globe texture is slow
+  // Never leave the splash up forever if the globe texture is slow (or fails to
+  // load) — carry on without it so shared links and the intro still happen.
   useEffect(() => {
-    const timer = setTimeout(() => window.dispatchEvent(new Event('fatw:ready')), 6000)
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('fatw:ready'))
+      setGlobeReady(true)
+    }, 6000)
     return () => clearTimeout(timer)
   }, [])
 
@@ -559,6 +583,14 @@ export default function App({ authEnabled = false }) {
         open={recorderOpen}
         onClose={() => setRecorderOpen(false)}
         onPosted={handlePosted}
+        onPostFailed={message => pushToast({
+          icon: '⚠️',
+          tone: 'error',
+          text: `Your fart didn't post (${message}). It's still saved in the recorder.`,
+          actionLabel: 'Open',
+          action: openRecorder,
+          duration: 12000,
+        })}
         onActiveChange={setRecorderActive}
       />
 

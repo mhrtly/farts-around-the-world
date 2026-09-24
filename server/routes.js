@@ -5,6 +5,7 @@ import {
   insertEvent,
   getRecentEvents,
   getEvent,
+  getEventByClientPostId,
   deleteEventById,
   deleteEventWithToken,
   getEventsByRange,
@@ -142,7 +143,7 @@ export default function createRoutes(io) {
 
   // Submit a fart event (with optional audio)
   router.post('/api/events', (req, res) => {
-    const { valid, errors, event } = validateFartEvent(req.body)
+    const { valid, errors, event, clientDeleteToken } = validateFartEvent(req.body)
     const requestId = req.requestId || `req-${Date.now().toString(36)}`
 
     if (!valid) {
@@ -156,12 +157,24 @@ export default function createRoutes(io) {
       })
     }
 
+    // A retried upload (the first attempt's response got lost): hand back the
+    // recording we already stored instead of saving a duplicate.
+    const alreadyStored = () => {
+      const existing = event.clientPostId ? getEventByClientPostId(event.clientPostId) : null
+      if (!existing) return false
+      const { deleteTokenHash, ...publicEvent } = existing
+      const tokenMatches = Boolean(clientDeleteToken) && deleteTokenHash === hashDeleteToken(clientDeleteToken)
+      res.status(200).json({ ...publicEvent, duplicate: true, ...(tokenMatches ? { deleteToken: clientDeleteToken } : {}) })
+      return true
+    }
+    if (alreadyStored()) return
+
     try {
-      // Only the poster receives the raw token; the database keeps a hash.
-      const deleteToken = randomBytes(24).toString('hex')
+      // Only the poster knows the raw token; the database keeps a hash.
+      const deleteToken = clientDeleteToken || randomBytes(24).toString('hex')
       insertEvent({ ...event, deleteTokenHash: hashDeleteToken(deleteToken) })
       // Broadcast without audio data (too heavy for broadcast)
-      const { audioData, ...eventWithoutAudio } = event
+      const { audioData, clientPostId, ...eventWithoutAudio } = event
       const broadcastEvent = {
         ...eventWithoutAudio,
         hasAudio: !!audioData,
@@ -173,6 +186,8 @@ export default function createRoutes(io) {
       io.emit('fart:new', broadcastEvent)
       res.status(201).json({ ...broadcastEvent, deleteToken })
     } catch (err) {
+      // Two copies of the same upload racing each other: the unique index wins.
+      if (String(err?.message || '').includes('UNIQUE') && alreadyStored()) return
       const classified = classifyStorageError(err)
       console.error(`[INGEST STORE] ${requestId} ${err.stack || err.message}`)
       res.status(500).json({

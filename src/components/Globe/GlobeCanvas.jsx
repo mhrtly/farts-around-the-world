@@ -218,7 +218,8 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     globeRef.current = g
     if (import.meta.env.DEV) window.__fatwGlobe = g // handy in the console while developing
 
-    g.renderer().setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2))
+    const renderer = g.renderer()
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2))
 
     g
       .backgroundColor('rgba(0,0,0,0)')
@@ -422,6 +423,15 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       puffsRef.current = []
       markersRef.current = new Map()
       g._destructor?.()
+      // Free the GPU context and the controls' window listeners so a remount
+      // (e.g. coming back from a side page) doesn't leak a WebGL context.
+      try { controls.dispose() } catch { /* already disposed */ }
+      try {
+        renderer.dispose()
+        renderer.forceContextLoss()
+      } catch {
+        // already torn down
+      }
       mount.innerHTML = ''
       globeRef.current = null
     }

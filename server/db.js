@@ -69,11 +69,13 @@ for (const col of ['duration REAL DEFAULT NULL', 'volume REAL DEFAULT NULL', 'pe
   try { db.exec(`ALTER TABLE events ADD COLUMN ${col}`) } catch { /* exists */ }
 }
 
-// Human-readable place name ("Grand Canyon Village, Arizona") and a hashed
-// token that lets the original poster delete their own recording.
-for (const col of ['place TEXT DEFAULT NULL', 'delete_token_hash TEXT DEFAULT NULL']) {
+// Human-readable place name ("Grand Canyon Village, Arizona"), a hashed token
+// that lets the original poster delete their own recording, and the client's
+// own id for the post so a retried upload doesn't create a duplicate.
+for (const col of ['place TEXT DEFAULT NULL', 'delete_token_hash TEXT DEFAULT NULL', 'client_post_id TEXT DEFAULT NULL']) {
   try { db.exec(`ALTER TABLE events ADD COLUMN ${col}`) } catch { /* exists */ }
 }
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_events_client_post_id ON events(client_post_id) WHERE client_post_id IS NOT NULL`)
 
 // Public coordinates are rounded to ~1 km so a recording never pins someone's front door.
 export const PUBLIC_COORD_DECIMALS = 2
@@ -111,10 +113,10 @@ const PUBLIC_EVENT_COLUMNS = `
 const stmts = {
   insert: db.prepare(`
     INSERT INTO events (
-      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, duration, volume, peak_volume, place, delete_token_hash
+      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, duration, volume, peak_volume, place, delete_token_hash, client_post_id
     )
     VALUES (
-      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @duration, @volume, @peakVolume, @place, @deleteTokenHash
+      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @duration, @volume, @peakVolume, @place, @deleteTokenHash, @clientPostId
     )
   `),
 
@@ -129,6 +131,12 @@ const stmts = {
     SELECT ${PUBLIC_EVENT_COLUMNS}
     FROM events
     WHERE id = ? AND audio_data IS NOT NULL
+  `),
+
+  byClientPostId: db.prepare(`
+    SELECT ${PUBLIC_EVENT_COLUMNS}, delete_token_hash as deleteTokenHash
+    FROM events
+    WHERE client_post_id = ?
   `),
 
   range: db.prepare(`
@@ -360,6 +368,10 @@ export function getRecentEvents(limit = 200) {
 
 export function getEvent(eventId) {
   return stmts.single.get(eventId) || null
+}
+
+export function getEventByClientPostId(clientPostId) {
+  return stmts.byClientPostId.get(clientPostId) || null
 }
 
 export function deleteEventWithToken(eventId, tokenHash) {

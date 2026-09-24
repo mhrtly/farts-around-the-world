@@ -128,6 +128,8 @@ export async function locate({ onUpdate } = {}) {
   })
 
   const giveUp = new Promise(resolve => setTimeout(() => resolve('timeout'), GPS_GIVE_UP_MS))
+  let lateGps = null
+  fromGps.then(result => { lateGps = result }, () => {})
 
   try {
     const first = await Promise.race([fromGps, giveUp])
@@ -139,13 +141,20 @@ export async function locate({ onUpdate } = {}) {
     gpsDenied = error.code === 'denied'
   }
 
-  const approximate = await networkLocation()
-  const result = { ...approximate, gpsDenied }
+  let approximate
+  try {
+    approximate = await networkLocation()
+  } catch (error) {
+    if (lateGps) return lateGps
+    throw error
+  }
+  // GPS may have answered while we were asking the network — the precise fix wins.
+  if (lateGps) return lateGps
   if (!settled) {
-    // If GPS answers late (user finally tapped "Allow"), upgrade quietly.
+    // If GPS answers later still (user finally tapped "Allow"), upgrade quietly.
     fromGps.then(better => onUpdate?.(better)).catch(() => {})
   }
-  return result
+  return { ...approximate, gpsDenied }
 }
 
 // Background lookups for older recordings that were posted without a place name.

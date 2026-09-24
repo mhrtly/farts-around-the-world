@@ -133,6 +133,11 @@ app.use('/api/archive', rateLimit({
 // Routes
 app.use(createRoutes(io))
 
+// Unknown API routes get a JSON 404 instead of hanging on the SPA fallback.
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Not found' })
+})
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`[WS] Client connected: ${socket.id}`)
@@ -178,10 +183,11 @@ app.use('/cmd-up', express.static(CMD_UP_DIR))
 if (existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR))
   // SPA fallback: serve index.html for any non-API route
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/cmd-up')) {
-      res.sendFile(join(DIST_DIR, 'index.html'))
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/cmd-up')) {
+      return next()
     }
+    res.sendFile(join(DIST_DIR, 'index.html'))
   })
   console.log(`[STATIC] Serving frontend from ${DIST_DIR}`)
 }

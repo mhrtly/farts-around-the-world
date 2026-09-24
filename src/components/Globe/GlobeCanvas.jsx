@@ -1,682 +1,460 @@
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import Globe from 'globe.gl'
 import * as THREE from 'three'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-import { classifyEmission, generatePayloadDescription } from '../../config/humor.ts'
 
-// ── Color palette ────────────────────────────────────────────────────────────
+// ── Look ────────────────────────────────────────────────────────────────────
 
-const CLOUD_COLOR_HEX = {
-  standard:           0x38f3ff,
-  epic:               0xff64ff,
-  'silent-but-deadly': 0x9dff4a,
+const COLOR = {
+  fresh: new THREE.Color('#9dff4a'),    // posted in the last hour
+  today: new THREE.Color('#ffd35a'),    // posted in the last day
+  older: new THREE.Color('#38f3ff'),
+  selected: new THREE.Color('#ff64ff'),
 }
 
-const POINT_COLORS = {
-  standard:           'rgba(56,243,255,0.9)',
-  epic:               'rgba(255,100,255,0.95)',
-  'silent-but-deadly':'rgba(157,255,74,0.85)',
+const WHITE = new THREE.Color('#ffffff')
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
+const MARKER_ALTITUDE = 0.012
+const GLOBE_RADIUS = 100
+
+function siteTone(site, now) {
+  const age = now - site.latest
+  if (age < HOUR) return 'fresh'
+  if (age < DAY) return 'today'
+  return 'older'
 }
 
-const RING_COLOR_FN = {
-  standard:            t => `rgba(56,243,255,${Math.max(0, 1 - t)})`,
-  epic:                t => `rgba(255,100,255,${Math.max(0, 1 - t)})`,
-  'silent-but-deadly': t => `rgba(157,255,74,${Math.max(0, 1 - t)})`,
+function escapeHtml(text) {
+  return String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
 }
 
-const RISE_SPEED = {
-  standard:           0.015,
-  epic:               0.020,
-  'silent-but-deadly': 0.008,
+function makeRadialTexture(stops) {
+  const size = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  for (const [offset, color] of stops) gradient.addColorStop(offset, color)
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, size, size)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
 }
 
-const PUFF_LIFETIME_MS = 5000
-
-// ── Puff helpers ─────────────────────────────────────────────────────────────
-
-function makePuffMesh(event) {
-  const hasAudio = !!event.hasAudio
-
-  // Volume-based sizing when available, fallback to intensity
-  const vol = event.volume || event.intensity * 5
-  let baseRadius = 0.25 + vol * 0.025
-
-  // Audio events are larger and more visible
-  if (hasAudio) baseRadius *= 1.5
-
-  // Cloud-like geometry: perturb vertices for lumpy shape
-  const geometry = new THREE.SphereGeometry(baseRadius, 10, 8)
-  const positions = geometry.attributes.position
-  for (let i = 0; i < positions.count; i++) {
-    const x = positions.getX(i)
-    const y = positions.getY(i)
-    const z = positions.getZ(i)
-    const noise = 1 + (Math.sin(x * 5.3 + i) * Math.cos(y * 4.1 + i) * 0.3)
-    positions.setXYZ(i, x * noise, y * noise, z * noise)
+let textures = null
+function getTextures() {
+  if (!textures) {
+    textures = {
+      glow: makeRadialTexture([[0, 'rgba(255,255,255,1)'], [0.18, 'rgba(255,255,255,0.55)'], [0.5, 'rgba(255,255,255,0.12)'], [1, 'rgba(255,255,255,0)']]),
+      core: makeRadialTexture([[0, 'rgba(255,255,255,1)'], [0.45, 'rgba(255,255,255,1)'], [0.62, 'rgba(255,255,255,0.35)'], [1, 'rgba(255,255,255,0)']]),
+      puff: makeRadialTexture([[0, 'rgba(255,255,255,0.9)'], [0.4, 'rgba(255,255,255,0.35)'], [1, 'rgba(255,255,255,0)']]),
+    }
   }
-  geometry.attributes.position.needsUpdate = true
-  geometry.computeVertexNormals()
+  return textures
+}
 
-  const color = new THREE.Color(CLOUD_COLOR_HEX[event.type] ?? CLOUD_COLOR_HEX.standard)
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: hasAudio ? 0.7 : 0.4,
+// Screen-space sprites keep markers the same size at any zoom level.
+function makeMarker(site) {
+  const { glow, core } = getTextures()
+  const group = new THREE.Group()
+  const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glow,
+    color: COLOR.older,
     transparent: true,
-    opacity: event.type === 'epic' ? 0.9 : 0.72,
-  })
-  return new THREE.Mesh(geometry, material)
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: false,
+  }))
+  const coreSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: core,
+    color: new THREE.Color('#ffffff'),
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    sizeAttenuation: false,
+  }))
+  glowSprite.renderOrder = 10
+  coreSprite.renderOrder = 11
+  group.add(glowSprite)
+  group.add(coreSprite)
+  group.userData = { site, glowSprite, coreSprite, phase: Math.random() * Math.PI * 2 }
+  return group
 }
 
-function getPuffAltitude(puff) {
-  const ageSec = (Date.now() - puff._birthTime) / 1000
-  const speed  = RISE_SPEED[puff.type] ?? RISE_SPEED.standard
-  return 0.01 + ageSec * speed
-}
+// ── Component ───────────────────────────────────────────────────────────────
 
-function getPuffOpacity(puff) {
-  const ageFrac   = (Date.now() - puff._birthTime) / PUFF_LIFETIME_MS
-  const startOpac = puff.type === 'epic' ? 0.9 : 0.72
-  return Math.max(0, startOpac * (1 - ageFrac))
-}
+const GlobeCanvas = forwardRef(function GlobeCanvas({
+  sites,
+  selectedKey = null,
+  compact = false,
+  offsetY = 0,
+  paused = false,
+  onSiteSelect,
+  onBackgroundClick,
+  onReady,
+}, ref) {
+  const mountRef = useRef(null)
+  const globeRef = useRef(null)
+  const markersRef = useRef(new Map()) // site key → { site, object }
+  const puffsRef = useRef([])
+  const burstsRef = useRef([])
+  const selectedKeyRef = useRef(selectedKey)
+  const callbacksRef = useRef({ onSiteSelect, onBackgroundClick, onReady })
+  const resumeTimerRef = useRef(null)
+  const interactingRef = useRef(false)
+  const offsetRef = useRef({ current: 0, target: 0 })
 
-// ── Overlay helpers ──────────────────────────────────────────────────────────
+  callbacksRef.current = { onSiteSelect, onBackgroundClick, onReady }
 
-function formatUTC(ts) {
-  return new Date(ts).toISOString().slice(11, 19) + ' UTC'
-}
-
-
-// ── Component ────────────────────────────────────────────────────────────────
-
-const GlobeCanvasInner = forwardRef(function GlobeCanvas({ events }, ref) {
-  const mountRef   = useRef(null)
-  const globeRef   = useRef(null)
-  const puffsRef   = useRef([])
-  const layerTimer = useRef(null)
-  const puffTimer  = useRef(null)
-  const prevCount  = useRef(0)
-
-  const [selectedEvent, setSelectedEvent] = useState(null)
-  const selectedEventRef = useRef(null) // ref for hover callbacks (avoids stale closure)
-
-  // Audio playback state
-  const [audioPlaying, setAudioPlaying] = useState(false)
-  const [audioLoading, setAudioLoading] = useState(false)
-  const audioRef = useRef(null)
-
-  // Expose methods via ref for parent
   useImperativeHandle(ref, () => ({
-    flyTo: ({ lat, lng, altitude = 1.8 }) => {
-      if (globeRef.current) {
-        globeRef.current.pointOfView({ lat, lng, altitude }, 1200)
-        globeRef.current.controls().autoRotate = false
+    flyTo({ lat, lng, altitude }, ms = 1100) {
+      const g = globeRef.current
+      if (!g) return
+      stopAutoRotate()
+      const pov = g.pointOfView()
+      g.pointOfView({ lat, lng, altitude: altitude ?? Math.min(pov.altitude, compact ? 1.6 : 1.4) }, ms)
+    },
+    burst(lat, lng, { color = '#9dff4a', big = false } = {}) {
+      spawnBurst(lat, lng, color, big)
+    },
+    resumeAutoRotate() {
+      scheduleAutoRotate(0)
+    },
+    stopAutoRotate() {
+      stopAutoRotate()
+    },
+  }), [compact])
+
+  function stopAutoRotate() {
+    clearTimeout(resumeTimerRef.current)
+    const g = globeRef.current
+    if (g) g.controls().autoRotate = false
+  }
+
+  function scheduleAutoRotate(delay = 12000) {
+    clearTimeout(resumeTimerRef.current)
+    resumeTimerRef.current = setTimeout(() => {
+      const g = globeRef.current
+      if (!g || selectedKeyRef.current || interactingRef.current) return
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      g.controls().autoRotate = true
+    }, delay)
+  }
+
+  function spawnBurst(lat, lng, color, big) {
+    const g = globeRef.current
+    if (!g) return
+    const { puff } = getTextures()
+    const count = big ? 7 : 4
+    for (let i = 0; i < count; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: puff,
+        color: new THREE.Color(color),
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        opacity: 0,
+      }))
+      sprite.renderOrder = 12
+      g.scene().add(sprite)
+      puffsRef.current.push({
+        sprite,
+        lat: lat + (Math.random() - 0.5) * 0.8,
+        lng: lng + (Math.random() - 0.5) * 0.8,
+        born: performance.now() + i * 140,
+        life: (big ? 3600 : 2600) + Math.random() * 600,
+        size: (big ? 7 : 4.5) + Math.random() * 2.5,
+      })
+    }
+    const ring = { lat, lng, color, burst: true, until: Date.now() + (big ? 4200 : 2600), big }
+    burstsRef.current = [...burstsRef.current, ring]
+    updateRings()
+    setTimeout(() => {
+      burstsRef.current = burstsRef.current.filter(r => r !== ring)
+      updateRings()
+    }, big ? 4300 : 2700)
+  }
+
+  function updateRings() {
+    const g = globeRef.current
+    if (!g) return
+    const now = Date.now()
+    const rings = []
+    for (const { site } of markersRef.current.values()) {
+      if (site.key === selectedKeyRef.current) {
+        rings.push({ lat: site.lat, lng: site.lng, color: '#ff64ff', speed: 1.4, max: 3.2, period: 1500 })
+      } else if (now - site.latest < HOUR) {
+        rings.push({ lat: site.lat, lng: site.lng, color: '#9dff4a', speed: 1.1, max: 2.4, period: 2200 })
       }
-    },
-    toggleAutoRotate: () => {
-      if (globeRef.current) {
-        const controls = globeRef.current.controls()
-        controls.autoRotate = !controls.autoRotate
-        return controls.autoRotate
-      }
-      return false
-    },
-    getAutoRotate: () => {
-      return globeRef.current?.controls()?.autoRotate ?? false
-    },
-  }), [])
+    }
+    for (const burst of burstsRef.current) {
+      rings.push({ lat: burst.lat, lng: burst.lng, color: burst.color, speed: burst.big ? 5 : 3.5, max: burst.big ? 9 : 5, period: burst.big ? 700 : 900 })
+    }
+    g.ringsData(rings)
+  }
 
-  // Keep ref in sync with state (for globe hover callbacks)
+  // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    selectedEventRef.current = selectedEvent
-  }, [selectedEvent])
+    const mount = mountRef.current
+    if (!mount) return undefined
 
-  // ── Init ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mountRef.current || globeRef.current) return
+    const isSmall = window.innerWidth < 860
+    const g = new Globe(mount, {
+      rendererConfig: { antialias: !isSmall, alpha: true, powerPreference: 'high-performance' },
+      animateIn: true,
+    })
+    globeRef.current = g
 
-    const g = Globe()(mountRef.current)
+    g.renderer().setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2))
 
     g
-      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-      .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+      .backgroundColor('rgba(0,0,0,0)')
+      .globeImageUrl(isSmall ? '/textures/earth-night-2k.jpg' : '/textures/earth-night-4k.jpg')
       .showAtmosphere(true)
-      .atmosphereColor('#38f3ff')
-      .atmosphereAltitude(0.22)
+      .atmosphereColor('#4cc9ff')
+      .atmosphereAltitude(0.16)
+      .showPointerCursor((type) => type === 'object')
+      .onGlobeReady(() => callbacksRef.current.onReady?.())
 
-      // ── Rising cloud puffs ────────────────────────────────────────────
+      // Sites: one glowing marker per place
       .objectsData([])
       .objectLat('lat')
       .objectLng('lng')
-      .objectAltitude(d => getPuffAltitude(d))
-      .objectThreeObject(d => {
-        if (!d._mesh) d._mesh = makePuffMesh(d)
-        return d._mesh
+      .objectAltitude(MARKER_ALTITUDE)
+      .objectFacesSurface(false)
+      .objectThreeObject(site => {
+        const entry = markersRef.current.get(site.key)
+        if (entry?.object) return entry.object
+        const object = makeMarker(site)
+        if (entry) entry.object = object
+        return object
       })
-      .onObjectClick(obj => {
-        setSelectedEvent(obj)
-        g.controls().autoRotate = false
-        g.pointOfView({ lat: obj.lat, lng: obj.lng, altitude: 1.8 }, 800)
+      .objectLabel(site => {
+        const count = site.events.length
+        const name = site.place ? site.place.split(',')[0] : 'Unnamed spot'
+        return `<div class="globe-tooltip"><strong>${escapeHtml(name)}</strong><span>${count} fart${count === 1 ? '' : 's'}</span></div>`
       })
-      .onObjectHover(obj => {
-        if (obj) {
-          g.controls().autoRotate = false
-        } else if (!selectedEventRef.current) {
-          g.controls().autoRotate = true
+      .onObjectClick(site => {
+        callbacksRef.current.onSiteSelect?.(site.key)
+      })
+      .pointerEventsFilter((object, data) => {
+        // Ignore markers on the far side of the planet
+        if (data && data.key && markersRef.current.has(data.key)) {
+          return markersRef.current.get(data.key).facing !== false
         }
+        return true
       })
 
-      // ── Rings — shockwaves ───────────────────────────────────────────
+      // Pulses for fresh sites, the selected site, and new arrivals
       .ringsData([])
       .ringLat('lat')
       .ringLng('lng')
-      .ringColor(d => RING_COLOR_FN[d.type] ?? RING_COLOR_FN.standard)
-      .ringMaxRadius(d => 2.5 + d.intensity * 0.6)
-      .ringPropagationSpeed(2.5)
-      .ringRepeatPeriod(1400)
-      .ringAltitude(0.003)
+      .ringColor(d => {
+        const c = new THREE.Color(d.color)
+        const rgb = `${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)}`
+        return t => `rgba(${rgb},${Math.max(0, 1 - t) * 0.9})`
+      })
+      .ringMaxRadius('max')
+      .ringPropagationSpeed('speed')
+      .ringRepeatPeriod('period')
+      .ringAltitude(0.004)
 
-      // ── Points — ground-level location markers ────────────────────────
-      .pointsData([])
-      .pointLat('lat')
-      .pointLng('lng')
-      .pointAltitude(0.012)
-      .pointRadius(d => {
-        const base = 0.25 + d.intensity * 0.06
-        return d.hasAudio ? base * 1.5 : base
-      })
-      .pointColor(d => POINT_COLORS[d.type] ?? POINT_COLORS.standard)
-      .pointsMerge(false)
-      .pointsTransitionDuration(300)
-      .onPointClick(point => {
-        setSelectedEvent(point)
-        g.controls().autoRotate = false
-        g.pointOfView({ lat: point.lat, lng: point.lng, altitude: 1.8 }, 800)
-      })
-      .onPointHover(point => {
-        if (point) {
-          g.controls().autoRotate = false
-        } else if (!selectedEventRef.current) {
-          g.controls().autoRotate = true
+      // Forgiving taps: if you miss a marker, pick the nearest visible one
+      .onGlobeClick(({ lat, lng }) => {
+        const pov = g.pointOfView()
+        const threshold = Math.max(0.6, pov.altitude * (window.innerWidth < 860 ? 5.5 : 3.2))
+        let best = null
+        let bestDistance = Infinity
+        for (const entry of markersRef.current.values()) {
+          if (entry.facing === false) continue
+          const dLat = entry.site.lat - lat
+          const dLng = ((entry.site.lng - lng + 540) % 360) - 180
+          const distance = Math.sqrt(dLat * dLat + (dLng * Math.cos((lat * Math.PI) / 180)) ** 2)
+          if (distance < bestDistance) {
+            bestDistance = distance
+            best = entry.site
+          }
+        }
+        if (best && bestDistance <= threshold) {
+          callbacksRef.current.onSiteSelect?.(best.key)
+        } else {
+          callbacksRef.current.onBackgroundClick?.()
         }
       })
 
-      // ── HexBin density columns ────────────────────────────────────────
-      .hexBinPointsData([])
-      .hexBinPointLat('lat')
-      .hexBinPointLng('lng')
-      .hexBinPointWeight('intensity')
-      .hexBinResolution(3)
-      .hexAltitude(d => Math.min(d.sumWeight * 0.0007, 0.09))
-      .hexTopColor(d => {
-        const t = Math.min(d.sumWeight / 70, 1)
-        return `rgba(${Math.round(40 + t * 175)},${Math.round(220 - t * 70)},255,${0.3 + t * 0.6})`
-      })
-      .hexSideColor(d => {
-        const t = Math.min(d.sumWeight / 70, 1)
-        return `rgba(20,60,${Math.round(180 + t * 75)},${0.06 + t * 0.22})`
-      })
-      .hexBinMerge(true)
-      .hexTransitionDuration(700)
+    const controls = g.controls()
+    controls.autoRotate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    controls.autoRotateSpeed = 0.35
+    controls.enableDamping = true
+    controls.dampingFactor = 0.08
+    controls.minDistance = GLOBE_RADIUS * 1.12
+    controls.maxDistance = GLOBE_RADIUS * 6
+    controls.rotateSpeed = isSmall ? 0.6 : 0.45
+    controls.zoomSpeed = 0.8
 
-      // Click empty globe → dismiss overlay, resume rotate
-      .onGlobeClick(() => {
-        setSelectedEvent(null)
-        g.controls().autoRotate = true
-      })
-
-    // Controls
-    g.controls().autoRotate      = true
-    g.controls().autoRotateSpeed = 0.3
-    g.controls().enableDamping   = true
-    g.controls().dampingFactor   = 0.08
-
-    // ── UnrealBloomPass ──────────────────────────────────────────────
-    const renderer = g.renderer()
-    const scene    = g.scene()
-    const camera   = g.camera()
-
-    // Add ambient light so MeshStandardMaterial is visible
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-
-    const composer = new EffectComposer(renderer)
-    composer.addPass(new RenderPass(scene, camera))
-
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.75,
-      0.4,
-      0.65
-    )
-    composer.addPass(bloomPass)
-
-    let composerActive = false
-    const _render = renderer.render.bind(renderer)
-    renderer.render = (sc, cam) => {
-      if (composerActive) return _render(sc, cam)
-      composerActive = true
-      composer.render()
-      composerActive = false
+    const onStart = () => {
+      interactingRef.current = true
+      stopAutoRotate()
     }
+    const onEnd = () => {
+      interactingRef.current = false
+      scheduleAutoRotate()
+    }
+    controls.addEventListener('start', onStart)
+    controls.addEventListener('end', onEnd)
 
-    // ── Puff animation loop ──────────────────────────────────────────
-    puffTimer.current = setInterval(() => {
+    g.pointOfView({ lat: 25, lng: -40, altitude: isSmall ? 3.1 : 2.5 }, 0)
+
+    // Per-frame work: marker pulse, far-side culling, puffs, smooth offset
+    let frame = 0
+    const cameraPos = new THREE.Vector3()
+    const markerPos = new THREE.Vector3()
+    const tick = (time) => {
+      frame = requestAnimationFrame(tick)
+      const camera = g.camera()
+      cameraPos.copy(camera.position)
+      const cameraDistance = cameraPos.length()
       const now = Date.now()
+      const small = window.innerWidth < 860
 
-      puffsRef.current = puffsRef.current.filter(
-        p => now - p._birthTime < PUFF_LIFETIME_MS
-      )
+      for (const entry of markersRef.current.values()) {
+        const object = entry.object
+        if (!object) continue
+        const { glowSprite, coreSprite, phase } = object.userData
+        object.getWorldPosition(markerPos)
+        // Visible if the marker sits on the camera-facing hemisphere
+        const facing = markerPos.dot(cameraPos) / (markerPos.length() * cameraDistance) > (GLOBE_RADIUS * 1.01) / cameraDistance
+        entry.facing = facing
+        object.visible = facing
 
-      for (const p of puffsRef.current) {
-        if (p._mesh) {
-          p._mesh.material.opacity = getPuffOpacity(p)
-          const ageFrac = (now - p._birthTime) / PUFF_LIFETIME_MS
-          p._mesh.scale.setScalar(1 + ageFrac * 0.7)
-        }
+        const selected = entry.site.key === selectedKeyRef.current
+        const tone = selected ? 'selected' : siteTone(entry.site, now)
+        glowSprite.material.color.copy(COLOR[tone])
+        const countBoost = Math.min(1.9, 1 + Math.log2(entry.site.events.length) * 0.22)
+        const pulse = tone === 'older' ? 0.06 : 0.16
+        const breathe = 1 + Math.sin(time / (tone === 'fresh' ? 380 : 900) + phase) * pulse
+        const base = (small ? 0.05 : 0.036) * countBoost * (selected ? 1.35 : 1)
+        glowSprite.scale.setScalar(base * breathe)
+        coreSprite.scale.setScalar(base * 0.26)
+        coreSprite.material.color.copy(selected ? COLOR.selected : COLOR[tone]).lerp(WHITE, 0.55)
+        glowSprite.material.opacity = selected ? 1 : 0.85
       }
 
-      if (globeRef.current) {
-        globeRef.current.objectsData([...puffsRef.current])
+      if (puffsRef.current.length) {
+        const nowPerf = performance.now()
+        puffsRef.current = puffsRef.current.filter(puff => {
+          const age = nowPerf - puff.born
+          if (age < 0) return true
+          const t = age / puff.life
+          if (t >= 1) {
+            g.scene().remove(puff.sprite)
+            puff.sprite.material.dispose()
+            return false
+          }
+          const coords = g.getCoords(puff.lat, puff.lng, 0.01 + t * 0.14)
+          puff.sprite.position.set(coords.x, coords.y, coords.z)
+          puff.sprite.scale.setScalar(puff.size * (0.5 + t * 1.4))
+          puff.sprite.material.opacity = Math.sin(Math.min(1, t * 3) * Math.PI / 2) * (1 - t) * 0.7
+          return true
+        })
       }
-    }, 50)
 
-    // Resize handler
+      const offset = offsetRef.current
+      if (Math.abs(offset.target - offset.current) > 0.5) {
+        offset.current += (offset.target - offset.current) * 0.12
+        g.globeOffset([0, offset.current])
+      } else if (offset.current !== offset.target) {
+        offset.current = offset.target
+        g.globeOffset([0, offset.current])
+      }
+    }
+    frame = requestAnimationFrame(tick)
+
     const resize = () => {
-      if (!mountRef.current) return
-      const w = mountRef.current.clientWidth
-      const h = mountRef.current.clientHeight
-      g.width(w)
-      g.height(h)
-      composer.setSize(w, h)
-      bloomPass.resolution.set(w, h)
+      g.width(mount.clientWidth)
+      g.height(mount.clientHeight)
     }
     resize()
-    window.addEventListener('resize', resize)
+    const observer = new ResizeObserver(resize)
+    observer.observe(mount)
 
-    globeRef.current = g
+    const onVisibility = () => {
+      if (document.hidden) g.pauseAnimation()
+      else g.resumeAnimation()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    const ringTimer = setInterval(updateRings, 60 * 1000)
 
     return () => {
-      window.removeEventListener('resize', resize)
-      clearInterval(puffTimer.current)
-      renderer.render = _render
+      cancelAnimationFrame(frame)
+      clearTimeout(resumeTimerRef.current)
+      clearInterval(ringTimer)
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibility)
+      controls.removeEventListener('start', onStart)
+      controls.removeEventListener('end', onEnd)
+      for (const puff of puffsRef.current) puff.sprite.material.dispose()
+      puffsRef.current = []
+      markersRef.current = new Map()
+      g._destructor?.()
+      mount.innerHTML = ''
       globeRef.current = null
     }
   }, [])
 
-  // ── New events → spawn puffs + update rings/points/hexbin ───────────────
+  // ── Sites → markers (stable objects; only re-digest when the set changes) ──
   useEffect(() => {
     const g = globeRef.current
-    if (!g || events.length === 0) return
+    if (!g) return
+    const markers = markersRef.current
+    const nextKeys = new Set(sites.map(site => site.key))
+    let changed = false
 
-    const newCount  = events.length
-    const newEvents = events.slice(0, newCount - prevCount.current)
-    prevCount.current = newCount
-
-    if (newEvents.length > 0) {
-      const newPuffs = newEvents.map(e => ({
-        ...e,
-        _birthTime: Date.now(),
-        _mesh: null,
-      }))
-      puffsRef.current = [...newPuffs, ...puffsRef.current].slice(0, 60)
-
-      // Rings for ALL events
-      const stamped = newEvents.map(e => ({ ...e, _ts: Date.now() }))
-      const alive   = g.ringsData().filter(r => Date.now() - r._ts < 10000)
-      g.ringsData([...stamped, ...alive].slice(0, 40))
-    }
-
-    // Throttled: points + hexbin + labels
-    clearTimeout(layerTimer.current)
-    layerTimer.current = setTimeout(() => {
-      const now    = Date.now()
-      const recent = events.filter(e => now - e.timestamp < 90_000)
-      g.pointsData(recent.slice(0, 200))
-      g.hexBinPointsData(events.filter(e => now - e.timestamp < 600_000))
-    }, 400)
-
-  }, [events])
-
-  // ── Stop audio when selected event changes ──────────────────────────────
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
-    }
-    setAudioPlaying(false)
-    setAudioLoading(false)
-  }, [selectedEvent])
-
-  const playAudio = async (eventId) => {
-    if (audioPlaying && audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
-      setAudioPlaying(false)
-      return
-    }
-    setAudioLoading(true)
-    try {
-      const res = await fetch(`/api/events/${eventId}/audio`)
-      if (!res.ok) throw new Error('No audio')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      audio.onended = () => {
-        setAudioPlaying(false)
-        URL.revokeObjectURL(url)
-      }
-      audioRef.current = audio
-      await audio.play()
-      setAudioPlaying(true)
-    } catch {
-      // silently fail
-    } finally {
-      setAudioLoading(false)
-    }
-  }
-
-  // ── Escape key → dismiss overlay ───────────────────────────────────────
-  useEffect(() => {
-    const onKey = e => {
-      if (e.key === 'Escape' && selectedEvent) {
-        setSelectedEvent(null)
-        if (globeRef.current) globeRef.current.controls().autoRotate = true
+    for (const key of [...markers.keys()]) {
+      if (!nextKeys.has(key)) {
+        markers.delete(key)
+        changed = true
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [selectedEvent])
+    for (const site of sites) {
+      const entry = markers.get(site.key)
+      if (entry) {
+        // Keep the same data object so globe.gl keeps the same marker
+        Object.assign(entry.site, site)
+      } else {
+        markers.set(site.key, { site: { ...site }, object: null, facing: true })
+        changed = true
+      }
+    }
+    if (changed) {
+      g.objectsData([...markers.values()].map(entry => entry.site))
+    }
+    updateRings()
+  }, [sites])
 
-  // ── Render ──────────────────────────────────────────────────────────────
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div
-        ref={mountRef}
-        style={{ width: '100%', height: '100%', background: 'transparent' }}
-      />
+  // ── Selection ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    selectedKeyRef.current = selectedKey
+    if (selectedKey) stopAutoRotate()
+    else scheduleAutoRotate(6000)
+    updateRings()
+  }, [selectedKey])
 
-      {selectedEvent && (() => {
-        const cls = classifyEmission(selectedEvent.duration, selectedEvent.volume)
-        const FLAG_MAP = {
-          US:'🇺🇸', GB:'🇬🇧', DE:'🇩🇪', FR:'🇫🇷', JP:'🇯🇵', CN:'🇨🇳',
-          BR:'🇧🇷', IN:'🇮🇳', AU:'🇦🇺', CA:'🇨🇦', MX:'🇲🇽', RU:'🇷🇺',
-          NG:'🇳🇬', ZA:'🇿🇦', EG:'🇪🇬', AR:'🇦🇷', KR:'🇰🇷', ID:'🇮🇩',
-          TR:'🇹🇷', IT:'🇮🇹',
-        }
-        const flag = FLAG_MAP[selectedEvent.country] || '🌍'
-        const relTime = (() => {
-          const sec = Math.max(0, Math.floor((Date.now() - selectedEvent.timestamp) / 1000))
-          if (sec < 60) return `${sec}s ago`
-          if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
-          return `${Math.floor(sec / 3600)}h ago`
-        })()
+  useEffect(() => {
+    offsetRef.current.target = offsetY
+  }, [offsetY])
 
-        return (
-          <div style={{
-            position:         'absolute',
-            top:              '50%',
-            right:            '20px',
-            transform:        'translateY(-50%)',
-            background:       'rgba(8,14,22,0.94)',
-            backdropFilter:   'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border:           `1px solid ${cls.color}33`,
-            borderRadius:     '8px',
-            minWidth:         '280px',
-            maxWidth:         '320px',
-            fontFamily:       'monospace',
-            fontSize:         '12px',
-            lineHeight:       '1.5',
-            zIndex:           100,
-            boxShadow:        `0 8px 40px rgba(0,0,0,0.6), 0 0 20px ${cls.color}15`,
-            animation:        'overlaySlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-            overflow:         'hidden',
-          }}>
-            {/* Top accent strip */}
-            <div style={{
-              height: '3px',
-              background: `linear-gradient(90deg, transparent, ${cls.color}, transparent)`,
-              opacity: 0.7,
-            }} />
+  useEffect(() => {
+    const g = globeRef.current
+    if (!g) return
+    if (paused) g.pauseAnimation()
+    else g.resumeAnimation()
+  }, [paused])
 
-            {/* Classification header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '14px 16px 12px',
-              background: `linear-gradient(180deg, ${cls.color}0a, transparent)`,
-              borderBottom: `1px solid ${cls.color}22`,
-            }}>
-              <span style={{ fontSize: '28px' }}>{flag}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                  <span style={{
-                    fontSize: '14px', fontWeight: 'bold', color: cls.color,
-                    letterSpacing: '0.1em',
-                    textShadow: `0 0 10px ${cls.color}55`,
-                  }}>{cls.label.toUpperCase()}</span>
-                  <span style={{
-                    fontSize: '7px', padding: '2px 5px', borderRadius: '3px',
-                    background: `${cls.color}18`, border: `1px solid ${cls.color}33`,
-                    color: cls.color, fontWeight: 'bold', letterSpacing: '0.12em',
-                  }}>{cls.code}</span>
-                </div>
-                <div style={{
-                  fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.04em',
-                }}>
-                  {selectedEvent.country} {relTime}
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div style={{
-              fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic',
-              lineHeight: 1.5, padding: '10px 16px',
-              borderBottom: '1px solid rgba(56,243,255,0.06)',
-            }}>
-              {cls.description}
-            </div>
-
-            {/* Stats grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: selectedEvent.volume != null ? '1fr 1fr 1fr' : '1fr 1fr',
-              gap: '1px',
-              background: 'rgba(56,243,255,0.06)',
-              margin: '0',
-            }}>
-              {/* Duration */}
-              <div style={{
-                padding: '10px 12px',
-                background: 'rgba(8,14,22,0.9)',
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '7px', letterSpacing: '0.2em', color: 'var(--text-dim)',
-                  textTransform: 'uppercase', marginBottom: '3px',
-                }}>DURATION</div>
-                <div style={{
-                  fontSize: '16px', fontWeight: 'bold', color: '#38f3ff',
-                  textShadow: '0 0 8px rgba(56,243,255,0.3)',
-                }}>
-                  {selectedEvent.duration != null ? `${selectedEvent.duration}s` : '—'}
-                </div>
-              </div>
-
-              {/* Volume */}
-              {selectedEvent.volume != null && (
-                <div style={{
-                  padding: '10px 12px',
-                  background: 'rgba(8,14,22,0.9)',
-                  textAlign: 'center',
-                }}>
-                  <div style={{
-                    fontSize: '7px', letterSpacing: '0.2em', color: 'var(--text-dim)',
-                    textTransform: 'uppercase', marginBottom: '3px',
-                  }}>VOLUME</div>
-                  <div style={{
-                    fontSize: '16px', fontWeight: 'bold',
-                    color: selectedEvent.volume > 40 ? '#ff4d5a' : selectedEvent.volume > 20 ? '#ffb020' : '#38f3ff',
-                    textShadow: selectedEvent.volume > 40
-                      ? '0 0 8px rgba(255,77,90,0.4)'
-                      : '0 0 8px rgba(56,243,255,0.3)',
-                  }}>
-                    {selectedEvent.volume}
-                  </div>
-                </div>
-              )}
-
-              {/* Coordinates */}
-              <div style={{
-                padding: '10px 12px',
-                background: 'rgba(8,14,22,0.9)',
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '7px', letterSpacing: '0.2em', color: 'var(--text-dim)',
-                  textTransform: 'uppercase', marginBottom: '3px',
-                }}>POSITION</div>
-                <div style={{
-                  fontSize: '9px', color: 'var(--text-primary)', letterSpacing: '0.03em',
-                  lineHeight: 1.6,
-                }}>
-                  {Math.abs(selectedEvent.lat).toFixed(2)}{'\u00B0'}{selectedEvent.lat >= 0 ? 'N' : 'S'}
-                  <br />
-                  {Math.abs(selectedEvent.lng).toFixed(2)}{'\u00B0'}{selectedEvent.lng >= 0 ? 'E' : 'W'}
-                </div>
-              </div>
-            </div>
-
-            {/* Visual volume meter */}
-            {selectedEvent.volume != null && (
-              <div style={{
-                padding: '10px 16px',
-                borderTop: '1px solid rgba(56,243,255,0.06)',
-              }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                }}>
-                  <span style={{
-                    fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.15em',
-                    width: '42px', textTransform: 'uppercase',
-                  }}>Volume</span>
-                  <div style={{
-                    flex: 1, height: '6px', borderRadius: '3px',
-                    background: 'rgba(56,243,255,0.08)',
-                    border: '1px solid rgba(56,243,255,0.08)',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      width: `${Math.min((selectedEvent.volume / 60) * 100, 100)}%`,
-                      height: '100%',
-                      borderRadius: '2px',
-                      background: selectedEvent.volume > 40
-                        ? 'linear-gradient(90deg, #38f3ff, #ff4d5a)'
-                        : selectedEvent.volume > 20
-                          ? 'linear-gradient(90deg, #38f3ff, #ffb020)'
-                          : '#38f3ff',
-                      boxShadow: selectedEvent.volume > 30
-                        ? '0 0 6px rgba(255,77,90,0.4)'
-                        : '0 0 4px rgba(56,243,255,0.3)',
-                      transition: 'width 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
-                    }} />
-                  </div>
-                </div>
-
-                {selectedEvent.peakVolume != null && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    marginTop: '6px',
-                  }}>
-                    <span style={{
-                      fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.15em',
-                      width: '42px', textTransform: 'uppercase',
-                    }}>Peak</span>
-                    <div style={{
-                      flex: 1, height: '4px', borderRadius: '2px',
-                      background: 'rgba(255,77,90,0.06)',
-                      overflow: 'hidden',
-                    }}>
-                      <div style={{
-                        width: `${Math.min((selectedEvent.peakVolume / 80) * 100, 100)}%`,
-                        height: '100%',
-                        borderRadius: '2px',
-                        background: 'linear-gradient(90deg, #ff4d5a88, #ff4d5a)',
-                        boxShadow: '0 0 4px rgba(255,77,90,0.3)',
-                        transition: 'width 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
-                      }} />
-                    </div>
-                    <span style={{
-                      fontSize: '8px', color: '#ff4d5a', fontWeight: 'bold',
-                      minWidth: '20px', textAlign: 'right',
-                    }}>{selectedEvent.peakVolume}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Audio section */}
-            <div style={{ padding: '10px 16px 12px', borderTop: '1px solid rgba(56,243,255,0.06)' }}>
-              {selectedEvent.hasAudio ? (
-                <button
-                  onClick={() => playAudio(selectedEvent.id)}
-                  disabled={audioLoading}
-                  style={{
-                    width: '100%', padding: '10px',
-                    background: audioPlaying ? 'rgba(255,77,90,0.12)' : 'rgba(56,243,255,0.08)',
-                    border: `1px solid ${audioPlaying ? 'rgba(255,77,90,0.35)' : 'rgba(56,243,255,0.25)'}`,
-                    borderRadius: '5px',
-                    color: audioPlaying ? '#ff4d5a' : '#38f3ff',
-                    fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold',
-                    letterSpacing: '0.12em',
-                    cursor: audioLoading ? 'wait' : 'pointer',
-                    boxShadow: audioPlaying
-                      ? '0 0 12px rgba(255,77,90,0.15)'
-                      : '0 0 12px rgba(56,243,255,0.1)',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  {audioLoading ? '\u23F3 LOADING...' : audioPlaying ? '\u23F9 STOP PLAYBACK' : '\u25B6 PLAY AUDIO'}
-                </button>
-              ) : (
-                <div style={{
-                  fontSize: '9px', color: 'rgba(106,122,138,0.4)',
-                  fontFamily: 'monospace', letterSpacing: '0.12em',
-                  textAlign: 'center',
-                  padding: '4px 0',
-                }}>
-                  NO AUDIO CAPTURED
-                </div>
-              )}
-            </div>
-
-            {/* Dismiss */}
-            <div
-              onClick={() => {
-                setSelectedEvent(null)
-                if (globeRef.current) globeRef.current.controls().autoRotate = true
-              }}
-              style={{
-                padding:        '8px 16px',
-                borderTop:      '1px solid rgba(56,243,255,0.06)',
-                color:          'rgba(56,243,255,0.35)',
-                cursor:         'pointer',
-                fontSize:       '8px',
-                letterSpacing:  '0.2em',
-                textAlign:      'center',
-                textTransform:  'uppercase',
-                transition:     'color 0.15s ease',
-              }}
-            >
-              ESC TO DISMISS
-            </div>
-          </div>
-        )
-      })()}
-    </div>
-  )
+  return <div ref={mountRef} className="globe-mount" />
 })
 
-export default GlobeCanvasInner
+export default GlobeCanvas

@@ -1,8 +1,11 @@
 import { Router } from 'express'
+import { createHash, randomBytes } from 'crypto'
 import { validateFartEvent } from './validation.js'
 import {
   insertEvent,
   getRecentEvents,
+  getEvent,
+  deleteEventWithToken,
   getEventsByRange,
   getStats,
   getAudio,
@@ -19,6 +22,32 @@ import { ensureArchiveDataset, getArchiveStatus } from './archiveDataset.js'
 
 const startTime = Date.now()
 const ARCHIVE_SORT_OPTIONS = new Set(['random', 'untagged', 'most-tagged'])
+
+function hashDeleteToken(token) {
+  return createHash('sha256').update(String(token)).digest('hex')
+}
+
+// Parses a single "bytes=start-end" range. Safari refuses to play media from
+// servers that ignore Range requests, so the audio endpoint must honor them.
+function parseByteRange(rangeHeader, size) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(String(rangeHeader || '').trim())
+  if (!match) return null
+
+  let start = match[1] === '' ? null : Number(match[1])
+  let end = match[2] === '' ? null : Number(match[2])
+
+  if (start === null && end === null) return null
+  if (start === null) {
+    // Suffix range: the last N bytes
+    start = Math.max(0, size - end)
+    end = size - 1
+  } else if (end === null || end >= size) {
+    end = size - 1
+  }
+
+  if (start > end || start >= size) return 'unsatisfiable'
+  return { start, end }
+}
 
 function normalizeArchiveTag(rawTag) {
   if (typeof rawTag !== 'string') {
@@ -127,7 +156,9 @@ export default function createRoutes(io) {
     }
 
     try {
-      insertEvent(event)
+      // Only the poster receives the raw token; the database keeps a hash.
+      const deleteToken = randomBytes(24).toString('hex')
+      insertEvent({ ...event, deleteTokenHash: hashDeleteToken(deleteToken) })
       // Broadcast without audio data (too heavy for broadcast)
       const { audioData, ...eventWithoutAudio } = event
       const broadcastEvent = {
@@ -139,7 +170,7 @@ export default function createRoutes(io) {
         },
       }
       io.emit('fart:new', broadcastEvent)
-      res.status(201).json(broadcastEvent)
+      res.status(201).json({ ...broadcastEvent, deleteToken })
     } catch (err) {
       const classified = classifyStorageError(err)
       console.error(`[INGEST STORE] ${requestId} ${err.stack || err.message}`)
@@ -165,21 +196,66 @@ export default function createRoutes(io) {
     }
   })
 
-  // Get audio for a specific event
+  // Get audio for a specific event. Recordings never change once posted, so
+  // they are cacheable forever, and byte ranges are supported for Safari.
   router.get('/api/events/:id/audio', (req, res) => {
     try {
       const audio = getAudio(req.params.id)
       if (!audio) {
         return res.status(404).json({ error: 'No audio for this event' })
       }
-      // Return as binary audio
+
       const buffer = Buffer.from(audio.audioData, 'base64')
+      const size = buffer.length
+      const etag = `"${req.params.id}"`
+
       res.setHeader('Content-Type', audio.audioMimeType || 'audio/webm')
-      res.setHeader('Content-Length', buffer.length)
+      res.setHeader('Accept-Ranges', 'bytes')
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      res.setHeader('ETag', etag)
+
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end()
+      }
+
+      const range = req.headers.range ? parseByteRange(req.headers.range, size) : null
+      if (range === 'unsatisfiable') {
+        res.setHeader('Content-Range', `bytes */${size}`)
+        return res.status(416).end()
+      }
+
+      if (range) {
+        res.status(206)
+        res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${size}`)
+        res.setHeader('Content-Length', range.end - range.start + 1)
+        return res.end(buffer.subarray(range.start, range.end + 1))
+      }
+
+      res.setHeader('Content-Length', size)
       res.end(buffer)
     } catch (err) {
       console.error('[DB ERROR]', err.message)
       res.status(500).json({ error: 'Failed to fetch audio' })
+    }
+  })
+
+  // Let the original poster take a recording back down.
+  router.delete('/api/events/:id', (req, res) => {
+    const token = req.headers['x-delete-token']
+    if (typeof token !== 'string' || token.length < 16) {
+      return res.status(401).json({ error: 'Missing delete token' })
+    }
+
+    try {
+      const deleted = deleteEventWithToken(req.params.id, hashDeleteToken(token))
+      if (!deleted) {
+        return res.status(404).json({ error: 'Recording not found or token does not match' })
+      }
+      io.emit('fart:deleted', { id: req.params.id })
+      res.status(204).end()
+    } catch (err) {
+      console.error('[DB ERROR]', err.message)
+      res.status(500).json({ error: 'Failed to delete recording' })
     }
   })
 
@@ -216,6 +292,21 @@ export default function createRoutes(io) {
     } catch (err) {
       console.error('[DB ERROR]', err.message)
       res.status(500).json({ error: 'Failed to fetch events' })
+    }
+  })
+
+  // Single recording (used by shared /r/:id links). Registered after /range
+  // so "range" is never treated as an id.
+  router.get('/api/events/:id', (req, res) => {
+    try {
+      const event = getEvent(req.params.id)
+      if (!event) {
+        return res.status(404).json({ error: 'Recording not found' })
+      }
+      res.json(event)
+    } catch (err) {
+      console.error('[DB ERROR]', err.message)
+      res.status(500).json({ error: 'Failed to fetch recording' })
     }
   })
 

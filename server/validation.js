@@ -2,6 +2,27 @@ import { v4 as uuidv4 } from 'uuid'
 
 const VALID_TYPES = new Set(['standard', 'epic', 'silent-but-deadly'])
 
+// Stored coordinates are rounded to ~1 km (2 decimals) — enough to put a
+// recording on the map, not enough to find anyone's house.
+const COORD_DECIMALS = 2
+const MAX_DURATION_SECONDS = 12
+const MAX_PLACE_LENGTH = 120
+
+function roundCoord(value) {
+  const factor = 10 ** COORD_DECIMALS
+  return Math.round(value * factor) / factor
+}
+
+function sanitizePlace(place) {
+  if (typeof place !== 'string') return null
+  const cleaned = place
+    .replace(/[\u0000-\u001f\u007f<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_PLACE_LENGTH)
+  return cleaned.length >= 2 ? cleaned : null
+}
+
 export function validateFartEvent(body) {
   const errors = []
 
@@ -9,7 +30,7 @@ export function validateFartEvent(body) {
     return { valid: false, errors: ['Request body must be a JSON object'], event: null }
   }
 
-  const { lat, lng, intensity, country, type, audioData, audioMimeType, duration, volume, peakVolume } = body
+  const { lat, lng, intensity, country, type, audioData, audioMimeType, duration, volume, peakVolume, place } = body
 
   // lat
   if (typeof lat !== 'number' || !Number.isFinite(lat)) {
@@ -60,11 +81,12 @@ export function validateFartEvent(body) {
     }
   }
 
-  // duration — optional (seconds, 0-10)
+  // duration — optional (seconds). Recordings cap at 10s client-side; allow a
+  // little slack for encoder padding so a full-length clip is never rejected.
   let finalDuration = null
   if (duration !== undefined && duration !== null) {
-    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0 || duration > 10) {
-      errors.push('duration must be a number between 0 and 10')
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0 || duration > MAX_DURATION_SECONDS) {
+      errors.push(`duration must be a number between 0 and ${MAX_DURATION_SECONDS}`)
     } else {
       finalDuration = Math.round(duration * 10) / 10
     }
@@ -96,8 +118,9 @@ export function validateFartEvent(body) {
 
   const event = {
     id: uuidv4(),
-    lat: Math.round(lat * 1e6) / 1e6,
-    lng: Math.round(lng * 1e6) / 1e6,
+    lat: roundCoord(lat),
+    lng: roundCoord(lng),
+    place: sanitizePlace(place),
     intensity: finalIntensity,
     country: country.toUpperCase(),
     timestamp: Date.now(),

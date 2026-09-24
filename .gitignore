@@ -31,3 +31,8 @@ server/*.db-journal
 
 # Obsidian
 .obsidian/
+
+# Secrets
+server/.env
+.env
+certs/

@@ -1,511 +1,543 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import GlobeCanvas from './components/Globe/GlobeCanvas.jsx'
-import Header from './components/HUD/Header.jsx'
-import KPIPanel from './components/HUD/KPIPanel.jsx'
-import Leaderboard from './components/HUD/Leaderboard.jsx'
-import Timeline from './components/HUD/Timeline.jsx'
-import GasconIndicator from './components/HUD/GasconIndicator.jsx'
-import SubmitPanel from './components/HUD/SubmitPanel.jsx'
-import FartBrowser from './components/HUD/FartBrowser.jsx'
-import FartTagLab from './components/HUD/FartTagLab.jsx'
-import FartSommelierSalon from './components/HUD/FartSommelierSalon.jsx'
-import FATWAExpressPanel from './components/HUD/FATWAExpressPanel.jsx'
-import CommandPalette from './components/HUD/CommandPalette.jsx'
-import ShortcutsOverlay from './components/HUD/ShortcutsOverlay.jsx'
-import HighlightsStrip from './components/HUD/HighlightsStrip.jsx'
-import CountryDossier from './components/HUD/CountryDossier.jsx'
-import SpotlightTour from './components/HUD/SpotlightTour.jsx'
-import EventFeed from './components/HUD/EventFeed.jsx'
-import ScienceTicker from './components/HUD/ScienceTicker.jsx'
-import ActivitySparkline from './components/HUD/ActivitySparkline.jsx'
-import EventToast from './components/HUD/EventToast.jsx'
-import GlobalCoverage from './components/HUD/GlobalCoverage.jsx'
-import StatusFooter from './components/HUD/StatusFooter.jsx'
-import MilestoneToast from './components/HUD/MilestoneToast.jsx'
-import PanelSection from './components/HUD/PanelSection.jsx'
-import CTAButton from './components/HUD/CTAButton.jsx'
-import MyContributions from './components/HUD/MyContributions.jsx'
-import RecentSignals from './components/HUD/RecentSignals.jsx'
-import TimeFilter from './components/HUD/TimeFilter.jsx'
-import { createStream } from './data/fartStreamFactory.js'
+import TopBar from './components/HUD/TopBar.jsx'
+import RecordingList from './components/HUD/RecordingList.jsx'
+import RecordingCard from './components/HUD/RecordingCard.jsx'
+import RecorderSheet from './components/HUD/RecorderSheet.jsx'
+import AboutPanel from './components/HUD/AboutPanel.jsx'
+import Sheet from './components/HUD/Sheet.jsx'
+import Toasts from './components/HUD/Toasts.jsx'
+import Icon from './components/HUD/Icon.jsx'
+import { AccountAvatar, AccountMenuItem } from './components/HUD/AccountControls.jsx'
+import {
+  connectLive,
+  deleteRecording,
+  fetchRecording,
+  fetchRecordings,
+  fetchStats,
+} from './data/recordingsApi.js'
+import {
+  describePlace,
+  groupIntoSites,
+  recordingAudioUrl,
+  recordingShareUrl,
+  siteKey,
+  summarizeStats,
+} from './utils/recordings.js'
+import { lookupPlace } from './utils/location.js'
+import { play, stop as stopPlayback, toggle } from './utils/player.js'
+import {
+  forgetOwnRecording,
+  ownRecordingIds,
+  ownRecordingToken,
+  rememberOwnRecording,
+} from './utils/ownRecordings.js'
 
-const MAX_PERSISTED_EVENTS = 500
-const HOME_ROUTE = '/'
-const ROUTE_LABELS = [
-  { path: '/', label: 'Home' },
-  { path: '/sommelier', label: 'Sommelier Salon' },
-  { path: '/archive-lab', label: 'Archive Lab' },
-]
+// Side projects load only when someone visits them.
+const FartTagLab = lazy(() => import('./components/HUD/FartTagLab.jsx'))
+const FartSommelierSalon = lazy(() => import('./components/HUD/FartSommelierSalon.jsx'))
 
-function normalizeRoute(pathname) {
-  if (!pathname || pathname === '/') {
-    return HOME_ROUTE
-  }
+const MAX_EVENTS = 500
+const COMPACT_QUERY = '(max-width: 859px)'
 
-  if (pathname.startsWith('/sommelier')) {
-    return '/sommelier'
-  }
+function parseRoute(pathname) {
+  if (pathname.startsWith('/sommelier')) return { page: 'sommelier' }
+  if (pathname.startsWith('/archive-lab')) return { page: 'archive' }
+  const match = pathname.match(/^\/r\/([A-Za-z0-9-]{8,64})\/?$/)
+  return { page: 'home', recordingId: match ? match[1] : null }
+}
 
-  if (pathname.startsWith('/archive-lab')) {
-    return '/archive-lab'
-  }
-
-  return HOME_ROUTE
+function replaceUrl(path) {
+  if (window.location.pathname !== path) window.history.replaceState(null, '', path)
 }
 
 function mergeEvents(current, incoming) {
   const byId = new Map(current.map(event => [event.id, event]))
-
-  for (const event of incoming) {
-    byId.set(event.id, { ...byId.get(event.id), ...event })
-  }
-
-  return [...byId.values()]
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, MAX_PERSISTED_EVENTS)
+  for (const event of incoming) byId.set(event.id, { ...byId.get(event.id), ...event })
+  return [...byId.values()].sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_EVENTS)
 }
 
+function cleanEvent(event) {
+  const { deleteToken, ingest, audioData, ...rest } = event
+  return rest
+}
 
-export default function App() {
-  const [events, setEvents]           = useState([])
-  const [activeModal, setActiveModal] = useState(null)
-  const [currentRoute, setCurrentRoute] = useState(() => normalizeRoute(window.location.pathname))
-  const [showCommandPalette, setShowCommandPalette] = useState(false)
-  const [showShortcuts, setShowShortcuts] = useState(false)
-  const [showDossier, setShowDossier] = useState(null) // country code or null
-  const [showTour, setShowTour] = useState(false)
-  const [timeWindow, setTimeWindow]   = useState(null) // null = all, or ms duration
-  const [isExpressViewport, setIsExpressViewport] = useState(() => window.innerWidth <= 900)
-  const [stats, setStats]             = useState({
-    totalToday: 0,
-    totalAllTime: 0,
-    topCountry: '\u2014',
-    topCountryCount: 0,
-    uniqueCountries: 0,
-    audioCount: 0,
-    avgDuration: null,
-    maxDuration: null,
-    avgVolume: null,
-    maxVolume: null,
-    leaderboard: [],
-  })
-  const [wsConnected, setWsConnected] = useState(false)
-  const [userSubmissions, setUserSubmissions] = useState([])
-  const streamRef = useRef(null)
-  const globeCanvasRef = useRef(null)
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    const update = () => setMatches(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [query])
+  return matches
+}
 
-  const fetchEvents = useCallback(async () => {
+export default function App({ authEnabled = false }) {
+  const compact = useMediaQuery(COMPACT_QUERY)
+  const [route, setRoute] = useState(() => parseRoute(window.location.pathname))
+  const [events, setEvents] = useState([])
+  const [loadState, setLoadState] = useState('loading')
+  const [serverTotal, setServerTotal] = useState(0)
+  const [live, setLive] = useState(false)
+  const [places, setPlaces] = useState({})
+  const [selection, setSelection] = useState(null) // { key, id }
+  const [recorderOpen, setRecorderOpen] = useState(false)
+  const [recorderActive, setRecorderActive] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [toasts, setToasts] = useState([])
+  const [ownIds, setOwnIds] = useState(() => ownRecordingIds())
+  const [globeReady, setGlobeReady] = useState(false)
+
+  const globeRef = useRef(null)
+  const deepLinkRef = useRef(route.recordingId)
+  const introDoneRef = useRef(false)
+  const ownIdsRef = useRef(ownIds)
+  const lastCardRef = useRef(null)
+  const requestedPlacesRef = useRef(new Set())
+  const toastIdRef = useRef(0)
+
+  ownIdsRef.current = ownIds
+
+  // ── Toasts ────────────────────────────────────────────────────────────────
+  const dismissToast = useCallback(id => setToasts(list => list.filter(toast => toast.id !== id)), [])
+  const pushToast = useCallback(toast => {
+    const id = ++toastIdRef.current
+    setToasts(list => [...list.slice(-2), { ...toast, id }])
+    setTimeout(() => dismissToast(id), toast.duration || 5000)
+  }, [dismissToast])
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/events?limit=${MAX_PERSISTED_EVENTS}`)
-      if (res.ok) {
-        const data = await res.json()
-        setEvents(prev => mergeEvents(prev, data))
-      }
+      const [list, stats] = await Promise.all([fetchRecordings(MAX_EVENTS), fetchStats().catch(() => null)])
+      setEvents(list.map(cleanEvent))
+      if (stats) setServerTotal(stats.totalAllTime || 0)
+      setLoadState('ready')
     } catch {
-      // Backend not available
+      setLoadState(state => (state === 'ready' ? 'ready' : 'error'))
     }
   }, [])
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/stats')
-      if (res.ok) {
-        const data = await res.json()
-        setStats(data)
-      }
-    } catch { /* server not available */ }
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // Resync when the tab comes back after a while
+  useEffect(() => {
+    let hiddenAt = 0
+    const onVisibility = () => {
+      if (document.hidden) hiddenAt = Date.now()
+      else if (hiddenAt && Date.now() - hiddenAt > 60_000) load()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [load])
+
+  // Poll only while the live socket is down
+  useEffect(() => {
+    if (live) return undefined
+    const timer = setInterval(load, 30_000)
+    return () => clearInterval(timer)
+  }, [live, load])
+
+  const sites = useMemo(() => groupIntoSites(events).map(site => (
+    site.place ? site : { ...site, place: places[site.key]?.place || null }
+  )), [events, places])
+
+  const placeByKey = useMemo(() => {
+    const map = {}
+    for (const site of sites) map[site.key] = site.place
+    return map
+  }, [sites])
+
+  // Older recordings were posted without a place name — look them up once.
+  useEffect(() => {
+    for (const site of sites) {
+      if (site.place || requestedPlacesRef.current.has(site.key)) continue
+      requestedPlacesRef.current.add(site.key)
+      lookupPlace(site.lat, site.lng)
+        .then(result => setPlaces(prev => ({ ...prev, [site.key]: result })))
+        .catch(() => {})
+    }
+  }, [sites])
+
+  const eventsById = useMemo(() => new Map(events.map(event => [event.id, event])), [events])
+  const chronological = events // already newest-first
+  const selectedEvent = selection ? eventsById.get(selection.id) || null : null
+  const selectedSite = selection ? sites.find(site => site.key === selection.key) || null : null
+  if (selectedEvent) lastCardRef.current = { event: selectedEvent, site: selectedSite }
+
+  const stats = useMemo(() => (
+    loadState === 'ready' || events.length ? summarizeStats(events, serverTotal) : null
+  ), [events, serverTotal, loadState])
+
+  // ── Selection ─────────────────────────────────────────────────────────────
+  const select = useCallback((event, { autoplay = false, fly = true, flyMs } = {}) => {
+    if (!event) return
+    setSelection({ key: siteKey(event.lat, event.lng), id: event.id })
+    setListOpen(false)
+    // Must run inside the tap for iOS to allow audio.
+    if (autoplay) play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
+    if (fly) globeRef.current?.flyTo({ lat: event.lat, lng: event.lng, altitude: compact ? 1.3 : 1.2 }, flyMs)
+    replaceUrl(`/r/${event.id}`)
+  }, [compact])
+
+  const selectSite = useCallback((key, options) => {
+    const site = sites.find(candidate => candidate.key === key)
+    if (site) select(site.events[0], options)
+  }, [sites, select])
+
+  const closeSelection = useCallback(() => {
+    setSelection(null)
+    stopPlayback()
+    replaceUrl('/')
   }, [])
 
-  const handleNewEvent = useCallback((event) => {
+  const step = useCallback(direction => {
+    if (!chronological.length) return
+    const index = chronological.findIndex(event => event.id === selection?.id)
+    const next = chronological[(index + direction + chronological.length) % chronological.length]
+    select(next, { autoplay: true })
+  }, [chronological, selection, select])
+
+  const shuffle = useCallback(() => {
+    if (!chronological.length) return
+    const pool = chronological.length > 1 ? chronological.filter(event => event.id !== selection?.id) : chronological
+    select(pool[Math.floor(Math.random() * pool.length)], { autoplay: true })
+  }, [chronological, selection, select])
+
+  // ── Live feed ─────────────────────────────────────────────────────────────
+  const handleIncoming = useCallback(raw => {
+    const event = cleanEvent(raw)
     setEvents(prev => mergeEvents(prev, [event]))
-    fetchStats()
-  }, [fetchStats])
+    setServerTotal(total => total + 1)
+    // Give our own POST a moment to register so we don't announce ourselves.
+    setTimeout(() => {
+      if (ownIdsRef.current.has(event.id)) return
+      globeRef.current?.burst(event.lat, event.lng, { color: '#9dff4a' })
+      const place = describePlace(event)
+      pushToast({
+        icon: '💨',
+        text: <>New fart from <strong>{place.title}</strong></>,
+        actionLabel: 'Listen',
+        action: () => select(event, { autoplay: true }),
+        duration: 8000,
+      })
+    }, 1200)
+  }, [pushToast, select])
 
-  useEffect(() => {
-    let cancelled = false
-    createStream({
-      onEvent: handleNewEvent,
-      onConnect: () => setWsConnected(true),
-      onDisconnect: () => setWsConnected(false),
-    }).then(stream => {
-      if (!cancelled) streamRef.current = stream
+  const handleRemoved = useCallback(id => {
+    if (!id) return
+    setEvents(prev => prev.filter(event => event.id !== id))
+    setServerTotal(total => Math.max(0, total - 1))
+    setSelection(current => {
+      if (current?.id !== id) return current
+      replaceUrl('/')
+      return null
     })
-    fetchEvents()
-    fetchStats()
-    const statsInterval = setInterval(fetchStats, 15000)
-    const eventsInterval = setInterval(fetchEvents, 30000)
-    return () => {
-      cancelled = true
-      streamRef.current?.stop()
-      clearInterval(statsInterval)
-      clearInterval(eventsInterval)
-    }
-  }, [handleNewEvent, fetchEvents, fetchStats])
+  }, [])
 
+  // One socket for the app's lifetime; handlers are read through a ref.
+  const liveHandlersRef = useRef({})
+  liveHandlersRef.current = { handleIncoming, handleRemoved, load }
   useEffect(() => {
-    const handleRecordedEvent = (e) => {
-      if (e.detail) {
-        handleNewEvent(e.detail)
-        // Track user's own submission
-        setUserSubmissions(prev => [e.detail, ...prev])
+    let wasLive = false
+    return connectLive({
+      onNew: event => liveHandlersRef.current.handleIncoming(event),
+      onDeleted: id => liveHandlersRef.current.handleRemoved(id),
+      onStatus: connected => {
+        setLive(connected)
+        // Catch up on anything missed while disconnected
+        if (connected && !wasLive && introDoneRef.current) liveHandlersRef.current.load()
+        wasLive = connected
+      },
+    })
+  }, [])
+
+  // ── First view: shared link, or the most recent fart ─────────────────────
+  useEffect(() => {
+    if (loadState === 'loading' || !globeReady || introDoneRef.current) return
+    introDoneRef.current = true
+    window.dispatchEvent(new Event('fatw:ready'))
+
+    const id = deepLinkRef.current
+    deepLinkRef.current = null
+    if (id) {
+      const known = eventsById.get(id)
+      if (known) {
+        select(known, { flyMs: 1800 })
       } else {
-        fetchEvents()
-        fetchStats()
+        fetchRecording(id)
+          .then(event => {
+            const clean = cleanEvent(event)
+            setEvents(prev => mergeEvents(prev, [clean]))
+            select(clean, { flyMs: 1800 })
+          })
+          .catch(() => {
+            replaceUrl('/')
+            pushToast({ icon: '🫥', text: 'That fart has left the building (it was deleted or never existed).' })
+          })
       }
+      return
     }
 
-    window.addEventListener('fatwa:recorded', handleRecordedEvent)
-    return () => window.removeEventListener('fatwa:recorded', handleRecordedEvent)
-  }, [fetchEvents, fetchStats, handleNewEvent])
+    const latest = events[0]
+    if (latest) {
+      globeRef.current?.flyTo({ lat: latest.lat - (compact ? 8 : 4), lng: latest.lng + 10, altitude: compact ? 2.5 : 2.1 }, 2200)
+      setTimeout(() => globeRef.current?.resumeAutoRotate(), 2600)
+    }
+  }, [loadState, globeReady, events, eventsById, select, compact, pushToast])
+
+  // Never leave the splash up forever if the globe texture is slow
+  useEffect(() => {
+    const timer = setTimeout(() => window.dispatchEvent(new Event('fatw:ready')), 6000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // ── Recorder / posting ──────────────────────────────────────────────────
+  const openRecorder = useCallback(() => {
+    setListOpen(false)
+    setAboutOpen(false)
+    setRecorderOpen(true)
+  }, [])
+
+  const handlePosted = useCallback(created => {
+    const event = cleanEvent(created)
+    rememberOwnRecording(event.id, created.deleteToken)
+    setOwnIds(prev => new Set(prev).add(event.id))
+    setEvents(prev => mergeEvents(prev, [event]))
+    setTimeout(() => {
+      setRecorderOpen(false)
+      setTimeout(() => {
+        select(event, { flyMs: 1600 })
+        setTimeout(() => globeRef.current?.burst(event.lat, event.lng, { color: '#9dff4a', big: true }), 1400)
+        pushToast({ icon: '🎉', tone: 'success', text: 'Posted! Your fart is officially on the map.' })
+      }, 380)
+    }, 1100)
+  }, [select, pushToast])
+
+  const handleDelete = useCallback(async event => {
+    const token = ownRecordingToken(event.id)
+    if (!token) {
+      pushToast({ icon: '🔒', text: 'This one can only be deleted from the device that posted it.' })
+      return
+    }
+    try {
+      await deleteRecording(event.id, token)
+      forgetOwnRecording(event.id)
+      setOwnIds(prev => {
+        const next = new Set(prev)
+        next.delete(event.id)
+        return next
+      })
+      handleRemoved(event.id)
+      stopPlayback()
+      pushToast({ icon: '🧹', text: 'Deleted. It never happened.' })
+    } catch (error) {
+      pushToast({ icon: '⚠️', tone: 'error', text: error.message || 'Could not delete it. Try again?' })
+    }
+  }, [handleRemoved, pushToast])
+
+  const handleShare = useCallback(async (event, place) => {
+    const url = recordingShareUrl(event.id)
+    const title = `A fart from ${place.title}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: `${title}. Listen:`, url })
+        return
+      } catch (error) {
+        if (error?.name === 'AbortError') return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      pushToast({ icon: '🔗', text: 'Link copied. Send it to someone who deserves it.' })
+    } catch {
+      pushToast({ icon: '🔗', text: url, duration: 10000 })
+    }
+  }, [pushToast])
+
+  // ── Routing ───────────────────────────────────────────────────────────────
+  const navigate = useCallback(path => {
+    window.history.pushState(null, '', path)
+    setRoute(parseRoute(path))
+    setSelection(null)
+    setRecorderOpen(false)
+    setListOpen(false)
+    stopPlayback()
+  }, [])
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 900px)')
-    const updateViewport = () => setIsExpressViewport(media.matches)
-    updateViewport()
-    media.addEventListener('change', updateViewport)
-    return () => media.removeEventListener('change', updateViewport)
+    const onPop = () => setRoute(parseRoute(window.location.pathname))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
-
-  const closeModal = useCallback(() => setActiveModal(null), [])
-  const navigateTo = useCallback((path, { replace = false } = {}) => {
-    const nextRoute = normalizeRoute(path)
-    const currentPath = normalizeRoute(window.location.pathname)
-
-    if (currentPath !== nextRoute) {
-      const method = replace ? 'replaceState' : 'pushState'
-      window.history[method]({}, '', nextRoute)
-    }
-
-    setCurrentRoute(nextRoute)
-    setActiveModal(null)
-    setShowCommandPalette(false)
-    setShowShortcuts(false)
-  }, [])
-
-  // Filter events by time window
-  const filteredEvents = useMemo(() => {
-    if (!timeWindow) return events
-    const cutoff = Date.now() - timeWindow
-    return events.filter(e => e.timestamp >= cutoff)
-  }, [events, timeWindow])
-
-  // Globe fly-to helper
-  const flyToLocation = useCallback((coords) => {
-    if (globeCanvasRef.current?.flyTo && coords?.lat != null && coords?.lng != null) {
-      globeCanvasRef.current.flyTo(coords)
-    }
-  }, [])
-
-  // Command palette action handler
-  const handleCommandAction = useCallback((type, payload) => {
-    switch (type) {
-      case 'modal':
-        setActiveModal(payload)
-        break
-      case 'flyTo':
-        flyToLocation(payload)
-        break
-      case 'timeWindow':
-        setTimeWindow(payload)
-        break
-      case 'tour':
-        setShowTour(true)
-        break
-      case 'toggleRotate':
-        globeCanvasRef.current?.toggleAutoRotate?.()
-        break
-      case 'navigate':
-        navigateTo(payload)
-        break
-    }
-  }, [flyToLocation, navigateTo])
 
   useEffect(() => {
-    const handlePopState = () => {
-      setCurrentRoute(normalizeRoute(window.location.pathname))
-      setActiveModal(null)
-    }
+    document.documentElement.dataset.routeMode = route.page === 'home' ? 'home' : 'subpage'
+    if (route.page !== 'home') window.dispatchEvent(new Event('fatw:ready'))
+    if (route.page === 'home') setGlobeReady(false)
+  }, [route.page])
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
-
-  // Keyboard shortcuts: R record, B browse, L archive lab, S sommelier, Cmd+K / for command palette
+  // ── Keyboard (desktop) ──────────────────────────────────────────────────
   useEffect(() => {
-    const handler = (e) => {
-      // Don't trigger if user is typing in an input (except for Cmd+K and Escape)
-      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'
-
-      // Cmd+K or Ctrl+K → command palette (always works)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setShowCommandPalette(prev => !prev)
-        return
-      }
-
-      if (isInput) return
-
-      // / → open command palette (when not in an input)
-      if (e.key === '/' && !showCommandPalette && !activeModal) {
-        e.preventDefault()
-        setShowCommandPalette(true)
-        return
-      }
-
-      // ? → toggle shortcuts overlay
-      if (e.key === '?' && !showCommandPalette && !activeModal) {
-        e.preventDefault()
-        setShowShortcuts(prev => !prev)
-        return
-      }
-
-      if (e.key === 'Escape') {
-        setShowDossier(null)
-        setShowTour(false)
-        return
-      }
-
-      if (showTour) return // Let SpotlightTour handle its own keys
-
-      if (e.key === 'r' || e.key === 'R') {
-        setActiveModal(prev => prev === 'record' ? null : 'record')
-      } else if (e.key === 'b' || e.key === 'B') {
-        setActiveModal(prev => prev === 'browse' ? null : 'browse')
-      } else if (e.key === 'l' || e.key === 'L') {
-        navigateTo('/archive-lab')
-      } else if (e.key === 's' || e.key === 'S') {
-        navigateTo('/sommelier')
-      } else if (e.key === 't' || e.key === 'T') {
-        setShowTour(prev => !prev)
+    if (route.page !== 'home') return undefined
+    const onKey = event => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      if (recorderOpen || aboutOpen) return
+      const key = event.key
+      if (key === 'r' || key === 'R') {
+        event.preventDefault()
+        openRecorder()
+      } else if (key === 'Escape') {
+        if (selection) closeSelection()
+        else if (listOpen) setListOpen(false)
+      } else if (key === ' ' && selectedEvent && !event.target.closest?.('button')) {
+        event.preventDefault()
+        toggle(selectedEvent.id, recordingAudioUrl(selectedEvent.id), { duration: selectedEvent.duration })
+      } else if (key === 'ArrowRight' && selection) {
+        step(1)
+      } else if (key === 'ArrowLeft' && selection) {
+        step(-1)
       }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [showCommandPalette, activeModal, navigateTo, showTour])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [route.page, recorderOpen, aboutOpen, selection, selectedEvent, listOpen, openRecorder, closeSelection, step])
 
-  // Time window label for display
-  const timeWindowLabel = timeWindow === 3600000 ? '1H' :
-    timeWindow === 21600000 ? '6H' :
-    timeWindow === 86400000 ? '24H' :
-    timeWindow === 604800000 ? '7D' : null
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (route.page !== 'home') {
+    return (
+      <div className="subpage">
+        <header className="subpage__bar">
+          <button type="button" className="pill-button" onClick={() => navigate('/')}>
+            <Icon name="back" size={18} /> Back to the map
+          </button>
+          <span className="subpage__brand">💨 Farts Around the World</span>
+        </header>
+        <main className={`route-stage route-stage--${route.page}`}>
+          <div className="route-stage__inner">
+            <Suspense fallback={<div className="subpage__loading"><span className="spinner" /> Loading…</div>}>
+              {route.page === 'sommelier'
+                ? <FartSommelierSalon onClose={() => navigate('/')} pageMode />
+                : <FartTagLab onClose={() => navigate('/')} pageMode />}
+            </Suspense>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  const card = selectedEvent ? { event: selectedEvent, site: selectedSite } : lastCardRef.current
+  const cardOpen = Boolean(selectedEvent)
+  const globeOffset = compact
+    ? cardOpen ? -Math.round(window.innerHeight * 0.2) : listOpen ? -Math.round(window.innerHeight * 0.24) : 0
+    : 0
+
+  const list = (
+    <RecordingList
+      events={events}
+      places={placeByKey}
+      selectedId={selection?.id}
+      loadState={loadState}
+      ownIds={ownIds}
+      onSelect={select}
+      onRecord={openRecorder}
+      onRetry={load}
+    />
+  )
 
   return (
-    <div className={`app-shell ${isExpressViewport ? 'app-shell--express' : ''}`}>
-      <Header totalToday={stats.totalToday} totalAllTime={stats.totalAllTime} timeWindowLabel={timeWindowLabel} lastEventTimestamp={filteredEvents[0]?.timestamp} />
-      <nav className="site-nav" aria-label="Site sections">
-        {ROUTE_LABELS.map(route => (
-          <button
-            key={route.path}
-            type="button"
-            className={`site-nav__link ${currentRoute === route.path ? 'is-active' : ''}`}
-            onClick={() => navigateTo(route.path)}
-          >
-            {route.label}
-          </button>
-        ))}
-      </nav>
-
-      {currentRoute === HOME_ROUTE && <GasconIndicator events={filteredEvents} />}
-
-      {currentRoute === HOME_ROUTE ? (
-      <div className={`app-body ${isExpressViewport ? 'app-body--express' : ''}`}>
-        <aside className="panel panel-left">
-          <PanelSection id="telemetry" title="Telemetry">
-            <KPIPanel stats={stats} />
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
-              <ActivitySparkline events={filteredEvents} minutes={30} width={160} height={24} />
-            </div>
-          </PanelSection>
-
-          <TimeFilter value={timeWindow} onChange={setTimeWindow} />
-
-          <PanelSection id="leaderboard" title="Leaderboard" badge={stats.leaderboard?.length > 0 ? `TOP ${stats.leaderboard.length}` : null}>
-            <Leaderboard events={filteredEvents} serverLeaderboard={stats.leaderboard} onCountryClick={(code) => setShowDossier(code)} />
-          </PanelSection>
-
-          <PanelSection id="coverage" title="Coverage" defaultOpen={false} badge={stats.uniqueCountries > 0 ? `${stats.uniqueCountries}/20` : null}>
-            <GlobalCoverage
-              events={events}
-              onCountryClick={(code) => setShowDossier(code)}
-            />
-          </PanelSection>
-
-          <PanelSection id="contributions" title="My Contributions" defaultOpen={userSubmissions.length > 0} badge={userSubmissions.length > 0 ? userSubmissions.length : null}>
-            <MyContributions
-              submissions={userSubmissions}
-              totalGlobalEvents={stats.totalAllTime}
-            />
-          </PanelSection>
-
-          <PanelSection id="feed" title="Event Feed" defaultOpen={false} badge={filteredEvents.length > 0 ? filteredEvents.length : null}>
-            <EventFeed
-              events={filteredEvents}
-              onEventClick={(e) => flyToLocation({ lat: e.lat, lng: e.lng, altitude: 1.2 })}
-            />
-          </PanelSection>
-        </aside>
-
-        <main className="globe-container">
-          <GlobeCanvas ref={globeCanvasRef} events={filteredEvents} />
-
-          {isExpressViewport && (
-            <FATWAExpressPanel
-              stats={stats}
-              latestEvent={filteredEvents[0] || null}
-              activeModal={activeModal}
-              onOpenRecord={() => setActiveModal('record')}
-              onOpenBrowse={() => setActiveModal('browse')}
-              onOpenTagLab={() => navigateTo('/archive-lab')}
-              onOpenSommelier={() => navigateTo('/sommelier')}
-              userSubmissionCount={userSubmissions.length}
-            />
-          )}
-
-          {activeModal === 'record' && (
-            <SubmitPanel onClose={closeModal} />
-          )}
-          {activeModal === 'browse' && (
-            <FartBrowser events={filteredEvents} onClose={closeModal} />
-          )}
-        </main>
-
-        <aside className="panel panel-right" style={{ justifyContent: 'center', gap: '16px' }}>
-          <CTAButton
-            onClick={() => setActiveModal('record')}
-            icon={'\uD83C\uDFA4'}
-            label="Submit Event"
-            sublabel="Add a verified entry to the global dataset"
-            shortcut="R"
-            color="#ff6b6b"
-            pulse
-          />
-
-          <CTAButton
-            onClick={() => setActiveModal('browse')}
-            icon={'\uD83D\uDCA8'}
-            label="Review Archive"
-            sublabel="Listen, score, and classify recordings"
-            shortcut="B"
-            color="#38f3ff"
-          />
-
-          <CTAButton
-            onClick={() => navigateTo('/archive-lab')}
-            icon={'\uD83C\uDFF7\uFE0F'}
-            label="Classify Archive"
-            sublabel="Enter the public archive and shape the shared vocabulary"
-            shortcut="L"
-            color="#9dff4a"
-          />
-
-          <CTAButton
-            onClick={() => navigateTo('/sommelier')}
-            icon={'\uD83C\uDF77'}
-            label="Sommelier Flight"
-            sublabel="Visit the tasting room and match sincere notes to the right clip"
-            shortcut="S"
-            color="#ff9fcf"
-          />
-
-          <CTAButton
-            onClick={() => setShowTour(prev => !prev)}
-            icon="🔭"
-            label={showTour ? 'End Tour' : 'Spotlight Tour'}
-            shortcut="T"
-            color="#ff64ff"
-            compact
-            active={showTour}
-          />
-
-          <RecentSignals events={filteredEvents} />
-
-          {/* Command Palette hint */}
-          <div
-            onClick={() => setShowCommandPalette(true)}
-            style={{
-              textAlign: 'center',
-              fontSize: '9px',
-              fontFamily: 'monospace',
-              color: 'var(--text-dim)',
-              letterSpacing: '0.08em',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '4px',
-              border: '1px solid rgba(56,243,255,0.06)',
-              background: 'rgba(56,243,255,0.02)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span style={{ color: 'rgba(56,243,255,0.3)', fontSize: '8px', letterSpacing: '0.15em' }}>
-              {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl+'}K
-            </span>
-            <span style={{ marginLeft: '6px' }}>Command Deck</span>
-          </div>
-        </aside>
+    <div className={`home ${compact ? 'home--compact' : 'home--wide'} ${cardOpen ? 'has-card' : ''}`}>
+      <div className="home__globe">
+        <GlobeCanvas
+          ref={globeRef}
+          sites={sites}
+          selectedKey={selection?.key || null}
+          compact={compact}
+          offsetY={globeOffset}
+          paused={recorderActive && compact}
+          onSiteSelect={key => selectSite(key, { autoplay: true })}
+          onBackgroundClick={() => { if (selection) closeSelection() }}
+          onReady={() => setGlobeReady(true)}
+        />
       </div>
+
+      <TopBar
+        stats={stats}
+        live={live}
+        onNavigate={navigate}
+        onAbout={() => setAboutOpen(true)}
+        accountSlot={authEnabled ? <AccountAvatar /> : null}
+        menuExtra={authEnabled ? <AccountMenuItem /> : null}
+      />
+
+      {!compact && <aside className="side-panel" aria-label="Latest farts">{list}</aside>}
+      {compact && (
+        <Sheet open={listOpen} onClose={() => setListOpen(false)} variant="list" label="Latest farts" modal>
+          {list}
+        </Sheet>
+      )}
+
+      <Sheet open={cardOpen} onClose={closeSelection} variant="card" label="Selected fart">
+        {card?.event && (
+          <RecordingCard
+            site={card.site}
+            recording={card.event}
+            isOwn={ownIds.has(card.event.id)}
+            onSelectRecording={event => select(event, { autoplay: true, fly: false })}
+            onClose={closeSelection}
+            onPrev={() => step(-1)}
+            onNext={() => step(1)}
+            onShuffle={shuffle}
+            onShare={handleShare}
+            onDelete={handleDelete}
+          />
+        )}
+      </Sheet>
+
+      {compact ? (
+        <nav className={`dock ${cardOpen || listOpen ? 'is-hidden' : ''}`} aria-label="Actions">
+          <button type="button" className="dock__side" onClick={() => setListOpen(true)}>
+            <Icon name="list" size={22} />
+            <span>Latest</span>
+          </button>
+          <button type="button" className="dock__rec" onClick={openRecorder} aria-label="Record a fart">
+            <span className="dock__rec-ring" aria-hidden="true" />
+            <span className="dock__rec-core" aria-hidden="true" />
+          </button>
+          <button type="button" className="dock__side" onClick={shuffle} disabled={!events.length}>
+            <Icon name="shuffle" size={22} />
+            <span>Random</span>
+          </button>
+        </nav>
       ) : (
-        <main className={`route-stage route-stage--${currentRoute === '/sommelier' ? 'sommelier' : 'archive'}`}>
-          <div className="route-stage__inner">
-            {currentRoute === '/sommelier' && (
-              <FartSommelierSalon onClose={() => navigateTo('/')} pageMode />
-            )}
-            {currentRoute === '/archive-lab' && (
-              <FartTagLab onClose={() => navigateTo('/')} pageMode />
-            )}
-          </div>
-        </main>
+        <div className="record-cta-wrap">
+          <button type="button" className="record-cta" onClick={openRecorder}>
+            <span className="record-cta__dot" aria-hidden="true" />
+            Record a fart
+            <kbd>R</kbd>
+          </button>
+          <button type="button" className="shuffle-cta" onClick={shuffle} disabled={!events.length} title="Play a random fart">
+            <Icon name="shuffle" size={18} /> Random
+          </button>
+        </div>
       )}
 
-      {currentRoute === HOME_ROUTE && !isExpressViewport && (
-        <>
-          {filteredEvents.length >= 2 && <HighlightsStrip events={filteredEvents} onFlyTo={flyToLocation} />}
-          <Timeline events={filteredEvents} />
-          <ScienceTicker />
-          <StatusFooter isConnected={wsConnected} lastEventTimestamp={filteredEvents[0]?.timestamp} events={filteredEvents} />
-        </>
-      )}
+      <RecorderSheet
+        open={recorderOpen}
+        onClose={() => setRecorderOpen(false)}
+        onPosted={handlePosted}
+        onActiveChange={setRecorderActive}
+      />
 
-      {activeModal === 'record' && currentRoute !== HOME_ROUTE && (
-        <SubmitPanel onClose={closeModal} />
-      )}
-      {activeModal === 'browse' && currentRoute !== HOME_ROUTE && (
-        <FartBrowser events={filteredEvents} onClose={closeModal} />
-      )}
+      <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} onRecord={openRecorder} />
 
-      {showCommandPalette && (
-        <CommandPalette
-          onClose={() => setShowCommandPalette(false)}
-          onAction={handleCommandAction}
-        />
-      )}
-
-      {showShortcuts && (
-        <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
-      )}
-
-      {showDossier && (
-        <CountryDossier
-          countryCode={showDossier}
-          events={filteredEvents}
-          allEvents={events}
-          onClose={() => setShowDossier(null)}
-          onFlyTo={(coords) => {
-            flyToLocation(coords)
-            setShowDossier(null)
-          }}
-        />
-      )}
-
-      {showTour && (
-        <SpotlightTour
-          events={filteredEvents}
-          onFlyTo={flyToLocation}
-          onStop={() => setShowTour(false)}
-        />
-      )}
-
-      {!isExpressViewport && <EventToast events={filteredEvents} />}
-      <MilestoneToast events={events} userSubmissions={userSubmissions} />
+      <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
 }

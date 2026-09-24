@@ -69,6 +69,15 @@ for (const col of ['duration REAL DEFAULT NULL', 'volume REAL DEFAULT NULL', 'pe
   try { db.exec(`ALTER TABLE events ADD COLUMN ${col}`) } catch { /* exists */ }
 }
 
+// Human-readable place name ("Grand Canyon Village, Arizona") and a hashed
+// token that lets the original poster delete their own recording.
+for (const col of ['place TEXT DEFAULT NULL', 'delete_token_hash TEXT DEFAULT NULL']) {
+  try { db.exec(`ALTER TABLE events ADD COLUMN ${col}`) } catch { /* exists */ }
+}
+
+// Public coordinates are rounded to ~1 km so a recording never pins someone's front door.
+export const PUBLIC_COORD_DECIMALS = 2
+
 const legacyNonAudioCount = db.prepare(`
   SELECT COUNT(*) as count FROM events WHERE audio_data IS NULL
 `).get().count
@@ -87,36 +96,51 @@ if (legacyNonAudioCount > 0) {
   console.log(`[DB] Removed ${legacyNonAudioCount} legacy non-audio event(s) from ${DB_PATH}`)
 }
 
+const PUBLIC_EVENT_COLUMNS = `
+  id,
+  ROUND(lat, ${PUBLIC_COORD_DECIMALS}) as lat,
+  ROUND(lng, ${PUBLIC_COORD_DECIMALS}) as lng,
+  intensity, country, timestamp, type,
+  CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
+  user_rating, duration, volume, peak_volume as peakVolume,
+  ${hasAudioMimeTypeColumn ? 'audio_mime_type' : 'NULL'} as audioMimeType,
+  place
+`
+
 // Prepared statements
 const stmts = {
   insert: db.prepare(`
     INSERT INTO events (
-      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, duration, volume, peak_volume
+      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, duration, volume, peak_volume, place, delete_token_hash
     )
     VALUES (
-      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @duration, @volume, @peakVolume
+      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @duration, @volume, @peakVolume, @place, @deleteTokenHash
     )
   `),
 
   recent: db.prepare(`
-    SELECT id, lat, lng, intensity, country, timestamp, type,
-           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
-           user_rating, duration, volume, peak_volume as peakVolume,
-           ${hasAudioMimeTypeColumn ? 'audio_mime_type' : 'NULL'} as audioMimeType
+    SELECT ${PUBLIC_EVENT_COLUMNS}
     FROM events
     WHERE audio_data IS NOT NULL
     ORDER BY timestamp DESC LIMIT ?
   `),
 
+  single: db.prepare(`
+    SELECT ${PUBLIC_EVENT_COLUMNS}
+    FROM events
+    WHERE id = ? AND audio_data IS NOT NULL
+  `),
+
   range: db.prepare(`
-    SELECT id, lat, lng, intensity, country, timestamp, type,
-           CASE WHEN audio_data IS NOT NULL THEN 1 ELSE 0 END as hasAudio,
-           user_rating, duration, volume, peak_volume as peakVolume,
-           ${hasAudioMimeTypeColumn ? 'audio_mime_type' : 'NULL'} as audioMimeType
+    SELECT ${PUBLIC_EVENT_COLUMNS}
     FROM events
     WHERE audio_data IS NOT NULL
       AND timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp DESC
+  `),
+
+  deleteWithToken: db.prepare(`
+    DELETE FROM events WHERE id = ? AND delete_token_hash IS NOT NULL AND delete_token_hash = ?
   `),
 
   audio: db.prepare(`
@@ -328,6 +352,14 @@ export function insertEvent(event) {
 
 export function getRecentEvents(limit = 200) {
   return stmts.recent.all(Math.min(limit, 500))
+}
+
+export function getEvent(eventId) {
+  return stmts.single.get(eventId) || null
+}
+
+export function deleteEventWithToken(eventId, tokenHash) {
+  return stmts.deleteWithToken.run(eventId, tokenHash).changes > 0
 }
 
 export function getEventsByRange(start, end) {

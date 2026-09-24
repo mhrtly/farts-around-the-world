@@ -2,356 +2,162 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#04070c" />
     <title>Farts Around the World</title>
-    <meta name="description" content="Farts Around the World is a global dashboard for live flatulence data, geographic coverage, and analytics." />
+    <meta name="description" content="A map of real fart recordings from real places. Tap a dot to listen, or record your own and pin it to the globe." />
+    <meta property="og:title" content="Farts Around the World" />
+    <meta property="og:description" content="Real farts, pinned where they happened. Tap a dot to listen — or add your own." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
     <script>
-      document.documentElement.dataset.routeMode = window.location.pathname === '/' ? 'home' : 'subpage'
+      ;(function () {
+        var path = window.location.pathname
+        var home = path === '/' || path.indexOf('/r/') === 0
+        document.documentElement.dataset.routeMode = home ? 'home' : 'subpage'
+      })()
     </script>
     <style>
-      /* Inline critical boot screen CSS — no JS dependency */
-      html, body { margin: 0; padding: 0; background: #06090d; overflow: hidden; }
+      /* Critical splash CSS — shows instantly, before any JS loads */
+      html, body { margin: 0; padding: 0; background: #04070c; overflow: hidden; }
       html[data-route-mode="subpage"],
-      html[data-route-mode="subpage"] body {
-        overflow: auto;
-      }
-      html[data-route-mode="subpage"] #boot-screen {
-        display: none;
-      }
+      html[data-route-mode="subpage"] body { overflow: auto; }
+      html[data-route-mode="subpage"] #boot { display: none; }
 
-      #boot-screen {
-        position: fixed; inset: 0; z-index: 99999;
-        background: #06090d;
-        font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Cascadia Code', 'Courier New', monospace;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(ellipse 70% 55% at 50% 45%, rgba(24, 58, 92, 0.45), transparent 70%),
+          #04070c;
+        font-family: 'Chakra Petch', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        color: #eef6ff;
+        transition: opacity 0.6s ease, visibility 0.6s ease;
+        cursor: pointer;
+      }
+      #boot.is-leaving { opacity: 0; visibility: hidden; }
+      .boot__inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 24px;
+        text-align: center;
+        animation: bootRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      #boot.is-leaving .boot__inner {
+        transform: scale(1.04);
+        transition: transform 0.6s ease;
+      }
+      .boot__mark {
+        font-size: 56px;
+        line-height: 1;
+        filter: drop-shadow(0 0 18px rgba(157, 255, 74, 0.45));
+        animation: bootPuff 2.4s ease-in-out infinite;
+      }
+      .boot__presents {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: rgba(212, 168, 67, 0.85);
+      }
+      .boot__title {
+        font-size: clamp(28px, 7vw, 54px);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        line-height: 1.05;
+        text-transform: uppercase;
+        text-shadow: 0 0 34px rgba(56, 243, 255, 0.45);
+      }
+      .boot__tagline {
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: 15px;
+        color: rgba(186, 208, 228, 0.8);
+      }
+      .boot__bar {
+        width: 140px;
+        height: 3px;
+        margin-top: 10px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.08);
         overflow: hidden;
       }
-      #boot-screen.fade-out { opacity: 0; pointer-events: none; transition: opacity 1s ease; }
-      .boot-shell {
-        position: relative;
-        z-index: 2;
-        width: min(760px, calc(100vw - 48px));
-        padding: 44px 40px 36px;
-        border: 1px solid rgba(56,243,255,0.12);
-        border-radius: 28px;
-        background:
-          radial-gradient(circle at top, rgba(56,243,255,0.12), transparent 42%),
-          linear-gradient(180deg, rgba(7,12,18,0.78), rgba(6,9,13,0.92));
-        box-shadow:
-          0 24px 90px rgba(0,0,0,0.45),
-          inset 0 0 60px rgba(56,243,255,0.04);
-        backdrop-filter: blur(6px);
+      .boot__bar span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #9dff4a, #38f3ff);
+        animation: bootBar 1.1s ease-in-out infinite;
       }
-
-      /* ── Starfield background ── */
-      .starfield {
-        position: absolute; inset: 0; overflow: hidden; opacity: 0;
-        animation: fadeIn 2s ease 0.3s forwards;
+      @keyframes bootRise {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: none; }
       }
-      .star {
-        position: absolute; border-radius: 50%; background: #fff;
-        animation: twinkle 3s ease-in-out infinite alternate;
+      @keyframes bootPuff {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-4px) scale(1.06); }
       }
-
-      /* ── POTATO PROPOGANDA presents ── */
-      .pp-presents {
-        position: relative; z-index: 2;
-        text-align: center; opacity: 0;
-        animation: ppFadeIn 1.5s ease 0.8s forwards;
+      @keyframes bootBar {
+        from { transform: translateX(-110%); }
+        to { transform: translateX(260%); }
       }
-      .pp-logo {
-        font-size: 22px; font-weight: 900; letter-spacing: 0.25em;
-        color: #d4a843;
-        text-shadow: 0 0 20px rgba(212,168,67,0.4), 0 0 60px rgba(212,168,67,0.15);
-      }
-      .pp-presents-word {
-        margin-top: 28px;
-        font-size: 11px;
-        letter-spacing: 0.45em;
-        color: rgba(212,168,67,0.65);
-        text-transform: uppercase;
-      }
-      .pp-potato {
-        display: inline-block; font-size: 32px; margin-right: 8px;
-        animation: potatoSpin 3s ease-in-out infinite;
-      }
-
-      /* ── Main title ── */
-      .fatwa-title {
-        position: relative; z-index: 2;
-        text-align: center; opacity: 0; margin-top: 40px;
-        animation: fatwaReveal 1.2s ease 2.8s forwards;
-      }
-      .fatwa-name {
-        font-size: clamp(40px, 7vw, 72px); font-weight: 900; letter-spacing: 0.14em;
-        color: #38f3ff;
-        text-shadow: 0 0 40px rgba(56,243,255,0.6), 0 0 80px rgba(56,243,255,0.3),
-                     0 0 120px rgba(56,243,255,0.15), 0 2px 0 rgba(0,0,0,0.8);
-        line-height: 1;
-        text-transform: uppercase;
-      }
-      .fatwa-subtitle {
-        font-size: 12px; letter-spacing: 0.35em; color: rgba(56,243,255,0.5);
-        text-transform: uppercase; margin-top: 8px;
-      }
-
-      /* ── Mission statement ── */
-      .fatwa-mission {
-        position: relative; z-index: 2;
-        text-align: center; opacity: 0; margin: 30px auto 0;
-        max-width: 560px; line-height: 1.8;
-        animation: missionFade 1.5s ease 4s forwards;
-      }
-      .fatwa-mission p {
-        margin: 0 0 8px;
-        font-size: 12px; letter-spacing: 0.1em; color: rgba(255,255,255,0.45);
-      }
-      .fatwa-mission .highlight {
-        color: rgba(56,243,255,0.6); font-weight: 600;
-      }
-
-      /* ── Boot sequence (terminal lines) ── */
-      .boot-terminal {
-        position: relative; z-index: 2;
-        margin: 36px auto 0; opacity: 0;
-        animation: fadeIn 0.5s ease 5.2s forwards;
-        font-size: 11px; color: #00ff41; width: min(500px, 100%);
-      }
-      .boot-line {
-        opacity: 0; transform: translateY(4px);
-        animation: bootIn 0.3s ease forwards;
-        line-height: 2;
-      }
-      .boot-ok { color: #44ff88; }
-      .boot-loading { color: #ffaa00; }
-      .boot-bar {
-        width: 100%; height: 3px; background: #0f1f0f;
-        margin-top: 8px; border: 1px solid #1a3a1a;
-      }
-      .boot-bar-fill {
-        height: 100%; background: #38f3ff; width: 0%;
-        transition: width 0.15s ease;
-        box-shadow: 0 0 8px rgba(56,243,255,0.6);
-      }
-      .boot-pct {
-        font-size: 9px; color: rgba(56,243,255,0.6);
-        margin-top: 4px; letter-spacing: 0.2em;
-        text-align: right;
-      }
-      .boot-skip {
-        position: absolute;
-        right: 28px;
-        top: 28px;
-        z-index: 4;
-        border: 1px solid rgba(56,243,255,0.24);
-        background: rgba(6,9,13,0.72);
-        color: rgba(56,243,255,0.9);
-        font: inherit;
-        font-size: 10px;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        padding: 10px 14px;
-        border-radius: 999px;
-        cursor: pointer;
-        transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-      }
-      .boot-skip:hover {
-        background: rgba(56,243,255,0.12);
-        border-color: rgba(56,243,255,0.48);
-        transform: translateY(-1px);
-      }
-
-      /* ── Scanline overlay ── */
-      .boot-scanlines {
-        position: absolute; inset: 0; z-index: 3;
-        background: repeating-linear-gradient(
-          0deg, transparent, transparent 2px,
-          rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
-        );
-        pointer-events: none;
-      }
-
-      /* ── Vignette ── */
-      .boot-vignette {
-        position: absolute; inset: 0; z-index: 3;
-        background: radial-gradient(ellipse at center, transparent 40%, rgba(6,9,13,0.7) 100%);
-        pointer-events: none;
-      }
-
-      /* ── Animations ── */
-      @keyframes fadeIn { to { opacity: 1; } }
-      @keyframes bootIn { to { opacity: 1; transform: translateY(0); } }
-
-      @keyframes ppFadeIn {
-        0% { opacity: 0; transform: scale(0.9); }
-        100% { opacity: 1; transform: scale(1); }
-      }
-      @keyframes fatwaReveal {
-        0% { opacity: 0; transform: scale(0.7); letter-spacing: 0.8em; }
-        60% { opacity: 1; transform: scale(1.02); }
-        100% { opacity: 1; transform: scale(1); }
-      }
-      @keyframes missionFade {
-        0% { opacity: 0; transform: translateY(10px); }
-        100% { opacity: 1; transform: translateY(0); }
-      }
-      @keyframes potatoSpin {
-        0%, 100% { transform: rotate(-5deg) scale(1); }
-        50% { transform: rotate(5deg) scale(1.05); }
-      }
-      @keyframes twinkle {
-        0% { opacity: 0.3; }
-        100% { opacity: 1; }
-      }
-
-      @media (max-width: 760px) {
-        .boot-shell {
-          width: min(100vw - 24px, 760px);
-          padding: 72px 22px 28px;
-          border-radius: 20px;
-        }
-        .pp-logo {
-          font-size: 18px;
-          letter-spacing: 0.18em;
-        }
-        .pp-presents-word {
-          margin-top: 18px;
-          font-size: 10px;
-          letter-spacing: 0.32em;
-        }
-        .fatwa-subtitle,
-        .boot-pct {
-          letter-spacing: 0.2em;
-        }
-        .boot-skip {
-          right: 16px;
-          top: 16px;
-        }
+      @media (prefers-reduced-motion: reduce) {
+        .boot__inner, .boot__mark, .boot__bar span { animation: none; }
       }
     </style>
   </head>
   <body>
-    <div id="boot-screen">
-      <!-- Starfield -->
-      <div class="starfield" id="starfield"></div>
-
-      <!-- Overlays -->
-      <div class="boot-scanlines"></div>
-      <div class="boot-vignette"></div>
-
-      <div class="boot-shell">
-        <!-- POTATO PROPOGANDA presents -->
-        <div class="pp-presents">
-          <div class="pp-logo">
-            <span class="pp-potato">&#x1F954;</span>POTATO PROPOGANDA
-          </div>
-          <div class="pp-presents-word">presents</div>
-        </div>
-
-        <!-- Main title -->
-        <div class="fatwa-title">
-          <div class="fatwa-name">Farts Around the World</div>
-          <div class="fatwa-subtitle">Global dashboard and analytics</div>
-        </div>
-
-        <!-- Mission -->
-        <div class="fatwa-mission">
-          <p>
-            <span class="highlight">A world-class dashboard</span> for live submissions, trend analysis, and global coverage.
-          </p>
-          <p>
-            Built to treat the data seriously, present it beautifully, and make the signal easy to understand.
-          </p>
-        </div>
-
-        <!-- Terminal boot sequence -->
-        <div class="boot-terminal" id="boot-terminal">
-          <div class="boot-line" id="bl-1" style="animation-delay:5.5s"><span class="boot-ok">[OK]</span>&nbsp; Event dataset ready</div>
-          <div class="boot-line" id="bl-2" style="animation-delay:5.9s"><span class="boot-ok">[OK]</span>&nbsp; Analytics modules calibrated</div>
-          <div class="boot-line" id="bl-3" style="animation-delay:6.3s"><span class="boot-loading" id="boot-geo-tag">[..]</span>&nbsp; Connecting global event network...</div>
-          <div class="boot-line" id="bl-4" style="animation-delay:0s;opacity:0"></div>
-          <div class="boot-line" style="animation-delay:6.6s">
-            <div class="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
-            <div class="boot-pct" id="boot-pct">INITIALIZING</div>
-          </div>
-        </div>
+    <div id="boot" role="presentation">
+      <div class="boot__inner">
+        <div class="boot__mark">💨</div>
+        <div class="boot__presents">Potato Propoganda presents</div>
+        <div class="boot__title">Farts Around the World</div>
+        <div class="boot__tagline">Real farts, pinned where they happened.</div>
+        <div class="boot__bar"><span></span></div>
       </div>
-
-      <button class="boot-skip" id="boot-skip" type="button">Skip intro</button>
     </div>
 
     <div id="root"></div>
 
     <script>
-      // Generate starfield
-      ;(function() {
-        if (document.documentElement.dataset.routeMode === 'subpage') return
-        var sf = document.getElementById('starfield')
-        for (var i = 0; i < 120; i++) {
-          var s = document.createElement('div')
-          s.className = 'star'
-          var size = Math.random() * 2 + 0.5
-          s.style.width = size + 'px'
-          s.style.height = size + 'px'
-          s.style.left = Math.random() * 100 + '%'
-          s.style.top = Math.random() * 100 + '%'
-          s.style.animationDelay = (Math.random() * 4) + 's'
-          s.style.animationDuration = (2 + Math.random() * 3) + 's'
-          s.style.opacity = Math.random() * 0.5 + 0.1
-          sf.appendChild(s)
+      // Hide the splash as soon as the app says the globe is ready.
+      ;(function () {
+        var boot = document.getElementById('boot')
+        if (!boot) return
+        if (document.documentElement.dataset.routeMode === 'subpage') {
+          boot.parentNode.removeChild(boot)
+          return
         }
-      })()
-
-      // Boot sequence animation
-      ;(function() {
-        if (document.documentElement.dataset.routeMode === 'subpage') return
-        var fill   = document.getElementById('boot-fill')
-        var pct    = document.getElementById('boot-pct')
-        var geoTag = document.getElementById('boot-geo-tag')
-        var streamLine = document.getElementById('bl-4')
-        var boot   = document.getElementById('boot-screen')
-        var skip   = document.getElementById('boot-skip')
-        var start  = null
-        var dur    = 2000
-        var dismissed = false
-
-        function dismissBoot() {
-          if (dismissed) return
-          dismissed = true
-          boot.classList.add('fade-out')
-          setTimeout(function() { boot.style.display = 'none' }, 1100)
+        var started = Date.now()
+        var seen = false
+        try {
+          seen = localStorage.getItem('fatw:seen') === '1'
+          localStorage.setItem('fatw:seen', '1')
+        } catch (e) {}
+        var minimum = seen ? 250 : 1400
+        var hidden = false
+        function hide() {
+          if (hidden) return
+          hidden = true
+          setTimeout(function () {
+            boot.classList.add('is-leaving')
+            setTimeout(function () {
+              if (boot.parentNode) boot.parentNode.removeChild(boot)
+            }, 700)
+          }, Math.max(0, minimum - (Date.now() - started)))
         }
-
-        function step(ts) {
-          if (dismissed) return
-          if (!start) start = ts
-          var progress = Math.min((ts - start) / dur, 1)
-          var pctVal   = Math.round(progress * 100)
-          fill.style.width = pctVal + '%'
-          pct.textContent  = pctVal + '%'
-
-          if (progress >= 0.65 && geoTag.textContent === '[..]') {
-            geoTag.textContent  = '[OK]'
-            geoTag.style.color  = '#44ff88'
-            streamLine.style.opacity   = '1'
-            streamLine.style.animation = 'none'
-            streamLine.innerHTML = '<span style="color:#38f3ff">[OK]</span>&nbsp; Live dashboard ready. Welcome to Farts Around the World.'
-          }
-
-          if (progress < 1) {
-            requestAnimationFrame(step)
-          } else {
-            pct.textContent = 'READY'
-            setTimeout(function() {
-              dismissBoot()
-            }, 600)
-          }
-        }
-
-        skip.addEventListener('click', dismissBoot)
-
-        // Start bar after boot lines appear (~6.8s)
-        setTimeout(function() { requestAnimationFrame(step) }, 7000)
+        window.addEventListener('fatw:ready', hide)
+        boot.addEventListener('click', function () { minimum = 0; hide() })
+        setTimeout(hide, 8000)
       })()
     </script>
 

@@ -11,6 +11,7 @@ const audio = typeof Audio !== 'undefined' ? new Audio() : null
 if (audio) {
   audio.preload = 'auto'
   audio.setAttribute('playsinline', '')
+  if (import.meta.env.DEV) window.__fatwAudio = audio // handy in the console while developing
 }
 
 let state = { id: null, status: 'idle', duration: 0, error: null }
@@ -40,17 +41,23 @@ function friendlyError(error) {
   return 'Could not play this recording.'
 }
 
-// Stop exactly at the end of the playback window.
+// Stop at the end of the playback window. Checked every frame for precision,
+// and on timeupdate as a backup (animation frames don't run in background tabs).
+function reachedWindowEnd() {
+  const win = windowFor(state.id)
+  if (win?.end != null && audio.currentTime >= win.end && !audio.paused) {
+    stoppingAtWindowEnd = true
+    audio.pause()
+    emit({ status: 'ended' })
+    return true
+  }
+  return false
+}
+
 function watchWindow() {
   cancelAnimationFrame(watchFrame)
   const tick = () => {
-    const win = windowFor(state.id)
-    if (win?.end != null && audio.currentTime >= win.end && !audio.paused) {
-      stoppingAtWindowEnd = true
-      audio.pause()
-      emit({ status: 'ended' })
-      return
-    }
+    if (reachedWindowEnd()) return
     if (!audio.paused) watchFrame = requestAnimationFrame(tick)
   }
   watchFrame = requestAnimationFrame(tick)
@@ -76,6 +83,7 @@ if (audio) {
     if (state.status !== 'ended' && state.status !== 'error') emit({ status: 'paused' })
   })
   on('ended', () => emit({ status: 'ended' }))
+  on('timeupdate', reachedWindowEnd)
   on('durationchange', () => {
     if (Number.isFinite(audio.duration) && audio.duration > 0) emit({ duration: audio.duration })
   })
@@ -138,7 +146,12 @@ export function play(id, src, { duration } = {}) {
     if (win?.start > 0.05) seekQuietly(win.start)
   } else {
     const atEnd = state.status === 'ended' || (win?.end != null && audio.currentTime >= win.end - 0.05)
-    if (atEnd) seekQuietly(win?.start || 0)
+    if (atEnd) {
+      // Reload rather than seek back: older recordings (browser WebM files
+      // without a seek index) can't always seek, but a reload always restarts.
+      audio.setAttribute('src', src)
+      if (win?.start > 0.05) seekQuietly(win.start)
+    }
     emit({ status: 'loading', error: null })
   }
   const attempt = audio.play()

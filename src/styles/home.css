@@ -555,7 +555,7 @@
   flex: none;
   display: grid;
   place-items: center;
-  height: 24px;
+  height: 28px;
   touch-action: none;
   cursor: grab;
 }

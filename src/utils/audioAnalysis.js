@@ -317,6 +317,7 @@ function encodeWav(samples, sampleRate) {
 
 const TARGET_SAMPLE_RATE = 22050
 const MAX_SECONDS = 10
+const MAX_UPLOAD_BYTES = 1_050_000
 
 // How long the actual sound lasts (ignoring silence around it).
 export function soundSeconds(analysis) {
@@ -351,15 +352,18 @@ export async function prepareRecording(blob) {
   const resampled = await resample(clip, sampleRate, TARGET_SAMPLE_RATE)
   const wav = encodeWav(resampled.samples, resampled.sampleRate)
   const clipDuration = clip.length / sampleRate
+  // The server takes ~1.1 MB of audio. A WAV only gets that big if resampling
+  // failed on a high-sample-rate device — then send the original compressed file.
+  const useWav = wav.size <= MAX_UPLOAD_BYTES || blob.size > wav.size
 
   return {
-    blob: wav,
-    mimeType: 'audio/wav',
+    blob: useWav ? wav : blob,
+    mimeType: useWav ? 'audio/wav' : blob.type,
     // "Length" is the sound itself; the clip keeps a little padding around it.
     duration: Math.round(Math.min(soundSeconds(analysis), clipDuration) * 10) / 10,
-    clipDuration,
-    trimmedSeconds: Math.max(0, analysis.duration - clipDuration),
-    peaks: waveformPeaks(clip, 0, clip.length, 72),
+    clipDuration: useWav ? clipDuration : analysis.duration,
+    trimmedSeconds: useWav ? Math.max(0, analysis.duration - clipDuration) : 0,
+    peaks: useWav ? waveformPeaks(clip, 0, clip.length, 72) : waveformPeaks(samples, 0, samples.length, 72),
     quiet: analysis.quiet,
     peakDb: analysis.peakDb,
     meanDb: analysis.meanDb,

@@ -1745,7 +1745,7 @@
   display: flex;
   align-items: center;
   border-radius: 16px;
-  background: var(--glass-strong);
+  background: rgba(9, 15, 24, 0.96);
   border: 1px solid var(--glass-border);
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(18px);
@@ -1838,6 +1838,12 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-2);
+}
+
+@media (max-width: 480px) {
+  .subpage__brand {
+    display: none;
+  }
 }
 
 .subpage__loading {
@@ -1953,6 +1959,25 @@
 
   .home--wide.has-card .record-cta-wrap {
     left: calc(50% - 24px);
+  }
+
+  /* Desktop notifications live in the bottom-right corner, clear of the title */
+  .toasts {
+    top: auto;
+    bottom: 24px;
+    left: auto;
+    right: 24px;
+    width: 380px;
+    transform: none;
+  }
+
+  .toast {
+    animation-name: toastInDesktop;
+  }
+
+  @keyframes toastInDesktop {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: none; }
   }
 }
 

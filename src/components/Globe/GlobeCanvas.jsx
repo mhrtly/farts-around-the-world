@@ -206,6 +206,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       animateIn: true,
     })
     globeRef.current = g
+    if (import.meta.env.DEV) window.__fatwGlobe = g // handy in the console while developing
 
     g.renderer().setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2))
 
@@ -238,6 +239,11 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       })
       .onObjectClick(site => {
         callbacksRef.current.onSiteSelect?.(site.key)
+      })
+      .onObjectHover(site => {
+        // Hold still while someone is aiming at a marker
+        if (site) stopAutoRotate()
+        else scheduleAutoRotate(5000)
       })
       .pointerEventsFilter((object, data) => {
         // Ignore markers on the far side of the planet

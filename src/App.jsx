@@ -471,7 +471,10 @@ export default function App({ authEnabled = false }) {
         stats={stats}
         live={live}
         onNavigate={navigate}
-        onAbout={() => setAboutOpen(true)}
+        onAbout={() => {
+          setListOpen(false)
+          setAboutOpen(true)
+        }}
         accountSlot={authEnabled ? <AccountAvatar /> : null}
         menuExtra={authEnabled ? <AccountMenuItem /> : null}
       />

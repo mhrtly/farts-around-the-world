@@ -11,10 +11,10 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
 import { clerkMiddleware } from '@clerk/express'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { rm, appendFile } from 'fs/promises'
 import createRoutes from './routes.js'
-import { getStats } from './db.js'
+import { getEvent, getStats } from './db.js'
 import { primeArchiveDataset } from './archiveDataset.js'
 
 // One-time cleanup: remove old archive cache from persistent disk.
@@ -32,6 +32,12 @@ const DIST_DIR = resolve(__dirname, '..', 'dist')
 
 const app = express()
 const httpServer = createServer(app)
+
+// On Render the app sits behind one proxy: trust it so req.ip is the visitor's
+// (rate limits are per person, not shared by everyone) and req.protocol is https.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1)
+}
 
 function normalizeJsonContentTypeHeader(contentType) {
   if (typeof contentType !== 'string') {
@@ -181,6 +187,37 @@ app.use('/cmd-up', express.static(CMD_UP_DIR))
 
 // Serve built frontend (production mode)
 if (existsSync(DIST_DIR)) {
+  // Shared links (/r/:id) get their own link-preview title, e.g.
+  // "A fart from Grand Canyon Village, Arizona" in iMessage or Slack.
+  const indexHtmlPath = join(DIST_DIR, 'index.html')
+  const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
+  const escapeHtml = text => String(text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
+  let indexHtmlCache = null
+
+  app.get('/r/:id', (req, res, next) => {
+    try {
+      const event = getEvent(req.params.id)
+      if (!event) return next()
+      indexHtmlCache = indexHtmlCache || readFileSync(indexHtmlPath, 'utf8')
+      let country = event.country
+      try { country = regionNames.of(event.country) } catch { /* keep the code */ }
+      const where = event.place ? `${event.place}${event.place.includes(country) ? '' : `, ${country}`}` : country
+      const seconds = Number.isFinite(event.duration) ? `${event.duration} seconds` : 'A few seconds'
+      const title = escapeHtml(`A fart from ${where}`)
+      const description = escapeHtml(`${seconds} of real audio, pinned to the map. Tap to listen on Farts Around the World.`)
+      const url = escapeHtml(`${req.protocol}://${req.get('host')}/r/${event.id}`)
+      const html = indexHtmlCache
+        .replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`)
+        .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, open, close) => `${open}${title}${close}`)
+        .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, open, close) => `${open}${description}${close}`)
+        .replace('</head>', () => `    <meta property="og:url" content="${url}" />\n  </head>`)
+      res.set('Cache-Control', 'no-cache').send(html)
+    } catch (err) {
+      console.error('[SHARE PREVIEW]', err.message)
+      next()
+    }
+  })
+
   app.use(express.static(DIST_DIR))
   // SPA fallback: serve index.html for any non-API route
   app.get('*', (req, res, next) => {

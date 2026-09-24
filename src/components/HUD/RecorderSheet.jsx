@@ -79,6 +79,28 @@ function buzz(pattern) {
   try { navigator.vibrate?.(pattern) } catch { /* not supported */ }
 }
 
+// Soft synthesized blips: countdown ticks (so you know when it starts even
+// with the phone out of sight) and a little chime when a post lands.
+// Ticks end well before capture begins, so they never end up in the recording.
+function blip(ctx, { freq = 880, duration = 0.08, gain = 0.05, when = 0 } = {}) {
+  if (!ctx || ctx.state === 'closed') return
+  try {
+    const start = ctx.currentTime + when
+    const osc = ctx.createOscillator()
+    const envelope = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    envelope.gain.setValueAtTime(0, start)
+    envelope.gain.linearRampToValueAtTime(gain, start + 0.008)
+    envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+    osc.connect(envelope).connect(ctx.destination)
+    osc.start(start)
+    osc.stop(start + duration + 0.02)
+  } catch {
+    // audio feedback is optional
+  }
+}
+
 function classify(duration, peakDb) {
   const intensity = Math.min(10, Math.max(1, Math.round(loudnessLevel(peakDb) * 10)))
   let type = 'standard'
@@ -316,12 +338,14 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
     setCount(3)
     setPhaseBoth('countdown')
     buzz(8)
+    blip(audioCtxRef.current, { freq: 880 })
     const steps = [2, 1]
     steps.forEach((value, index) => {
       timersRef.current.push(setTimeout(() => {
         if (session !== sessionRef.current) return
         setCount(value)
         buzz(8)
+        blip(audioCtxRef.current, { freq: value === 1 ? 1320 : 880 })
       }, COUNTDOWN_STEP_MS * (index + 1)))
     })
     timersRef.current.push(setTimeout(() => beginCapture(session), COUNTDOWN_STEP_MS * 3))
@@ -434,6 +458,8 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
         type,
       })
       buzz([10, 60, 30])
+      blip(audioCtxRef.current, { freq: 660, gain: 0.06, duration: 0.12 })
+      blip(audioCtxRef.current, { freq: 990, gain: 0.06, duration: 0.22, when: 0.1 })
       setPhaseBoth('posted')
       onPosted?.(created)
     } catch (error) {

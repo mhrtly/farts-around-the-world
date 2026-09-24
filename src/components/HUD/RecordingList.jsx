@@ -19,6 +19,13 @@ const SORTS = [
   { key: 'loudest', label: 'Loudest' },
 ]
 
+const TITLES = {
+  newest: 'Latest farts',
+  longest: 'Longest farts',
+  loudest: 'Loudest farts',
+  mine: 'Your farts',
+}
+
 const PAGE = 60
 
 export default function RecordingList({
@@ -35,26 +42,30 @@ export default function RecordingList({
   const [limit, setLimit] = useState(PAGE)
   const player = usePlayer()
 
+  const hasOwn = ownIds.size > 0
+  const tabs = hasOwn ? [...SORTS, { key: 'mine', label: 'Mine' }] : SORTS
+  const activeSort = sort === 'mine' && !hasOwn ? 'newest' : sort
+
   const sorted = useMemo(() => {
-    const list = [...events]
-    if (sort === 'longest') list.sort((a, b) => (b.duration || 0) - (a.duration || 0) || b.timestamp - a.timestamp)
-    else if (sort === 'loudest') list.sort((a, b) => (b.peakVolume || -1) - (a.peakVolume || -1) || b.timestamp - a.timestamp)
+    const list = activeSort === 'mine' ? events.filter(event => ownIds.has(event.id)) : [...events]
+    if (activeSort === 'longest') list.sort((a, b) => (b.duration || 0) - (a.duration || 0) || b.timestamp - a.timestamp)
+    else if (activeSort === 'loudest') list.sort((a, b) => (b.peakVolume || -1) - (a.peakVolume || -1) || b.timestamp - a.timestamp)
     else list.sort((a, b) => b.timestamp - a.timestamp)
     return list
-  }, [events, sort])
+  }, [events, activeSort, ownIds])
 
   return (
     <div className="rlist">
       <div className="rlist__head">
-        <h2 className="rlist__title">Latest farts</h2>
+        <h2 className="rlist__title">{TITLES[activeSort]}</h2>
         <div className="segmented" role="tablist" aria-label="Sort recordings">
-          {SORTS.map(option => (
+          {tabs.map(option => (
             <button
               key={option.key}
               type="button"
               role="tab"
-              aria-selected={sort === option.key}
-              className={sort === option.key ? 'is-active' : ''}
+              aria-selected={activeSort === option.key}
+              className={activeSort === option.key ? 'is-active' : ''}
               onClick={() => { setSort(option.key); setLimit(PAGE) }}
             >
               {option.label}
@@ -84,6 +95,12 @@ export default function RecordingList({
             <button type="button" className="pill-button pill-button--record" onClick={onRecord}>
               <Icon name="mic" size={18} /> Record the first one
             </button>
+          </div>
+        )}
+
+        {activeSort === 'mine' && sorted.length === 0 && events.length > 0 && (
+          <div className="rlist__empty">
+            <p>Nothing here right now. Farts you post from this device show up in this tab.</p>
           </div>
         )}
 

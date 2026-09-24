@@ -89,6 +89,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   sites,
   selectedKey = null,
   compact = false,
+  offsetX = 0,
   offsetY = 0,
   paused = false,
   onSiteSelect,
@@ -104,7 +105,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   const callbacksRef = useRef({ onSiteSelect, onBackgroundClick, onReady })
   const resumeTimerRef = useRef(null)
   const interactingRef = useRef(false)
-  const offsetRef = useRef({ current: 0, target: 0 })
+  const offsetRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 })
 
   callbacksRef.current = { onSiteSelect, onBackgroundClick, onReady }
 
@@ -367,13 +368,18 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
         })
       }
 
+      // Glide the globe out from under panels and sheets
       const offset = offsetRef.current
-      if (Math.abs(offset.target - offset.current) > 0.5) {
-        offset.current += (offset.target - offset.current) * 0.12
-        g.globeOffset([0, offset.current])
-      } else if (offset.current !== offset.target) {
-        offset.current = offset.target
-        g.globeOffset([0, offset.current])
+      const dx = offset.targetX - offset.x
+      const dy = offset.targetY - offset.y
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        offset.x += dx * 0.12
+        offset.y += dy * 0.12
+        g.globeOffset([offset.x, offset.y])
+      } else if (dx !== 0 || dy !== 0) {
+        offset.x = offset.targetX
+        offset.y = offset.targetY
+        g.globeOffset([offset.x, offset.y])
       }
     }
     frame = requestAnimationFrame(tick)
@@ -450,8 +456,9 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   }, [selectedKey])
 
   useEffect(() => {
-    offsetRef.current.target = offsetY
-  }, [offsetY])
+    offsetRef.current.targetX = offsetX
+    offsetRef.current.targetY = offsetY
+  }, [offsetX, offsetY])
 
   useEffect(() => {
     const g = globeRef.current

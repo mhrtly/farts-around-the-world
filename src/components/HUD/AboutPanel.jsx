@@ -23,6 +23,9 @@ export default function AboutPanel({ open, onClose, onRecord }) {
           Length, loudness, and pitch are measured from the actual audio. Yes, some farts are in tune.
           Posted one by mistake? Open its card on the same device and hit Delete.
         </p>
+        <p className="about__keys">
+          Keyboard: <kbd>R</kbd> record · <kbd>Space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> hop between farts · <kbd>Esc</kbd> close
+        </p>
         <button type="button" className="big-button big-button--record" onClick={() => { onClose(); onRecord() }}>
           <Icon name="mic" size={20} /> Record a fart
         </button>

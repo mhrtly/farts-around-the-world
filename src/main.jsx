@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ClerkProvider } from '@clerk/react'
 import App from './App.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './styles/tokens.css'
 import './styles/app.css'
 import './styles/home.css'
@@ -12,8 +13,10 @@ const app = <App authEnabled={Boolean(clerkKey)} />
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {clerkKey
-      ? <ClerkProvider publishableKey={clerkKey} afterSignOutUrl="/">{app}</ClerkProvider>
-      : app}
+    <ErrorBoundary>
+      {clerkKey
+        ? <ClerkProvider publishableKey={clerkKey} afterSignOutUrl="/">{app}</ClerkProvider>
+        : app}
+    </ErrorBoundary>
   </React.StrictMode>
 )

@@ -76,6 +76,7 @@ function useMediaQuery(query) {
 
 export default function App({ authEnabled = false }) {
   const compact = useMediaQuery(COMPACT_QUERY)
+  const narrowDesktop = useMediaQuery('(max-width: 1100px)') // matches the CSS panel widths
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname))
   const [events, setEvents] = useState([])
   const [loadState, setLoadState] = useState('loading')
@@ -90,6 +91,9 @@ export default function App({ authEnabled = false }) {
   const [toasts, setToasts] = useState([])
   const [ownIds, setOwnIds] = useState(() => ownRecordingIds())
   const [globeReady, setGlobeReady] = useState(false)
+  const [showHint, setShowHint] = useState(() => {
+    try { return !localStorage.getItem('fatw:hinted') } catch { return true }
+  })
 
   const globeRef = useRef(null)
   const deepLinkRef = useRef(route.recordingId)
@@ -175,15 +179,21 @@ export default function App({ authEnabled = false }) {
   ), [events, serverTotal, loadState])
 
   // ── Selection ─────────────────────────────────────────────────────────────
+  const dismissHint = useCallback(() => {
+    setShowHint(false)
+    try { localStorage.setItem('fatw:hinted', '1') } catch { /* private mode */ }
+  }, [])
+
   const select = useCallback((event, { autoplay = false, fly = true, flyMs } = {}) => {
     if (!event) return
     setSelection({ key: siteKey(event.lat, event.lng), id: event.id })
     setListOpen(false)
+    dismissHint()
     // Must run inside the tap for iOS to allow audio.
     if (autoplay) play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
     if (fly) globeRef.current?.flyTo({ lat: event.lat, lng: event.lng, altitude: compact ? 1.3 : 1.2 }, flyMs)
     replaceUrl(`/r/${event.id}`)
-  }, [compact])
+  }, [compact, dismissHint])
 
   const selectSite = useCallback((key, options) => {
     const site = sites.find(candidate => candidate.key === key)
@@ -286,7 +296,7 @@ export default function App({ authEnabled = false }) {
 
     const latest = events[0]
     if (latest) {
-      globeRef.current?.flyTo({ lat: latest.lat - (compact ? 8 : 4), lng: latest.lng + 10, altitude: compact ? 2.5 : 2.1 }, 2200)
+      globeRef.current?.flyTo({ lat: latest.lat, lng: latest.lng, altitude: compact ? 2.6 : 2.1 }, 2200)
       setTimeout(() => globeRef.current?.resumeAutoRotate(), 2600)
     }
   }, [loadState, globeReady, events, eventsById, select, compact, pushToast])
@@ -434,9 +444,11 @@ export default function App({ authEnabled = false }) {
 
   const card = selectedEvent ? { event: selectedEvent, site: selectedSite } : lastCardRef.current
   const cardOpen = Boolean(selectedEvent)
-  const globeOffset = compact
+  // Keep the globe centered in the space the panels leave free
+  const globeOffsetY = compact
     ? cardOpen ? -Math.round(window.innerHeight * 0.2) : listOpen ? -Math.round(window.innerHeight * 0.24) : 0
     : 0
+  const globeOffsetX = compact ? 0 : cardOpen ? (narrowDesktop ? -25 : -24) : (narrowDesktop ? 160 : 182)
 
   const list = (
     <RecordingList
@@ -459,7 +471,8 @@ export default function App({ authEnabled = false }) {
           sites={sites}
           selectedKey={selection?.key || null}
           compact={compact}
-          offsetY={globeOffset}
+          offsetX={globeOffsetX}
+          offsetY={globeOffsetY}
           paused={recorderActive && compact}
           onSiteSelect={key => selectSite(key, { autoplay: true })}
           onBackgroundClick={() => { if (selection) closeSelection() }}
@@ -527,6 +540,16 @@ export default function App({ authEnabled = false }) {
           </button>
           <button type="button" className="shuffle-cta" onClick={shuffle} disabled={!events.length} title="Play a random fart">
             <Icon name="shuffle" size={18} /> Random
+          </button>
+        </div>
+      )}
+
+      {showHint && globeReady && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && (
+        <div className="hint" role="status">
+          <span className="hint__dot" aria-hidden="true" />
+          {compact ? 'Tap' : 'Click'} a glowing dot to hear a real fart
+          <button type="button" className="hint__close" onClick={dismissHint} aria-label="Dismiss hint">
+            <Icon name="close" size={14} />
           </button>
         </div>
       )}

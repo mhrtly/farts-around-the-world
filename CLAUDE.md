@@ -81,12 +81,21 @@ package.json, vite.config.ts), ask Quipu (this coordinating thread) first.
 
 ## Project Overview
 
-**Global Flatulence Monitoring System (GFMS)** — a real-time 3D globe visualization
-with a sci-fi mission control HUD that tracks "fart events" worldwide. Crowdsourced
-global flatulence intelligence with an OSINT war-room aesthetic.
+**Farts Around the World** — a map of real fart recordings from real places.
+Two core flows, and everything should serve them:
 
-**Status**: MVP demo is functional. Globe + HUD + mock data stream all work.
-Backend API is built but not yet wired to frontend.
+1. **Record & pin**: tap Record → 3-2-1 → capture up to 10s → review (real
+   length / loudness / pitch) → post. The clip is trimmed, re-encoded as WAV,
+   and pinned to the globe at the poster's location (rounded to ~1 km).
+2. **Browse & listen**: spin the globe, tap a glowing dot (or pick from the
+   list), hear it. Shareable `/r/:id` links.
+
+Real, and funny because it's real — no fictional "intelligence agency" copy.
+The old mission-control dashboard lives in `_archive/hud-v1/`.
+
+**Status (2026-09-23)**: Core rebuilt on `feature/core-polish` — live backend,
+real-time updates over Socket.IO, desktop + mobile layouts. Side projects
+(Archive Lab, Sommelier Salon) sit behind the ⋯ menu.
 
 ---
 
@@ -97,7 +106,7 @@ Backend API is built but not yet wired to frontend.
 | Framework | React 18 (JSX) | No TypeScript components — all `.jsx` |
 | Globe | `globe.gl` + `three-globe` + Three.js | 3D visualization |
 | Bundler | Vite 6 | Config in `vite.config.ts` only |
-| Styling | CSS custom properties + glassmorphism | 10 CSS files in `src/styles/` |
+| Styling | CSS custom properties + glassmorphism | Core UI in `src/styles/home.css` |
 | State | React `useState` in App.jsx | No Zustand (ignore old docs saying otherwise) |
 | Backend | Express + Socket.IO + SQLite (better-sqlite3) | Port 3001 |
 | Entry | `index.html` → `src/main.jsx` → `src/App.jsx` | Root: `<div id="root">` |
@@ -114,20 +123,26 @@ Backend API is built but not yet wired to frontend.
 ## Canonical Event Schema
 
 ```js
-// FartEvent — the ONLY shape all code should use
+// FartEvent — the ONLY shape all code should use (every event has audio)
 {
-  id: string,          // UUID, server-generated
-  lat: number,         // -90 to 90
-  lng: number,         // -180 to 180
-  intensity: number,   // 1-10
-  country: string,     // ISO 3166-1 alpha-2
-  timestamp: number,   // epoch ms, server-generated
-  type: 'standard' | 'epic' | 'silent-but-deadly'
+  id: string,            // UUID, server-generated
+  lat: number,           // -90 to 90, rounded to 2 decimals (~1 km) for privacy
+  lng: number,           // -180 to 180, rounded to 2 decimals
+  country: string,       // ISO 3166-1 alpha-2 (any country; 'XX' if unknown)
+  place: string | null,  // "Grand Canyon Village, Arizona" (older rows: null)
+  timestamp: number,     // epoch ms, server-generated
+  duration: number,      // seconds of actual sound (older rows: whole clip length)
+  volume: number | null,     // mean RMS × 100 of the sound (older rows: null)
+  peakVolume: number | null, // peak RMS × 100
+  intensity: number,     // 1-10, derived from loudness
+  type: 'standard' | 'epic' | 'silent-but-deadly',  // derived from length/loudness
+  audioMimeType: string, // 'audio/wav' for new posts; older rows webm/opus
+  hasAudio: 1
 }
 ```
 
-**20 supported countries:**
-`US, GB, DE, FR, JP, CN, BR, IN, AU, CA, MX, RU, NG, ZA, EG, AR, KR, ID, TR, IT`
+Audio is served from `GET /api/events/:id/audio`. Pitch is not stored — the
+client measures it (and the waveform) when a recording is opened.
 
 ---
 
@@ -136,44 +151,45 @@ Backend API is built but not yet wired to frontend.
 ```
 /
 ├── CLAUDE.md              ← YOU ARE HERE (single source of truth)
-├── index.html             ← Boot screen + React mount
+├── index.html             ← Fast splash (hides on `fatw:ready`) + React mount + meta
 ├── vite.config.ts         ← Vite config (ONLY config — no .js duplicate)
 ├── package.json           ← Frontend deps (LOCKED)
+├── public/textures/       ← Self-hosted globe textures (earth-night 2k/4k)
 ├── server/                ← Backend (Express + SQLite + Socket.IO)
-│   ├── index.js           ← Server entry (port 3001)
-│   ├── routes.js          ← REST endpoints
-│   ├── db.js              ← SQLite setup
-│   ├── validation.js      ← Event validation
+│   ├── index.js           ← Server entry (port 3001), /r/:id link previews
+│   ├── routes.js          ← REST endpoints (incl. audio w/ Range, delete-by-token)
+│   ├── db.js              ← SQLite setup + migrations
+│   ├── validation.js      ← Event validation (rounds coords to ~1 km)
 │   └── package.json       ← Server deps
 ├── src/
-│   ├── main.jsx           ← React entry
-│   ├── App.jsx            ← Root component + state + event stream
+│   ├── main.jsx           ← React entry (ErrorBoundary; ClerkProvider only if key set)
+│   ├── App.jsx            ← Shell: data, selection, routing, live feed, layout
 │   ├── components/
+│   │   ├── ErrorBoundary.jsx
 │   │   ├── Globe/
-│   │   │   └── GlobeCanvas.jsx    ← 3D globe (arcs, rings, heatmap)
+│   │   │   └── GlobeCanvas.jsx    ← Globe: one marker per place, pulses, puffs, fly-to
 │   │   └── HUD/
-│   │       ├── Header.jsx         ← Title bar + UTC clock
-│   │       ├── KPIPanel.jsx       ← Telemetry cards
-│   │       ├── Leaderboard.jsx    ← Top 5 countries
-│   │       ├── EventFeed.jsx      ← Scrolling event list
-│   │       ├── Timeline.jsx       ← 60-second histogram
-│   │       ├── EpicAlert.jsx      ← Alert overlay for epic/SBD
-│   │       ├── GasconIndicator.jsx ← Threat level + EPM
-│   │       ├── MethaneWaveform.jsx ← Canvas waveform
-│   │       └── AnimatedNumber.jsx  ← Number roll animation
+│   │       ├── TopBar.jsx         ← Brand, live stats, ⋯ menu
+│   │       ├── RecordingList.jsx  ← Latest / Longest / Loudest / Mine
+│   │       ├── RecordingCard.jsx  ← Selected fart: player, stats, share, delete
+│   │       ├── WaveformPlayer.jsx ← Play button + real waveform
+│   │       ├── RecorderSheet.jsx  ← Record → review → post
+│   │       ├── Sheet.jsx          ← Bottom sheet (mobile) / floating panel (desktop)
+│   │       ├── AboutPanel.jsx, Toasts.jsx, Icon.jsx, AccountControls.jsx (Clerk)
+│   │       └── FartTagLab.jsx, FartSommelierSalon.jsx ← side projects (lazy-loaded)
 │   ├── data/
-│   │   ├── mockFartStream.js      ← Random event generator (dev)
-│   │   ├── liveFartStream.ts      ← Socket.IO client (NOT YET CONNECTED)
-│   │   └── apiClient.ts           ← REST helpers (NOT YET CONNECTED)
-│   │   └── aggregator.js          ← Timeline/leaderboard utils
-│   ├── config/                    ← Constants, cities, humor strings
-│   ├── styles/                    ← All CSS (tokens, app, animations, etc.)
-│   ├── types/                     ← TypeScript type defs (reference only)
-│   └── utils/                     ← Formatting, color, time helpers
+│   │   └── recordingsApi.js       ← REST + Socket.IO client
+│   ├── utils/
+│   │   ├── audioAnalysis.js       ← decode, trim, loudness, YIN pitch, WAV encode
+│   │   ├── location.js            ← GPS → network fallback, place names (BigDataCloud)
+│   │   ├── player.js              ← single shared <audio> (iOS-safe), playback window
+│   │   ├── recordings.js          ← places, flags, sites, formatting, nicknames
+│   │   └── ownRecordings.js       ← this device's posts + delete tokens (localStorage)
+│   ├── config/humor.ts            ← old joke copy (used by proposals only)
+│   ├── styles/                    ← tokens.css, app.css (base), home.css (core UI)
+│   └── types/                     ← TypeScript type defs (reference only)
 ├── village/                        ← Andean Village agent monitor
-│   ├── watcher.js                 ← Reads JSONL transcripts, serves state
-│   └── index.html                 ← Canvas-based pixel art village
-├── _archive/                      ← Dead code from chaotic bootstrap phase
+├── _archive/hud-v1/               ← The old mission-control dashboard (not rendered)
 └── docs/                          ← Historical docs (COORDINATION.md, etc.)
 ```
 
@@ -189,7 +205,7 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 | App shell | **Quipu** (shared soil) | `src/App.jsx`, `src/main.jsx`, `index.html` | Coordinate before editing |
 | Globe | **Inti** | `src/components/Globe/*` | Visual effects, markers, arcs |
 | HUD panels | **Chaska** | `src/components/HUD/*` | Dashboard widgets |
-| Data layer | **Wari** | `src/data/*` | Mock stream, live stream, API client |
+| Data layer | **Wari** | `src/data/*` | REST + live Socket.IO client |
 | Styles | **Chaska** | `src/styles/*` | CSS tokens, layouts, animations |
 | Config | Shared | `src/config/*` | Constants, city data — ask Quipu |
 | Utils | Shared | `src/utils/*` | Pure helper functions — ask Quipu |
@@ -238,14 +254,19 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/events` | Submit event `{lat, lng, intensity, country, type}` |
-| `GET` | `/api/events?limit=200` | Recent events (max 500) |
+| `POST` | `/api/events` | Submit `{lat, lng, country, place, audioData (base64), audioMimeType, duration, volume, peakVolume, intensity, type}` → event + `deleteToken` (returned only to the poster) |
+| `GET` | `/api/events?limit=500` | Recent events (max 500), no audio |
+| `GET` | `/api/events/:id` | One event (used by shared `/r/:id` links) |
+| `GET` | `/api/events/:id/audio` | The audio file — supports Range, cached forever |
+| `DELETE` | `/api/events/:id` | Delete with header `X-Delete-Token` (poster only) |
 | `GET` | `/api/events/range?start=&end=` | Historical range |
-| `GET` | `/api/stats` | Aggregates: totalToday, topCountry, etc. |
+| `GET` | `/api/stats` | Aggregates: totalToday, totalAllTime, etc. |
 | `GET` | `/api/health` | Health check |
+| `GET` | `/r/:id` | (production) index.html with a per-recording link-preview title |
 
 **WebSocket** (Socket.IO on same port):
 - `fart:new` — single new event
+- `fart:deleted` — `{ id }` when a poster deletes theirs
 - `fart:burst` — batch of events
 - `stats:update` — pushed every 5s
 
@@ -253,10 +274,19 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 
 ## Known Issues & Next Steps
 
-### Immediate (must fix)
-- [ ] Frontend uses mock data only — wire up `liveFartStream.ts` to App.jsx
-- [ ] `socket.io-client` not in package.json yet
-- [ ] No routing — need React Router for submission page
+### Open (as of 2026-09-23)
+- [ ] Test the recorder on a real iPhone + Android phone (built for iOS gesture
+      rules; verified in desktop Chrome with a simulated mic)
+- [ ] Older recordings (pre-rebuild) have no `place`/`volume`; the client looks
+      places up lazily and measures loudness/pitch on open
+- [ ] Moderation: anyone can post; only the poster's device can delete
+
+### Done on 2026-09-23 (core rebuild)
+- [x] Live backend wired end to end (REST + Socket.IO), no mock data
+- [x] Recorder rebuilt (countdown, trim, WAV, real stats, GPS + network fallback)
+- [x] Globe shows every recording, not just the last 90 seconds
+- [x] Shareable `/r/:id` links with link previews; delete-your-own
+- [x] Old dashboard archived to `_archive/hud-v1/`
 
 ### Cleanup (done on 2026-02-23)
 - [x] Initialized git repo
@@ -265,11 +295,9 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 - [x] Created this CLAUDE.md
 
 ### Future Enhancements
-- [ ] Three.js UnrealBloomPass for glow effects on globe
-- [ ] Motion.js for smooth panel animations
-- [ ] Submission form UI (POST to backend)
-- [ ] Mobile responsive layout
-- [ ] Quality levels (High/Medium/Low) for performance
+- [ ] Per-recording share images (og:image) for richer link previews
+- [ ] Split three.js/globe.gl into a cached vendor chunk (main bundle ~575 KB gzip)
+- [ ] One-time place-name backfill for older recordings
 
 ---
 

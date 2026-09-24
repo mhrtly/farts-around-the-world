@@ -205,11 +205,14 @@ if (existsSync(DIST_DIR)) {
       const seconds = Number.isFinite(event.duration) ? `${event.duration} seconds` : 'A few seconds'
       const title = escapeHtml(`A fart from ${where}`)
       const description = escapeHtml(`${seconds} of real audio, pinned to the map. Tap to listen on Farts Around the World.`)
-      const url = escapeHtml(`${req.protocol}://${req.get('host')}/r/${event.id}`)
+      const origin = `${req.protocol}://${req.get('host')}`
+      const url = escapeHtml(`${origin}/r/${event.id}`)
+      const image = escapeHtml(`${origin}/share.jpg`)
       const html = indexHtmlCache
         .replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`)
         .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, open, close) => `${open}${title}${close}`)
         .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, open, close) => `${open}${description}${close}`)
+        .replace(/(<meta property="og:image" content=")[^"]*(")/, (_, open, close) => `${open}${image}${close}`)
         .replace('</head>', () => `    <meta property="og:url" content="${url}" />\n  </head>`)
       res.set('Cache-Control', 'no-cache').send(html)
     } catch (err) {

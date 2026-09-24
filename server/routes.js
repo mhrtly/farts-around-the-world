@@ -1,10 +1,11 @@
 import { Router } from 'express'
-import { createHash, randomBytes } from 'crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 import { validateFartEvent } from './validation.js'
 import {
   insertEvent,
   getRecentEvents,
   getEvent,
+  deleteEventById,
   deleteEventWithToken,
   getEventsByRange,
   getStats,
@@ -239,15 +240,23 @@ export default function createRoutes(io) {
     }
   })
 
-  // Let the original poster take a recording back down.
+  // Let the original poster take a recording back down. For moderation, an
+  // admin can delete anything with X-Admin-Token when ADMIN_TOKEN is set.
   router.delete('/api/events/:id', (req, res) => {
+    const adminToken = process.env.ADMIN_TOKEN
+    const isAdmin = typeof adminToken === 'string' && adminToken.length >= 16 &&
+      typeof req.headers['x-admin-token'] === 'string' &&
+      req.headers['x-admin-token'].length === adminToken.length &&
+      timingSafeEqual(Buffer.from(req.headers['x-admin-token']), Buffer.from(adminToken))
     const token = req.headers['x-delete-token']
-    if (typeof token !== 'string' || token.length < 16) {
+    if (!isAdmin && (typeof token !== 'string' || token.length < 16)) {
       return res.status(401).json({ error: 'Missing delete token' })
     }
 
     try {
-      const deleted = deleteEventWithToken(req.params.id, hashDeleteToken(token))
+      const deleted = isAdmin
+        ? deleteEventById(req.params.id)
+        : deleteEventWithToken(req.params.id, hashDeleteToken(token))
       if (!deleted) {
         return res.status(404).json({ error: 'Recording not found or token does not match' })
       }

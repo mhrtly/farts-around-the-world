@@ -35,6 +35,7 @@ export default function RecordingList({
   loadState,
   ownIds,
   onSelect,
+  onHover,
   onRecord,
   onRetry,
 }) {
@@ -114,7 +115,11 @@ export default function RecordingList({
               const loud = loudnessWord(volumeToDb(event.peakVolume))
               return (
                 <li key={event.id}>
-                  <div className={`rrow ${selectedId === event.id ? 'is-selected' : ''} ${playing ? 'is-playing' : ''}`}>
+                  <div
+                    className={`rrow ${selectedId === event.id ? 'is-selected' : ''} ${playing ? 'is-playing' : ''}`}
+                    onMouseEnter={() => onHover?.(event)}
+                    onMouseLeave={() => onHover?.(null)}
+                  >
                     <button
                       type="button"
                       className="rrow__main"

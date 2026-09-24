@@ -143,6 +143,10 @@ const stmts = {
     DELETE FROM events WHERE id = ? AND delete_token_hash IS NOT NULL AND delete_token_hash = ?
   `),
 
+  deleteById: db.prepare(`
+    DELETE FROM events WHERE id = ?
+  `),
+
   audio: db.prepare(`
     SELECT audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type as audioMimeType' : ''} FROM events WHERE id = ?
   `),
@@ -360,6 +364,10 @@ export function getEvent(eventId) {
 
 export function deleteEventWithToken(eventId, tokenHash) {
   return stmts.deleteWithToken.run(eventId, tokenHash).changes > 0
+}
+
+export function deleteEventById(eventId) {
+  return stmts.deleteById.run(eventId).changes > 0
 }
 
 export function getEventsByRange(start, end) {

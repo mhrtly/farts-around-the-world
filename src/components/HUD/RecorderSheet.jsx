@@ -136,6 +136,14 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
   const draftCountRef = useRef(0)
   const locateRunRef = useRef(0)
   const locStatusRef = useRef('idle')
+  const recButtonRef = useRef(null)
+
+  // Keyboard users land on the big button: Space/Enter starts recording
+  useEffect(() => {
+    if (!open || phaseRef.current !== 'idle') return undefined
+    const timer = setTimeout(() => recButtonRef.current?.focus({ preventScroll: true }), 80)
+    return () => clearTimeout(timer)
+  }, [open])
 
   useEffect(() => {
     locStatusRef.current = loc.status
@@ -535,6 +543,7 @@ export default function RecorderSheet({ open, onClose, onPosted, onActiveChange 
             </div>
 
             <button
+              ref={recButtonRef}
               type="button"
               className={`rec-button rec-button--${phase}`}
               onClick={onMainButton}

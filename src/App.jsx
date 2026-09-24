@@ -458,6 +458,7 @@ export default function App({ authEnabled = false }) {
       loadState={loadState}
       ownIds={ownIds}
       onSelect={select}
+      onHover={event => globeRef.current?.highlight(event ? siteKey(event.lat, event.lng) : null)}
       onRecord={openRecorder}
       onRetry={load}
     />

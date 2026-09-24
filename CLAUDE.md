@@ -258,7 +258,7 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 | `GET` | `/api/events?limit=500` | Recent events (max 500), no audio |
 | `GET` | `/api/events/:id` | One event (used by shared `/r/:id` links) |
 | `GET` | `/api/events/:id/audio` | The audio file — supports Range, cached forever |
-| `DELETE` | `/api/events/:id` | Delete with header `X-Delete-Token` (poster only) |
+| `DELETE` | `/api/events/:id` | Delete with header `X-Delete-Token` (the poster), or `X-Admin-Token` for moderation when the `ADMIN_TOKEN` env var is set (16+ chars) |
 | `GET` | `/api/events/range?start=&end=` | Historical range |
 | `GET` | `/api/stats` | Aggregates: totalToday, totalAllTime, etc. |
 | `GET` | `/api/health` | Health check |

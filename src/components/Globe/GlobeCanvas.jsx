@@ -102,6 +102,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   const puffsRef = useRef([])
   const burstsRef = useRef([])
   const selectedKeyRef = useRef(selectedKey)
+  const highlightKeyRef = useRef(null)
   const callbacksRef = useRef({ onSiteSelect, onBackgroundClick, onReady })
   const resumeTimerRef = useRef(null)
   const interactingRef = useRef(false)
@@ -119,6 +120,12 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     },
     burst(lat, lng, { color = '#9dff4a', big = false } = {}) {
       spawnBurst(lat, lng, color, big)
+    },
+    // Light up a place while its row is hovered in the list (null to clear)
+    highlight(key) {
+      if (highlightKeyRef.current === key) return
+      highlightKeyRef.current = key
+      updateRings()
     },
     resumeAutoRotate() {
       scheduleAutoRotate(0)
@@ -186,6 +193,8 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     for (const { site } of markersRef.current.values()) {
       if (site.key === selectedKeyRef.current) {
         rings.push({ lat: site.lat, lng: site.lng, color: '#ff64ff', speed: 1.4, max: 3.2, period: 1500 })
+      } else if (site.key === highlightKeyRef.current) {
+        rings.push({ lat: site.lat, lng: site.lng, color: '#38f3ff', speed: 2.2, max: 3.6, period: 800 })
       } else if (now - site.latest < HOUR) {
         rings.push({ lat: site.lat, lng: site.lng, color: '#9dff4a', speed: 1.1, max: 2.4, period: 2200 })
       }
@@ -342,7 +351,8 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
         const countBoost = Math.min(1.9, 1 + Math.log2(entry.site.events.length) * 0.22)
         const pulse = tone === 'older' ? 0.06 : 0.16
         const breathe = 1 + Math.sin(time / (tone === 'fresh' ? 380 : 900) + phase) * pulse
-        const base = (small ? 0.05 : 0.036) * countBoost * (selected ? 1.35 : 1)
+        const highlighted = entry.site.key === highlightKeyRef.current
+        const base = (small ? 0.05 : 0.036) * countBoost * (selected ? 1.35 : highlighted ? 1.3 : 1)
         glowSprite.scale.setScalar(base * breathe)
         coreSprite.scale.setScalar(base * 0.26)
         coreSprite.material.color.copy(selected ? COLOR.selected : COLOR[tone]).lerp(WHITE, 0.55)

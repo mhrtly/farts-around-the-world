@@ -66,7 +66,14 @@ export default function TopBar({ stats, live, onNavigate, onAbout, accountSlot =
             <Icon name="more" />
           </button>
           {menuOpen && (
-            <div className="menu__panel" role="menu">
+            <div
+              className="menu__panel"
+              role="menu"
+              onClick={event => {
+                // Close after any choice (including Clerk's sign-in, which opens its own modal)
+                if (event.target.closest('[role="menuitem"]')) setMenuOpen(false)
+              }}
+            >
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onAbout() }}>
                 <Icon name="info" size={18} />
                 <span><strong>What is this?</strong><em>The short version</em></span>

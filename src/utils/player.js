@@ -57,29 +57,67 @@ function watchWindow() {
 }
 
 if (audio) {
-  audio.addEventListener('playing', () => {
+  // While the silent unlock clip is playing, none of these events are ours.
+  const on = (name, handler) => audio.addEventListener(name, event => {
+    if (!unlocking) handler(event)
+  })
+  on('playing', () => {
     emit({ status: 'playing', error: null })
     watchWindow()
   })
-  audio.addEventListener('waiting', () => {
+  on('waiting', () => {
     if (state.status === 'playing') emit({ status: 'loading' })
   })
-  audio.addEventListener('pause', () => {
+  on('pause', () => {
     if (stoppingAtWindowEnd) {
       stoppingAtWindowEnd = false
       return
     }
     if (state.status !== 'ended' && state.status !== 'error') emit({ status: 'paused' })
   })
-  audio.addEventListener('ended', () => emit({ status: 'ended' }))
-  audio.addEventListener('durationchange', () => {
+  on('ended', () => emit({ status: 'ended' }))
+  on('durationchange', () => {
     if (Number.isFinite(audio.duration) && audio.duration > 0) emit({ duration: audio.duration })
   })
-  audio.addEventListener('error', () => {
-    if (!audio.getAttribute('src')) return
+  on('error', () => {
+    if (!audio.getAttribute('src') || state.id === null) return
     emit({ status: 'error', error: friendlyError() })
   })
 }
+
+// iOS only lets an <audio> element play from a user gesture until it has
+// played once. Globe marker taps arrive a frame after the tap (globe.gl defers
+// clicks), so unlock the element on the very first touch/click anywhere by
+// playing a silent, zero-length clip.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+let unlocking = false
+
+function unlockOnFirstGesture() {
+  if (!audio || typeof document === 'undefined') return
+  const events = ['touchend', 'pointerup', 'keydown']
+  const unlock = () => {
+    events.forEach(name => document.removeEventListener(name, unlock, true))
+    if (state.status !== 'idle' || audio.getAttribute('src')) return // real playback already started
+    unlocking = true
+    audio.muted = true
+    audio.setAttribute('src', SILENT_WAV)
+    const done = () => {
+      // If real playback started in the meantime (play() clears the flag), leave it alone
+      if (!unlocking) return
+      audio.pause()
+      audio.removeAttribute('src')
+      audio.muted = false
+      // Media events from the silent clip are queued; let them pass before listening again
+      setTimeout(() => { unlocking = false }, 0)
+    }
+    const attempt = audio.play()
+    if (attempt?.then) attempt.then(done, done)
+    else done()
+  }
+  events.forEach(name => document.addEventListener(name, unlock, { capture: true, passive: true }))
+}
+
+unlockOnFirstGesture()
 
 function seekQuietly(seconds) {
   try {
@@ -91,6 +129,8 @@ function seekQuietly(seconds) {
 
 export function play(id, src, { duration } = {}) {
   if (!audio) return
+  unlocking = false
+  audio.muted = false
   const win = windowFor(id)
   if (state.id !== id || audio.getAttribute('src') !== src) {
     audio.setAttribute('src', src)

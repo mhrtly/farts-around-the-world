@@ -84,6 +84,10 @@ export class ZoomController {
   place(dir, altitude) {
     const { lat, lng } = toLatLng(dir)
     this.globe.pointOfView({ lat: clamp(lat, -89.9, 89.9), lng, altitude }, 0)
+    // pointOfView only moves the camera (OrbitControls re-aims it on its next
+    // update): aim it now, the way the controls will, so the refinement
+    // passes see the view that's actually going to be drawn
+    this.camera.lookAt(0, 0, 0)
     this.camera.updateMatrixWorld()
   }
 

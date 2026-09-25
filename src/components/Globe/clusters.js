@@ -104,17 +104,25 @@ export class Grouping {
   }
 
   setSpots(spots) {
+    const previous = this.spots
     this.spots = spots
     spots.forEach((spot, i) => { spot.index = i })
-    // Nearest neighbour of every spot (n is at most a few hundred)
-    this.nearest = spots.map(() => Infinity)
-    for (let i = 0; i < spots.length; i++) {
-      const a = spots[i].dir
-      for (let j = i + 1; j < spots.length; j++) {
-        const km = arcKm(a, spots[j].dir)
-        if (km < this.nearest[i]) this.nearest[i] = km
-        if (km < this.nearest[j]) this.nearest[j] = km
+    // Same spots in the same order (a place name arrived, say): the
+    // distances haven't changed
+    const same = previous.length === spots.length && spots.every((spot, i) => spot.key === previous[i].key)
+    if (!same) {
+      // Nearest neighbour of every spot: the largest dot product (cheap),
+      // turned into km once per spot
+      const best = new Float64Array(spots.length).fill(-2)
+      for (let i = 0; i < spots.length; i++) {
+        const a = spots[i].dir
+        for (let j = i + 1; j < spots.length; j++) {
+          const dot = a.dot(spots[j].dir)
+          if (dot > best[i]) best[i] = dot
+          if (dot > best[j]) best[j] = dot
+        }
       }
+      this.nearest = [...best].map(dot => (dot < -1.5 ? Infinity : Math.acos(Math.min(1, dot)) * 6371))
     }
     this.cache = new Map()
     this.dirty = true
@@ -163,7 +171,8 @@ export class Grouping {
     this.dirty = false
     const base = this.groupsAt(step, mergePx)
 
-    const bloomed = new Set()
+    const bloomed = this.spare || new Set()
+    bloomed.clear()
     for (const group of base) {
       if (group.spots.length !== 1) continue
       const spot = group.spots[0]
@@ -175,7 +184,9 @@ export class Grouping {
       if (roomPx * slack < bloomNeed(spot.count)) continue
       bloomed.add(spot.key)
     }
-    if (bloomed.size !== this.bloomed.size || [...bloomed].some(key => !this.bloomed.has(key))) changed = true
+    if (bloomed.size !== this.bloomed.size) changed = true
+    else for (const key of bloomed) if (!this.bloomed.has(key)) { changed = true; break }
+    this.spare = this.bloomed
     this.bloomed = bloomed
     if (!changed) return false
 
@@ -211,12 +222,14 @@ export class Grouping {
   }
 
   // The finest scale any single recording at this spot still needs to be
-  // drawn on its own (its spot separated, and bloomed if shared).
-  focusScale(spot, opts) {
+  // drawn on its own (its spot separated, and bloomed if shared). extra:
+  // recordings about to join it (a post on its way).
+  focusScale(spot, opts, extra = 0) {
     const near = this.nearest[spot.index]
+    const count = spot.count + extra
     let scale = Number.isFinite(near) ? near / (opts.mergePx * 1.5) : Infinity
-    if (spot.count > 1) {
-      const room = Number.isFinite(near) ? near / (opts.bloomNeed(spot.count) * 1.1) : Infinity
+    if (count > 1) {
+      const room = Number.isFinite(near) ? near / (opts.bloomNeed(count) * 1.1) : Infinity
       scale = Math.min(scale, room, opts.bloomMaxScale / 1.1)
     }
     return scale

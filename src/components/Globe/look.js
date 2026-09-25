@@ -114,6 +114,10 @@ vec4 fatwSpline(float v) {
   return vec4(x, y, z, 6.0 - x - y - z) / 6.0;
 }
 vec4 fatwBicubic(sampler2D tex, vec2 uv) {
+  // The taps' own coordinates jump at texel edges: take the mip level from
+  // the smooth ones, or shrunk tiles shimmer
+  vec2 gx = dFdx(uv);
+  vec2 gy = dFdy(uv);
   vec2 size = vec2(textureSize(tex, 0));
   vec2 p = uv * size - 0.5;
   vec2 f = fract(p);
@@ -123,10 +127,10 @@ vec4 fatwBicubic(sampler2D tex, vec2 uv) {
   vec4 c = p.xxyy + vec2(-0.5, 1.5).xyxy;
   vec4 w = vec4(xc.xz + xc.yw, yc.xz + yc.yw);
   vec4 o = (c + vec4(xc.yw, yc.yw) / w) / size.xxyy;
-  vec4 s0 = texture2D(tex, o.xz);
-  vec4 s1 = texture2D(tex, o.yz);
-  vec4 s2 = texture2D(tex, o.xw);
-  vec4 s3 = texture2D(tex, o.yw);
+  vec4 s0 = textureGrad(tex, o.xz, gx, gy);
+  vec4 s1 = textureGrad(tex, o.yz, gx, gy);
+  vec4 s2 = textureGrad(tex, o.xw, gx, gy);
+  vec4 s3 = textureGrad(tex, o.yw, gx, gy);
   float sx = w.x / (w.x + w.y);
   float sy = w.z / (w.z + w.w);
   return mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
@@ -159,7 +163,7 @@ vec2 fatwLL = vFatwLL;
 ${GRID_LIGHT}
 #include <opaque_fragment>`)
   }
-  material.customProgramCacheKey = () => 'fatw-night-tile-6'
+  material.customProgramCacheKey = () => 'fatw-night-tile-7'
   material.specular?.set?.('#0a1613')
   material.shininess = 8
   material.needsUpdate = true

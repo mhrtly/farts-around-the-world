@@ -129,7 +129,8 @@
 
 .zoom--compact {
   right: calc(12px + var(--safe-right));
-  bottom: calc(var(--dock-h, calc(116px + max(12px, var(--safe-bottom)))) + 16px);
+  /* Clear of the hint line that sits just above the dock */
+  bottom: calc(var(--dock-h, calc(116px + max(12px, var(--safe-bottom)))) + 64px);
 }
 
 .zoom--compact .zoom__key.key {

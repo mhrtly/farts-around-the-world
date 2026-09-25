@@ -212,16 +212,19 @@ export class NightTiles {
   // ahead of anything else, so it's there (or on its way) when we arrive
   prefetch(camera, size, altitude) {
     if (this.disabled || altitude >= TILES_FROM_ALTITUDE) return
-    const level = this.level
     const wanted = this.plan(camera, size, altitude)
-    this.level = level // the plan for later doesn't move today's level
     const fresh = wanted.filter(t => {
       const entry = this.cache.get(keyOf(t.z, t.x, t.y))
       return !entry || entry.state === 'idle'
     })
     const keys = new Set(fresh.map(t => keyOf(t.z, t.x, t.y)))
     this.queue = fresh.concat(this.queue.filter(t => !keys.has(keyOf(t.z, t.x, t.y))))
-    this.holdUntil = performance.now() + 200
+    // What's on screen at the end of the move is what matters now (the
+    // flight doesn't re-plan until it's nearly there)
+    this.desired = wanted
+    this.lastPlan.at = performance.now()
+    // Keep fetching even while the camera is still up high
+    this.prefetchUntil = performance.now() + 5000
   }
 
   // One frame. active: tiles are wanted at all (not during the intro, etc.);
@@ -232,9 +235,15 @@ export class NightTiles {
     const goal = want ? clamp((TILES_FROM_ALTITUDE - altitude) / (TILES_FROM_ALTITUDE - TILES_FULL_ALTITUDE), 0, 1) : 0
     this.alpha += (goal - this.alpha) * (1 - Math.exp(-Math.max(1, dt) / 140))
     if (Math.abs(goal - this.alpha) < 0.003) this.alpha = goal
+    const prefetching = !this.disabled && now < (this.prefetchUntil || 0)
     if (!want && this.alpha <= 0) {
       if (this.shown.size) this.hideAll()
+      if (prefetching) {
+        this.fetch(now)
+        return
+      }
       this.queue = []
+      this.desired = [] // plan afresh when the camera comes back down
       return
     }
 
@@ -252,12 +261,7 @@ export class NightTiles {
       })
     }
 
-    // Fetch, nearest the middle first
-    while (want && this.inflight < CONCURRENT && this.queue.length) {
-      const t = this.queue.shift()
-      const entry = this.entry(t.z, t.x, t.y)
-      if (entry.state === 'idle' || (entry.state === 'error' && now > entry.retryAt)) this.load(entry, now)
-    }
+    if (want || prefetching) this.fetch(now)
 
     // What to draw: each wanted tile if it's here, else its four children if
     // they all are, else its nearest loaded ancestor
@@ -306,6 +310,15 @@ export class NightTiles {
       mesh.material.opacity = opacity * this.alpha
     }
     this.evict(now)
+  }
+
+  // Start the next fetches, nearest the middle first
+  fetch(now) {
+    while (this.inflight < CONCURRENT && this.queue.length) {
+      const t = this.queue.shift()
+      const entry = this.entry(t.z, t.x, t.y)
+      if (entry.state === 'idle' || (entry.state === 'error' && now > entry.retryAt)) this.load(entry, now)
+    }
   }
 
   hideAll() {

@@ -36,6 +36,9 @@ const GRATICULE_OPACITY = 0.06
 const DAMPING = 0.08 // per 60 Hz frame; scaled by the real frame time
 // Names beside the markers once the view is regional (km per CSS px)
 const NAME_SCALE = 3.2
+// A second tap within this long (and close by) is a double tap: it zooms in,
+// and a lone tap waits this long before it closes what's open
+const DOUBLE_TAP_MS = 320
 // How far out a spot may still open into petals (km per CSS px)
 const BLOOM_MAX_SCALE = 2.4
 
@@ -81,6 +84,7 @@ function tipText(node) {
     const length = node.lead.event?.duration != null ? ` · ${formatLength(node.lead.event.duration)}` : ''
     return `${place}${length}`.toUpperCase()
   }
+  if (node.overflow) return `${place} · ${node.count} more`.toUpperCase()
   const places = node.group.spots.length
   return (places > 1 ? `${node.count} farts · ${places} places` : `${place} · ${node.count}`).toUpperCase()
 }
@@ -117,6 +121,8 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       frameAll: ms => engine()?.frameAll(ms) || Promise.resolve(false),
       burst: (lat, lng, options) => engine()?.burst(lat, lng, options),
       land: (lat, lng) => engine()?.land(lat, lng) || Promise.resolve(),
+      expectLanding: (lat, lng) => engine()?.expectLanding(lat, lng),
+      cancelLanding: () => engine()?.cancelLanding(),
       highlight: id => engine()?.highlight(id),
       warmUp: () => engine()?.warmUp(),
       resumeAutoRotate: () => engine()?.scheduleAutoRotate(0),
@@ -204,6 +210,10 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     g
       .backgroundColor('rgba(0,0,0,0)')
       .globeImageUrl('/textures/earth-night-1k.jpg')
+      // A sphere of 1° facets (three-globe's default is 4°): its flat faces
+      // sag up to ~4 km below the true surface, which up close would set the
+      // texture (and grid) visibly off from the dots
+      .globeCurvatureResolution(1)
       .showAtmosphere(true)
       .atmosphereColor('#2c8a7e')
       .atmosphereAltitude(0.11)
@@ -229,6 +239,9 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     // controls keep the drag. Close enough for town level, far enough for
     // the whole planet.
     controls.enableZoom = false
+    // With zoom and pan off, OrbitControls would keep treating two fingers
+    // as a one-finger rotate (toward their midpoint): a pinch is zoom.js's
+    controls.touches.TWO = null
     controls.minDistance = GLOBE_RADIUS * (1 + MIN_ALTITUDE * 0.98)
     controls.maxDistance = GLOBE_RADIUS * (1 + MAX_ALTITUDE)
     // Drag speed follows the height, so the ground moves with the finger
@@ -282,6 +295,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       onUserZoom: () => {
         rig.cancel() // the user takes the camera
         stopAutoRotate()
+        controls._sphericalDelta?.set(0, 0, 0) // no leftover drag spin fighting the anchor
         if (!propsRef.current.selectedId) scheduleAutoRotate()
       },
     })
@@ -305,27 +319,42 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       const node = markers.nodeOf(propsRef.current.selectedId)
       let at = null
       if (node) {
-        const p = MarkerLayer.project(node.lead.pos, camera, size.w, size.h)
-        if (p && p.x > 0 && p.y > 0 && p.x < size.w && p.y < size.h) at = { x: p.x, y: p.y, point: node.lead.pos.clone().normalize() }
+        // A petal sits a fixed number of pixels off its spot: anchor on the
+        // spot itself, or the ring would slide as it zooms
+        const ground = node.kind === 'petal' ? node.spot.dir.clone().multiplyScalar(GLOBE_RADIUS) : node.lead.pos
+        const p = MarkerLayer.project(ground, camera, size.w, size.h)
+        if (p && p.x > 0 && p.y > 0 && p.x < size.w && p.y < size.h) at = { x: p.x, y: p.y, point: ground.clone().normalize() }
       }
       zoom.zoomTo(zoom.targetAltitude() * factor, at, { tau: 120 })
     }
 
     // ── Grouping ───────────────────────────────────────────────────────────
     const currentScale = () => kmPerPx(g.pointOfView().altitude, size.h)
+    const groupingCache = { phone: null, options: null }
     const groupingOptions = () => {
       const phone = propsRef.current.compact
+      if (groupingCache.phone === phone) return groupingCache.options
       const petalSpacing = phone ? 34 : 26
       const mergePx = phone ? 30 : 24
-      return {
+      const needs = new Map()
+      groupingCache.phone = phone
+      groupingCache.options = {
         mergePx,
         petalSpacing,
         petalSize: phone ? 7 : 6.2,
         dotScale: phone ? 1 : 0.92,
         bloomMaxScale: BLOOM_MAX_SCALE,
         // Room for the ring plus a clear gap to the nearest other marker
-        bloomNeed: count => petalLayout(count, petalSpacing).radius + mergePx * 0.5 + 26,
+        bloomNeed: count => {
+          let need = needs.get(count)
+          if (need == null) {
+            need = petalLayout(count, petalSpacing).radius + mergePx * 0.5 + 26
+            needs.set(count, need)
+          }
+          return need
+        },
       }
+      return groupingCache.options
     }
 
     // ── Sites ──────────────────────────────────────────────────────────────
@@ -436,7 +465,8 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     // own (split from its neighbours, and opened into petals if it shares
     // its spot), within sensible limits, and never zooming out from where
     // the user already is.
-    function focusAltitude(lat, lng) {
+    // landing: a post on its way to this spot (it'll be one more there)
+    function focusAltitude(lat, lng, landing = false) {
       const phone = propsRef.current.compact
       const hi = phone ? 1.75 : 1.35
       const current = g.pointOfView().altitude
@@ -444,7 +474,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       const opts = groupingOptions()
       const spot = markers.spot(siteKey(lat, lng))
       let scale = Infinity
-      if (spot) scale = markers.grouping.focusScale(spot, opts)
+      if (spot) scale = markers.grouping.focusScale(spot, opts, landing ? 1 : 0)
       else {
         // Not on the map yet (a post on its way): far enough in that it'll
         // land apart from its nearest neighbour
@@ -470,7 +500,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     function flyTo(target, options) {
       const opts = typeof options === 'number' ? { ms: options } : (options || {})
       if (!target || !Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return Promise.resolve(false)
-      const altitude = Number.isFinite(target.altitude) ? target.altitude : focusAltitude(target.lat, target.lng)
+      const altitude = Number.isFinite(target.altitude) ? target.altitude : focusAltitude(target.lat, target.lng, Boolean(opts.landing))
       stopAutoRotate()
       zoom.stop()
       prefetchAt(target.lat, target.lng, altitude)
@@ -613,6 +643,30 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       }
     }
 
+    // Our own post is on its way to this spot: if the server's live echo of
+    // it arrives before the comet does, it stays dark until land() lights it
+    // (instead of popping in, going out, and landing again)
+    function expectLanding(lat, lng) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+      const key = siteKey(lat, lng)
+      state.landings.set(key, Infinity)
+      clearTimeout(timers.expect)
+      timers.expect = setTimeout(() => cancelLanding(), 30000)
+    }
+    function cancelLanding() {
+      clearTimeout(timers.expect)
+      for (const [key, at] of state.landings) {
+        if (at !== Infinity) continue
+        state.landings.delete(key)
+        // Anything held dark for it comes on now
+        const now = performance.now()
+        for (const event of markers.spot(key)?.events || []) {
+          const item = markers.get(event.id)
+          if (item && item.bornAt === Infinity) item.bornAt = now
+        }
+      }
+    }
+
     // A new fart arriving from orbit: comet → impact flash → shockwave → the
     // dot switches on. Resolves at impact.
     function land(lat, lng) {
@@ -621,6 +675,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       const fall = reduced ? 0 : 560
       const impact = now + fall
       const key = siteKey(lat, lng)
+      clearTimeout(timers.expect)
       state.landings.set(key, impact)
       setTimeout(() => state.landings.delete(key), fall + 8000)
       for (const event of markers.spot(key)?.events || []) {
@@ -740,11 +795,12 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       if (node.kind === 'cluster') {
         // The newest fart there plays (or the next one, when this marker
         // already holds the open fart), and the camera comes down until the
-        // cluster opens up
+        // cluster opens up (a spot's overflow, in the middle of its ring,
+        // is as open as it gets)
         const at = node.ids.indexOf(selected)
         const id = at >= 0 ? node.ids[(at + 1) % node.ids.length] : node.ids[0]
         state.tap = { id, at: now }
-        expand(node)
+        if (!node.overflow) expand(node)
         // Inside the gesture, so App can start the audio on iOS
         propsRef.current.onPick?.({ id, kind: 'cluster' })
         return
@@ -804,7 +860,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       // Empty globe. A second tap close by, soon after, zooms in there (a
       // double tap / double click); a lone tap closes what's open.
       const last = state.bgTap
-      if (last && now - last.at < 340 && Math.hypot(x - last.x, y - last.y) < 40) {
+      if (last && now - last.at < DOUBLE_TAP_MS && Math.hypot(x - last.x, y - last.y) < 40) {
         clearTimeout(timers.bgTap)
         state.bgTap = null
         zoom.zoomAt(x, y, 1 / 2.6)
@@ -815,7 +871,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       timers.bgTap = setTimeout(() => {
         state.bgTap = null
         propsRef.current.onBackgroundClick?.()
-      }, 300)
+      }, DOUBLE_TAP_MS)
     }
     const onPointerCancel = event => {
       pointer.downs.delete(event.pointerId)
@@ -844,6 +900,10 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
 
       const flying = rig.update(now, controls)
       const zooming = zoom.update(dt)
+      // The rig moves the camera with pointOfView, which leaves aiming it to
+      // OrbitControls (after us): aim it now, so markers, labels and picking
+      // this frame use the view that's about to be drawn
+      if (flying) camera.lookAt(0, 0, 0)
       if (state.pendingMap && !flying && !zooming && !interacting && !pointer.downs.size) swapTexture()
       controls.dampingFactor = 1 - (1 - DAMPING) ** (dt / 16.667)
       if (p.dimmed !== state.dimmed) {
@@ -1064,7 +1124,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
         // The open fart's marker wears the reticle: keep labels outside it
         const r = selectedNode === node ? Math.max(15, drawnRadius(node) * 1.22 + 11) + 1 : drawnRadius(node)
         dots.push({ key: node.key, x: at.x, y: at.y, r: r + 2 })
-        if (node.kind === 'petal') continue
+        if (node.kind === 'petal' || node.overflow) continue
         const onePlace = node.kind !== 'cluster' || node.group.spots.every(spot => shortPlace(spot) === shortPlace(node.spot))
         const name = named && onePlace ? shortPlace(node.spot) : null
         const count = node.kind === 'cluster' ? node.count : null
@@ -1157,6 +1217,8 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       frameAll,
       burst,
       land,
+      expectLanding,
+      cancelLanding,
       highlight,
       warmUp,
       screenPoint,

@@ -158,7 +158,11 @@ export class CameraRig {
     const altE = tween.altSlope == null ? e : hermite(t, tween.altSlope)
     const logFrom = Math.log(Math.max(1e-5, tween.fromAlt))
     const logTo = Math.log(Math.max(1e-5, tween.toAlt))
-    const altitude = Math.exp(logFrom + (logTo - logFrom) * altE) + tween.bump * Math.sin(Math.PI * clamp(e, 0, 1))
+    // The lift for long hops, as a factor on the height (relative to the
+    // higher end): same peak as before, but a dive from orbit to a town no
+    // longer ends in a plunge from a leftover lift
+    const lift = 1 + (tween.bump / Math.max(tween.fromAlt, tween.toAlt, 1e-5)) * Math.sin(Math.PI * clamp(e, 0, 1))
+    const altitude = Math.exp(logFrom + (logTo - logFrom) * altE) * lift
     const { lat, lng } = toLatLng(_p)
     this.globe.pointOfView({ lat, lng, altitude }, 0)
     const trail = this.trail

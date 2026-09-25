@@ -285,10 +285,10 @@ export default function App({ authEnabled = false }) {
   const playingEvent = player.status === 'playing' ? eventsById.get(player.id) : null
 
   // ── Camera ────────────────────────────────────────────────────────────────
-  const fly = useCallback((target, style = 'push', ms) => (
+  const fly = useCallback((target, style = 'push', ms, extra) => (
     globeRef.current?.flyTo(
       { lat: target.lat, lng: target.lng, altitude: target.altitude },
-      { style, ms },
+      { style, ms, ...extra },
     ) || Promise.resolve()
   ), [])
 
@@ -524,7 +524,8 @@ export default function App({ authEnabled = false }) {
     // globe picks the height: where farts were already recorded at that spot,
     // low enough that the new one lands as a petal among them.
     setLaunching(true)
-    const flight = fly({ lat, lng }, 'crane', 1300)
+    globeRef.current?.expectLanding?.(lat, lng)
+    const flight = fly({ lat, lng }, 'crane', 1300, { landing: true })
     launchRef.current = { lat, lng, at: Date.now(), flight }
   }, [fly])
 
@@ -536,7 +537,7 @@ export default function App({ authEnabled = false }) {
     // The recorder closes itself as the slip flies; only tidy up if it's idle
     // (never cancel a new take someone started in the meantime).
     if (!recorderActiveRef.current) setRecorderOpen(false)
-    const flight = launchRef.current?.flight || fly({ lat: event.lat, lng: event.lng }, 'crane', 1300)
+    const flight = launchRef.current?.flight || fly({ lat: event.lat, lng: event.lng }, 'crane', 1300, { landing: true })
     launchRef.current = { lat: event.lat, lng: event.lng, at: Date.now(), flight }
     Promise.resolve(flight)
       .then(() => globeRef.current?.land?.(event.lat, event.lng))
@@ -860,7 +861,7 @@ export default function App({ authEnabled = false }) {
         onLaunch={handleLaunch}
         onPosted={handlePosted}
         getLandingPoint={getLandingPoint}
-        onPostFailed={message => setLaunching(false) || pushToast({
+        onPostFailed={message => setLaunching(false) || globeRef.current?.cancelLanding?.() || pushToast({
           tone: 'error',
           text: message,
           actionLabel: 'Open',

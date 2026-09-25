@@ -241,6 +241,13 @@ export class MarkerLayer {
     const spots = buildSpots(sites)
     const seen = new Set()
     const added = []
+    // Each fart's number at its place, the way the deck numbers its keys
+    // (1 = the first one recorded there)
+    this.numbers = new Map()
+    for (const site of sites) {
+      const ordered = [...site.events].sort((a, b) => a.timestamp - b.timestamp)
+      ordered.forEach((event, i) => this.numbers.set(event.id, i + 1))
+    }
     this.spotByKey = new Map(spots.map(spot => [spot.key, spot]))
     for (const spot of spots) {
       for (const event of spot.events) {
@@ -336,13 +343,21 @@ export class MarkerLayer {
           if (!item) return
           const p = positions[i]
           target(item, spot.dir, p.x, p.y, ctx.petalSize, 1, 'out')
-          const node = { key: `p:${item.id}`, kind: 'petal', lead: item, items: [item], ids: [item.id], count: 1, spot, number: spot.count - shown.length + i + 1, sel: 0, hl: 0, dim: 1 }
+          const number = this.numbers?.get(item.id) ?? spot.count - shown.length + i + 1
+          const node = { key: `p:${item.id}`, kind: 'petal', lead: item, items: [item], ids: [item.id], count: 1, spot, number, sel: 0, hl: 0, dim: 1 }
           nodes.push(node)
           nodeById.set(item.id, node)
         })
-        for (const event of hidden) {
-          const item = this.byId.get(event.id)
-          if (item) target(item, spot.dir, 0, 0, ctx.petalSize, 0, 'in')
+        // Past MAX_PETALS the oldest share one dot on the pin (a tap there
+        // plays them one after another)
+        const rest = hidden.map(event => this.byId.get(event.id)).filter(Boolean).reverse()
+        if (rest.length) {
+          const lead = rest[0]
+          const size = coreSize(rest.length) * ctx.dotScale * 0.8
+          for (const item of rest) target(item, spot.dir, 0, 0, size, item === lead ? 1 : 0, 'in')
+          const node = { key: `o:${spot.key}`, kind: 'cluster', overflow: true, lead, items: rest, ids: rest.map(item => item.id), count: rest.length, group, spot, sel: 0, hl: 0, dim: 1 }
+          nodes.push(node)
+          for (const item of rest) nodeById.set(item.id, node)
         }
         continue
       }
@@ -445,8 +460,8 @@ export class MarkerLayer {
       alphas[i] = 0
       sizes[i] = 0
       glows[i] = 0
+      item.index = i
     })
-    const indexOf = new Map(this.items.map((item, i) => [item, i]))
 
     // Draw state, per marker
     const selectedNode = this.nodeOf(ctx.selectedId)
@@ -470,7 +485,9 @@ export class MarkerLayer {
       }
       node.lit = lit
       node.fresh = lit && fresh
-      if (justLit && !node.items.every(item => item.quiet)) ignited.push(node)
+      // A switch-on ring for a fart that's announced itself (not for one that
+      // quietly joined a lit place: its burst or landing does the talking)
+      if (justLit && node.items.some(item => item.justLit && !item.quiet)) ignited.push(node)
       const isSel = node === selectedNode
       const isHl = node === highlightNode
       const isPlaying = node === playingNode
@@ -496,8 +513,8 @@ export class MarkerLayer {
       // member stands in for it.
       const standIn = lead.lit ? null : node.items.find(item => item.lit)
       for (const item of node.items) {
-        const i = indexOf.get(item)
-        if (i === undefined) continue
+        const i = item.index
+        if (i === undefined || this.items[i] !== item) continue
         if (item === standIn) {
           sizes[i] = lead.size * size
           states[i * 4] = brightness
@@ -537,8 +554,15 @@ export class MarkerLayer {
       _pin.copy(spot.dir).multiplyScalar(MARKER_RADIUS)
       const lit = spot.events.some(event => this.byId.get(event.id)?.lit)
       if (!lit) continue
-      this.pinPositions.set([_pin.x, _pin.y, _pin.z], pinCount * 3)
-      this.pinAlphas[pinCount] = bloom.t * 0.9 * recorder
+      // Pins and hairlines skip the depth test like the dots: fade them at
+      // the horizon too, or a bloom on the far side would show through
+      const facing = clamp(MarkerLayer.facing(_pin, camera), 0, 1)
+      if (facing <= 0) continue
+      const view = bloom.t * recorder * facing
+      this.pinPositions[pinCount * 3] = _pin.x
+      this.pinPositions[pinCount * 3 + 1] = _pin.y
+      this.pinPositions[pinCount * 3 + 2] = _pin.z
+      this.pinAlphas[pinCount] = view * 0.9
       pinCount++
       for (const event of spot.events) {
         const item = this.byId.get(event.id)
@@ -551,7 +575,7 @@ export class MarkerLayer {
         this.linePositions[o + 4] = item.pos.y
         this.linePositions[o + 5] = item.pos.z
         const node = item.node
-        const a = item.alpha * bloom.t * recorder * (node && node === selectedNode ? 0.6 : 0.26)
+        const a = item.alpha * view * (node && node === selectedNode ? 0.6 : 0.26)
         this.lineAlphas[lineCount * 2] = a * 0.35
         this.lineAlphas[lineCount * 2 + 1] = a
         lineCount++

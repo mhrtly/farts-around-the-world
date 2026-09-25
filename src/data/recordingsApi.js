@@ -53,40 +53,94 @@ export function newPostKey() {
   }
 }
 
-export async function postRecording({ blob, mimeType, lat, lng, country, place, duration, volume, peakVolume, intensity, type, postKey }) {
-  const audioData = await blobToBase64(blob)
+const UPLOAD_TIMEOUT_MS = 40000
+// Waits before the 2nd and 3rd attempts. Retrying is safe: the server
+// recognises the same clientPostId and returns the post it already has.
+const RETRY_DELAYS_MS = [1500, 4000]
+
+function isRetryable(error) {
+  if (error.name === 'AbortError' || error instanceof TypeError) return true
+  const status = error.status
+  return status === 408 || status === 429 || status >= 500
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Offline: wait for the connection to come back (or give it one more go after a while).
+function whenOnline(maxMs) {
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) return Promise.resolve()
+  return new Promise(resolve => {
+    const done = () => {
+      window.removeEventListener('online', done)
+      clearTimeout(timer)
+      resolve()
+    }
+    const timer = setTimeout(done, maxMs)
+    window.addEventListener('online', done)
+  })
+}
+
+async function sendOnce(body) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 60000)
+  const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
   try {
     const res = await fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
-      body: JSON.stringify({
-        lat,
-        lng,
-        country,
-        place,
-        intensity,
-        type,
-        audioData,
-        audioMimeType: mimeType || blob.type || null,
-        duration,
-        volume,
-        peakVolume,
-        clientPostId: postKey?.clientPostId,
-        deleteToken: postKey?.deleteToken,
-      }),
+      body,
     })
-    const created = await readJson(res)
-    // Older servers generate their own token; otherwise it's the one we sent.
-    return { ...created, deleteToken: created.deleteToken || postKey?.deleteToken }
-  } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Upload timed out — check your connection and try again.')
-    if (error instanceof TypeError) throw new Error("Couldn't reach the server — check your connection and try again.")
-    throw error
+    if (!res.ok) {
+      const retryAfter = Number(res.headers.get('Retry-After'))
+      try {
+        await readJson(res)
+      } catch (error) {
+        if (Number.isFinite(retryAfter) && retryAfter > 0) error.retryAfterMs = Math.min(10, retryAfter) * 1000
+        throw error
+      }
+    }
+    return await readJson(res)
   } finally {
     clearTimeout(timeout)
+  }
+}
+
+// `onRetry(attempt, attempts)` is called before each automatic retry.
+export async function postRecording({ blob, mimeType, lat, lng, country, place, duration, volume, peakVolume, intensity, type, postKey, onRetry }) {
+  const audioData = await blobToBase64(blob)
+  const body = JSON.stringify({
+    lat,
+    lng,
+    country,
+    place,
+    intensity,
+    type,
+    audioData,
+    audioMimeType: mimeType || blob.type || null,
+    duration,
+    volume,
+    peakVolume,
+    clientPostId: postKey?.clientPostId,
+    deleteToken: postKey?.deleteToken,
+  })
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const created = await sendOnce(body)
+      // Older servers generate their own token; otherwise it's the one we sent.
+      return { ...created, deleteToken: created.deleteToken || postKey?.deleteToken }
+    } catch (error) {
+      if (attempt >= RETRY_DELAYS_MS.length || !isRetryable(error)) {
+        if (error.name === 'AbortError') throw new Error('Upload timed out. Check your connection and try again.')
+        if (error instanceof TypeError) throw new Error("Couldn't reach the server. Check your connection and try again.")
+        throw error
+      }
+      onRetry?.(attempt + 2, RETRY_DELAYS_MS.length + 1)
+      await wait(error.retryAfterMs || RETRY_DELAYS_MS[attempt])
+      await whenOnline(15000)
+    }
   }
 }
 

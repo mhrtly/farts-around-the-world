@@ -412,6 +412,69 @@ export async function prepareRecording(blob, { headCut = 0, tailCut = 0 } = {}) 
 const analysisCache = new Map()
 const MAX_CACHE = 40
 
+// The analysis runs in a worker where possible (falls back to this thread).
+let worker = null
+let workerBroken = false
+let nextJob = 0
+const jobs = new Map()
+
+function analyzeHere(buffer) {
+  const { samples, ...rest } = analyzeBuffer(buffer)
+  return rest
+}
+
+function analysisWorker() {
+  if (workerBroken || typeof Worker === 'undefined') return null
+  if (worker) return worker
+  try {
+    worker = new Worker(new URL('./analysisWorker.js', import.meta.url), { type: 'module' })
+    worker.onmessage = ({ data }) => {
+      const job = jobs.get(data.key)
+      if (!job) return
+      jobs.delete(data.key)
+      clearTimeout(job.timer)
+      if (data.error) job.reject(new Error(data.error))
+      else job.resolve(data.result)
+    }
+    worker.onerror = () => {
+      // e.g. no module workers in this browser: do everything here from now on
+      workerBroken = true
+      worker?.terminate()
+      worker = null
+      for (const job of jobs.values()) job.fallback()
+      jobs.clear()
+    }
+  } catch {
+    workerBroken = true
+    worker = null
+  }
+  return worker
+}
+
+function analyzeOffThread(buffer) {
+  const target = analysisWorker()
+  if (!target) return Promise.resolve().then(() => analyzeHere(buffer))
+  const mono = mixToMono(buffer)
+  // Send a copy: transferring the AudioBuffer's own channel data would empty it
+  const samples = buffer.numberOfChannels === 1 ? mono.slice() : mono
+  return new Promise((resolve, reject) => {
+    const key = ++nextJob
+    const job = {
+      resolve,
+      reject,
+      fallback: () => {
+        clearTimeout(job.timer)
+        try { resolve(analyzeHere(buffer)) } catch (error) { reject(error) }
+      },
+      timer: setTimeout(() => {
+        if (jobs.delete(key)) job.fallback()
+      }, 6000),
+    }
+    jobs.set(key, job)
+    target.postMessage({ key, samples, sampleRate: buffer.sampleRate }, [samples.buffer])
+  })
+}
+
 export function loadRecordingAnalysis(id) {
   if (analysisCache.has(id)) return analysisCache.get(id)
   const promise = fetch(recordingAudioUrl(id))
@@ -420,10 +483,7 @@ export function loadRecordingAnalysis(id) {
       return res.arrayBuffer()
     })
     .then(decodeAudio)
-    .then(buffer => {
-      const { samples, ...rest } = analyzeBuffer(buffer)
-      return rest
-    })
+    .then(analyzeOffThread)
   promise.catch(() => analysisCache.delete(id))
   analysisCache.set(id, promise)
   if (analysisCache.size > MAX_CACHE) {

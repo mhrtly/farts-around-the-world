@@ -14,7 +14,7 @@ import { clerkMiddleware } from '@clerk/express'
 import { existsSync, readFileSync } from 'fs'
 import { rm, appendFile } from 'fs/promises'
 import createRoutes from './routes.js'
-import { getEvent, getStats } from './db.js'
+import { getEvent } from './db.js'
 import { primeArchiveDataset } from './archiveDataset.js'
 
 // One-time cleanup: remove old archive cache from persistent disk.
@@ -90,6 +90,36 @@ app.use((req, _res, next) => {
   req.headers['content-type'] = normalizeJsonContentTypeHeader(req.headers['content-type'])
   next()
 })
+// Rate limiting — mounted before body parsing so an over-limit upload is
+// refused before its ~1 MB body is read. Audio files never change and are
+// cached for a year, so they get their own looser budget: opening one card
+// can take 3-4 requests (analysis fetch + the audio element's byte ranges).
+const isAudioFile = req => req.method !== 'POST' && /^\/[^/]+\/audio\/?$/.test(req.path)
+app.use('/api/events', rateLimit({
+  windowMs: 60_000,
+  max: (req) => req.method === 'POST' ? 10 : 120,
+  skip: isAudioFile,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+}))
+app.use('/api/events', rateLimit({
+  windowMs: 60_000,
+  max: 600,
+  skip: req => !isAudioFile(req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+}))
+
+app.use('/api/archive', rateLimit({
+  windowMs: 60_000,
+  max: (req) => req.method === 'POST' ? 90 : 180,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many archive requests, please try again later' },
+}))
+
 app.use(express.json({ limit: '2mb' })) // allows 10s fallback formats like AAC/MP4/WAV with base64 overhead
 app.use((err, req, res, next) => {
   if (!err) {
@@ -119,23 +149,6 @@ app.use((err, req, res, next) => {
   return next(err)
 })
 
-// Rate limiting
-app.use('/api/events', rateLimit({
-  windowMs: 60_000,
-  max: (req) => req.method === 'POST' ? 30 : 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later' },
-}))
-
-app.use('/api/archive', rateLimit({
-  windowMs: 60_000,
-  max: (req) => req.method === 'POST' ? 90 : 180,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many archive requests, please try again later' },
-}))
-
 // Routes
 app.use(createRoutes(io))
 
@@ -152,15 +165,6 @@ io.on('connection', (socket) => {
   })
 })
 
-// Periodic stats broadcast
-setInterval(() => {
-  try {
-    const stats = getStats()
-    io.emit('stats:update', stats)
-  } catch (err) {
-    console.error('[STATS ERROR]', err.message)
-  }
-}, 5000)
 
 // Serve Cmd+Up as a standalone static app
 const CMD_UP_DIR = resolve(__dirname, '..', 'cmd-up')

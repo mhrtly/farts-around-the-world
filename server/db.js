@@ -79,6 +79,12 @@ db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_events_client_post_id ON events(c
 
 // Public coordinates are rounded to ~1 km so a recording never pins someone's front door.
 export const PUBLIC_COORD_DECIMALS = 2
+export const MIN_AUDIO_BASE64 = 1400
+
+// A few early test rows stored placeholder text instead of audio. Anything
+// under ~1 KB can't be a real recording, so it's left out of public results
+// (kept in the table, not deleted).
+const PLAYABLE = `audio_data IS NOT NULL AND length(audio_data) >= ${MIN_AUDIO_BASE64}`
 
 const legacyNonAudioCount = db.prepare(`
   SELECT COUNT(*) as count FROM events WHERE audio_data IS NULL
@@ -123,14 +129,14 @@ const stmts = {
   recent: db.prepare(`
     SELECT ${PUBLIC_EVENT_COLUMNS}
     FROM events
-    WHERE audio_data IS NOT NULL
+    WHERE ${PLAYABLE}
     ORDER BY timestamp DESC LIMIT ?
   `),
 
   single: db.prepare(`
     SELECT ${PUBLIC_EVENT_COLUMNS}
     FROM events
-    WHERE id = ? AND audio_data IS NOT NULL
+    WHERE id = ? AND ${PLAYABLE}
   `),
 
   byClientPostId: db.prepare(`
@@ -142,9 +148,10 @@ const stmts = {
   range: db.prepare(`
     SELECT ${PUBLIC_EVENT_COLUMNS}
     FROM events
-    WHERE audio_data IS NOT NULL
+    WHERE ${PLAYABLE}
       AND timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp DESC
+    LIMIT 500
   `),
 
   deleteWithToken: db.prepare(`
@@ -162,52 +169,52 @@ const stmts = {
   countToday: db.prepare(`
     SELECT COUNT(*) as count
     FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ?
+    WHERE ${PLAYABLE} AND timestamp >= ?
   `),
 
   countAll: db.prepare(`
     SELECT COUNT(*) as count
     FROM events
-    WHERE audio_data IS NOT NULL
+    WHERE ${PLAYABLE}
   `),
 
   topCountry: db.prepare(`
     SELECT country, COUNT(*) as count FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ?
+    WHERE ${PLAYABLE} AND timestamp >= ?
     GROUP BY country ORDER BY count DESC LIMIT 1
   `),
 
   eventsByType: db.prepare(`
     SELECT type, COUNT(*) as count FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ?
+    WHERE ${PLAYABLE} AND timestamp >= ?
     GROUP BY type
   `),
 
   uniqueCountriesToday: db.prepare(`
     SELECT COUNT(DISTINCT country) as count
     FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ?
+    WHERE ${PLAYABLE} AND timestamp >= ?
   `),
 
   audioCountToday: db.prepare(`
-    SELECT COUNT(*) as count FROM events WHERE timestamp >= ? AND audio_data IS NOT NULL
+    SELECT COUNT(*) as count FROM events WHERE timestamp >= ? AND ${PLAYABLE}
   `),
 
   avgDurationToday: db.prepare(`
     SELECT AVG(duration) as avg, MAX(duration) as max
     FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ? AND duration IS NOT NULL
+    WHERE ${PLAYABLE} AND timestamp >= ? AND duration IS NOT NULL
   `),
 
   avgVolumeToday: db.prepare(`
     SELECT AVG(volume) as avg, MAX(volume) as max
     FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ? AND volume IS NOT NULL
+    WHERE ${PLAYABLE} AND timestamp >= ? AND volume IS NOT NULL
   `),
 
   countryLeaderboard: db.prepare(`
     SELECT country, COUNT(*) as count FROM events
-    WHERE audio_data IS NOT NULL AND timestamp >= ?
+    WHERE ${PLAYABLE} AND timestamp >= ?
     GROUP BY country ORDER BY count DESC LIMIT 10
   `),
 

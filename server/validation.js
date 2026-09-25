@@ -7,6 +7,7 @@ const VALID_TYPES = new Set(['standard', 'epic', 'silent-but-deadly'])
 const COORD_DECIMALS = 2
 const MAX_DURATION_SECONDS = 12
 const MAX_PLACE_LENGTH = 120
+const MIN_AUDIO_BASE64 = 1400 // ~1 KB; the shortest real clip is far bigger
 
 function roundCoord(value) {
   const factor = 10 ** COORD_DECIMALS
@@ -21,6 +22,26 @@ function sanitizePlace(place) {
     .trim()
     .slice(0, MAX_PLACE_LENGTH)
   return cleaned.length >= 2 ? cleaned : null
+}
+
+// The first bytes of every container browsers record or we encode.
+function looksLikeAudio(base64) {
+  let head
+  try {
+    head = Buffer.from(base64.slice(0, 64), 'base64')
+  } catch {
+    return false
+  }
+  if (head.length < 12) return false
+  const ascii = (start, text) => head.toString('latin1', start, start + text.length) === text
+  return (
+    (ascii(0, 'RIFF') && ascii(8, 'WAVE')) || // WAV (every new post)
+    (head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3) || // WebM / Matroska
+    ascii(0, 'OggS') ||
+    ascii(4, 'ftyp') || // MP4 / M4A (Safari)
+    ascii(0, 'ID3') ||
+    (head[0] === 0xff && (head[1] & 0xe0) === 0xe0) // MP3 / AAC ADTS frame sync
+  )
 }
 
 export function validateFartEvent(body) {
@@ -84,6 +105,8 @@ export function validateFartEvent(body) {
     errors.push('audioData is required and must be a base64 string')
   } else if (audioData.length > 1_500_000) {
     errors.push('audioData too large (max ~1.1MB raw audio)')
+  } else if (audioData.length < MIN_AUDIO_BASE64 || !looksLikeAudio(audioData)) {
+    errors.push('audioData must be a real audio recording (WAV, WebM, Ogg, MP4/AAC or MP3)')
   }
 
   let finalAudioMimeType = null

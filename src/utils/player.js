@@ -92,13 +92,15 @@ if (audio) {
     if (!src || state.id === null) return
     const failedId = state.id
     emit({ status: 'error', error: friendlyError() })
-    // A missing file looks like a format problem to the media element; ask the server.
+    // A missing file (or a busy server) looks like a format problem to the
+    // media element; ask the server what actually happened.
     if (audio.error?.code === 4 && src.startsWith('/api/events/')) {
       fetch(src, { method: 'HEAD' })
         .then(res => {
-          if (res.status === 404 && state.id === failedId && state.status === 'error') {
-            emit({ error: 'This fart has been deleted.' })
-          }
+          if (state.id !== failedId || state.status !== 'error') return
+          if (res.status === 404) emit({ error: 'This fart has been deleted.' })
+          else if (res.status === 429) emit({ error: 'Easy there. Give it a few seconds.' })
+          else if (res.status >= 500) emit({ error: 'The server hiccuped. Try again.' })
         })
         .catch(() => {})
     }
@@ -115,9 +117,15 @@ let unlocking = false
 function unlockOnFirstGesture() {
   if (!audio || typeof document === 'undefined') return
   const events = ['touchend', 'pointerup', 'keydown']
+  const removeListeners = () => events.forEach(name => document.removeEventListener(name, unlock, true))
+  let unlocked = false
   const unlock = () => {
-    events.forEach(name => document.removeEventListener(name, unlock, true))
-    if (state.status !== 'idle' || audio.getAttribute('src')) return // real playback already started
+    if (unlocked || unlocking) return // done, or an attempt is still in flight
+    if (state.status !== 'idle' || audio.getAttribute('src')) { // real playback already started
+      unlocked = true
+      removeListeners()
+      return
+    }
     unlocking = true
     audio.muted = true
     audio.setAttribute('src', SILENT_WAV)
@@ -131,8 +139,15 @@ function unlockOnFirstGesture() {
       setTimeout(() => { unlocking = false }, 0)
     }
     const attempt = audio.play()
-    if (attempt?.then) attempt.then(done, done)
-    else done()
+    if (attempt?.then) {
+      // Only stop listening once it worked; a gesture WebKit didn't count
+      // (e.g. the end of a globe drag) gets another chance on the next touch.
+      attempt.then(() => { unlocked = true; removeListeners(); done() }, done)
+    } else {
+      unlocked = true
+      removeListeners()
+      done()
+    }
   }
   events.forEach(name => document.addEventListener(name, unlock, { capture: true, passive: true }))
 }
@@ -159,6 +174,12 @@ export function play(id, src, { duration } = {}) {
     if (win?.start > 0.05) seekQuietly(win.start)
   } else {
     const atEnd = state.status === 'ended' || (win?.end != null && audio.currentTime >= win.end - 0.05)
+    if (!atEnd && !audio.paused && !audio.ended) {
+      // Already playing this one: play() wouldn't fire another 'playing' event,
+      // so don't show a spinner for it.
+      emit({ status: 'playing', error: null })
+      return
+    }
     if (atEnd) {
       // Reload rather than seek back: older recordings (browser WebM files
       // without a seek index) can't always seek, but a reload always restarts.
@@ -177,9 +198,11 @@ export function play(id, src, { duration } = {}) {
 }
 
 // Called once a recording has been analyzed. If it's already playing from the
-// top of a long silence, hop straight to the sound.
-export function setPlaybackWindow(id, start, end) {
-  playbackWindows.set(id, { start: start || 0, end: end ?? null })
+// top of a long silence, hop straight to the sound. `peaks` (the waveform over
+// the same window) lets visuals follow the sound while it plays.
+export function setPlaybackWindow(id, start, end, peaks = null) {
+  const previous = playbackWindows.get(id)
+  playbackWindows.set(id, { start: start || 0, end: end ?? null, peaks: peaks || previous?.peaks || null })
   if (playbackWindows.size > 200) playbackWindows.delete(playbackWindows.keys().next().value)
   if (!audio || state.id !== id) return
   if ((state.status === 'playing' || state.status === 'loading') && audio.currentTime < start - 0.25) {
@@ -214,6 +237,28 @@ export function seekTo(seconds) {
 
 export function currentTime() {
   return audio?.currentTime || 0
+}
+
+// How loud the playing recording is right now (0..1), read from its waveform.
+// Cheap enough to call every animation frame. 0 when nothing is playing.
+export function currentLevel() {
+  if (!audio || state.status !== 'playing' || audio.paused) return 0
+  const win = windowFor(state.id)
+  const peaks = win?.peaks
+  if (!peaks?.length) return 0
+  const end = win.end ?? (Number.isFinite(audio.duration) ? audio.duration : 0)
+  const span = end - win.start
+  if (span <= 0) return 0
+  const position = ((audio.currentTime - win.start) / span) * (peaks.length - 1)
+  if (position < 0 || position > peaks.length - 1) return 0
+  const i = Math.floor(position)
+  const frac = position - i
+  return (peaks[i] ?? 0) * (1 - frac) + (peaks[Math.min(peaks.length - 1, i + 1)] ?? 0) * frac
+}
+
+// The id of whatever is audibly playing right now (null when paused/idle).
+export function playingId() {
+  return state.status === 'playing' ? state.id : null
 }
 
 function subscribe(listener) {

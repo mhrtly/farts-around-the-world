@@ -49,7 +49,7 @@ export default function RecordingCard({
 
   // Play just the sound (older clips have seconds of silence around it)
   useEffect(() => {
-    if (analysis) setPlaybackWindow(recording.id, analysis.trimStart, analysis.trimEnd)
+    if (analysis) setPlaybackWindow(recording.id, analysis.trimStart, analysis.trimEnd, analysis.peaks)
   }, [analysis, recording.id])
   useEffect(() => {
     if (!confirmDelete) return undefined

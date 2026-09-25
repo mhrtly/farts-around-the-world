@@ -143,7 +143,7 @@ export default function RecordingList({
                       onClick={() => {
                         toggle(event.id, recordingAudioUrl(event.id), { duration: event.duration })
                         loadRecordingAnalysis(event.id)
-                          .then(analysis => setPlaybackWindow(event.id, analysis.trimStart, analysis.trimEnd))
+                          .then(analysis => setPlaybackWindow(event.id, analysis.trimStart, analysis.trimEnd, analysis.peaks))
                           .catch(() => {})
                       }}
                     >

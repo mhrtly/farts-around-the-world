@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import Icon from '../Icon.jsx'
 import { currentTime, seekTo, toggle, usePlayer } from '../../../utils/player.js'
 import { formatLength } from '../../../utils/recordings.js'
@@ -21,6 +21,7 @@ const ReviewPlayer = forwardRef(function ReviewPlayer({ id, src, peaks, duration
   const innerRef = useRef(null)
   const waveRef = useRef(null)
   const lengthLabel = length || formatLength(span)
+  const [seeks, setSeeks] = useState(0) // repaint the wipe after a seek while paused
 
   useEffect(() => {
     let frame = 0
@@ -34,7 +35,7 @@ const ReviewPlayer = forwardRef(function ReviewPlayer({ id, src, peaks, duration
     }
     paint()
     return () => cancelAnimationFrame(frame)
-  }, [isCurrent, status, playing, span])
+  }, [isCurrent, status, playing, span, seeks])
 
   const bars = peaks?.length ? Array.from(peaks) : null
   const renderBars = () => (bars
@@ -45,6 +46,7 @@ const ReviewPlayer = forwardRef(function ReviewPlayer({ id, src, peaks, duration
     if (!isCurrent || !waveRef.current) return
     const rect = waveRef.current.getBoundingClientRect()
     seekTo(Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * span)
+    setSeeks(count => count + 1)
   }
 
   const error = isCurrent && status === 'error' && showError ? player.error : null
@@ -56,7 +58,7 @@ const ReviewPlayer = forwardRef(function ReviewPlayer({ id, src, peaks, duration
         type="button"
         className="key-ceramic rplay__key"
         aria-pressed={playing}
-        aria-label={playing ? 'Pause' : 'Play it back'}
+        aria-label="Play it back"
         onClick={() => {
           onUserPlay?.()
           toggle(id, src, { duration: span })

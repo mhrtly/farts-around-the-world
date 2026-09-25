@@ -478,9 +478,8 @@ const RecorderSheet = forwardRef(function RecorderSheet({
     clearTimers()
     releaseMic()
     setMicLive(false)
-    setNotice({ kind: 'other', title, body, canRetry: true })
+    setNotice({ kind: 'other', title, body, canRetry: true }) // announced by its role="alert"
     setPhaseBoth('idle')
-    announce(`${title}. ${body}`)
   }, [announce, releaseMic, setPhaseBoth])
 
   const beginCapture = useCallback((session, { byTap = false } = {}) => {
@@ -523,7 +522,7 @@ const RecorderSheet = forwardRef(function RecorderSheet({
     tapeRef.current?.reset()
     tickerRef.current.set(0)
     setPhaseBoth('recording')
-    announce('Recording. Press REC to stop.')
+    announce('') // nothing may be spoken while the mic is recording
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(captureLoop)
     schedule(() => stopRef.current?.({ reason: 'max' }), MAX_SECONDS * 1000 + 150)
@@ -544,7 +543,9 @@ const RecorderSheet = forwardRef(function RecorderSheet({
     if (session !== sessionRef.current) return
     setCount(3)
     setPhaseBoth('countdown')
-    announce('Recording in 3 seconds. Press REC to start now.')
+    // Short, so a screen reader finishes speaking before capture starts (the
+    // mic records everything; echo cancellation is off)
+    announce('Recording after three beeps.')
     tick(3)
     schedule(() => { if (session === sessionRef.current) { setCount(2); tick(2) } }, STEP_MS)
     schedule(() => { if (session === sessionRef.current) { setCount(1); tick(1) } }, STEP_MS * 2)
@@ -659,9 +660,8 @@ const RecorderSheet = forwardRef(function RecorderSheet({
         releaseMic()
         const info = await explainMicError(error, { fast: performance.now() - askedAt < 150 })
         if (session !== sessionRef.current) return
-        setNotice(info)
+        setNotice(info) // announced by its role="alert"
         setPhaseBoth('idle')
-        announce(`${info.title}. ${info.body}`)
       },
     )
   }, [announce, attachInterruptions, releaseMic, setPhaseBoth, startCountdown, startLocating])
@@ -711,6 +711,8 @@ const RecorderSheet = forwardRef(function RecorderSheet({
     takeRef.current += 1
     setPhaseBoth('idle')
     arm({ drawerSettled: true })
+    // The Redo key disappears with the review; keep keyboard focus on REC
+    requestAnimationFrame(() => recKeyRef.current?.focus({ preventScroll: true }))
   }
 
   const onCopyLink = async () => {

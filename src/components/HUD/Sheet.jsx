@@ -65,7 +65,11 @@ export default function Sheet({
     if (!open) {
       const opener = openerRef.current
       openerRef.current = null
-      if (opener && opener.isConnected && typeof opener.focus === 'function') {
+      // Only hand focus back to something still visible (a docked key hides
+      // while the deck is open, e.g. after picking a fart from the list)
+      const visible = opener?.isConnected && opener.getClientRects().length > 0 &&
+        !opener.closest('[inert], .is-hidden, [aria-hidden="true"]')
+      if (visible && typeof opener.focus === 'function') {
         const active = document.activeElement
         if (!active || active === document.body || panelRef.current?.contains(active)) {
           opener.focus({ preventScroll: true })
@@ -184,6 +188,13 @@ export default function Sheet({
         aria-label={label}
         tabIndex={-1}
       >
+        {modal && dismissible && (
+          // The grip is a drag handle; this is the dismiss control for
+          // keyboards and screen readers (shown when focused)
+          <button type="button" className="sheet__skip-close" onClick={() => propsRef.current.onClose?.()}>
+            Close
+          </button>
+        )}
         <div
           className="sheet__grip"
           onPointerDown={onPointerDown}

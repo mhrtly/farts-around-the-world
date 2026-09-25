@@ -90,6 +90,27 @@
   transition: none !important;
 }
 
+.sheet__skip-close {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 2;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--key);
+  color: var(--legend);
+  font: 700 11px/1 var(--f-ui);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transform: translate(-50%, -200%);
+  opacity: 0;
+}
+
+.sheet__skip-close:focus-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
 .sheet__grip {
   flex: none;
   display: grid;

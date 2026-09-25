@@ -135,6 +135,8 @@ export default function App({ authEnabled = false }) {
   const [launching, setLaunching] = useState(false) // our post is flying to the globe
   const recorderActiveRef = useRef(false)
   recorderActiveRef.current = recorderActive
+  const recorderOpenRef = useRef(false)
+  recorderOpenRef.current = recorderOpen
   const [listOpen, setListOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [toasts, setToasts] = useState([])
@@ -345,6 +347,8 @@ export default function App({ authEnabled = false }) {
       const launch = launchRef.current
       if (launch && Math.abs(launch.lat - event.lat) <= 0.02 && Math.abs(launch.lng - event.lng) <= 0.05 && Date.now() - launch.at < 20_000) return
       globeRef.current?.burst(event.lat, event.lng, { color: '#ffa537' })
+      // No "Listen" offers over an open recorder: playing one would end up in the take
+      if (recorderOpenRef.current) return
       const place = describePlace(event)
       pushToast({
         tone: 'new',

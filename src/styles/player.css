@@ -1,74 +1,20 @@
-/* ─── Waveform player ──────────────────────────────────────────────────── */
+/* ─── Waveform track (WaveTrack) ──────────────────────────────────────────
+   Lives inside a display well. Two identical rows of bars: the base glows at
+   28 %, the lit copy sits in a clip that slides open with the playhead
+   (transforms only, so it runs on the compositor). */
 
-.wplayer {
-  --tone: var(--cyan);
-  --tone-glow: rgba(56, 243, 255, 0.45);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 14px 10px 12px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.wplayer--lime {
-  --tone: var(--lime);
-  --tone-glow: rgba(157, 255, 74, 0.45);
-}
-
-.wplayer--coral {
-  --tone: #ff7a84;
-  --tone-glow: rgba(255, 90, 105, 0.45);
-}
-
-.wplayer__button {
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--tone);
-  color: #041018;
-  box-shadow: 0 10px 28px -8px var(--tone-glow), inset 0 1px 0 rgba(255, 255, 255, 0.55);
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
-}
-
-.wplayer__button:hover {
-  box-shadow: 0 10px 34px -6px var(--tone-glow), inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-
-.wplayer__button:active {
-  transform: scale(0.93);
-}
-
-.wplayer__button .icon {
-  margin-left: 2px;
-}
-
-.wplayer.is-playing .wplayer__button .icon {
-  margin-left: 0;
-}
-
-.wplayer--sm .wplayer__button {
-  width: 42px;
-  height: 42px;
-}
-
-.wplayer__body {
-  flex: 1;
+.wtrack {
   min-width: 0;
 }
 
-.wave {
+.wtrack__bars {
   position: relative;
-  height: 52px;
-  overflow: hidden;
+  height: 44px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
-.wave__bars {
+.wtrack__layer {
   position: absolute;
   inset: 0;
   display: flex;
@@ -76,58 +22,151 @@
   gap: 1.5px;
 }
 
-.wave__bars span {
+.wtrack__layer span {
   flex: 1 1 0;
   min-width: 0;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.2);
-  transition: height 0.35s var(--ease-out);
+  border-radius: 1px;
+  background: var(--phosphor-soft);
 }
 
-.wave__bars--fill {
-  clip-path: inset(0 100% 0 0);
+.wtrack__clip {
+  position: absolute;
+  inset: -4px 0;
+  overflow: hidden;
   pointer-events: none;
+  transform: translate3d(-100%, 0, 0);
+  will-change: transform;
 }
 
-.wave__bars--fill span {
-  background: var(--tone);
-  box-shadow: 0 0 8px var(--tone-glow);
+.wtrack__layer--hot {
+  inset: 4px 0;
+  transform: translate3d(100%, 0, 0);
+  will-change: transform;
 }
 
-.wave__placeholder {
-  height: 22%;
-  animation: waveIdle 1.1s ease-in-out infinite alternate;
+.wtrack__layer--hot span {
+  background: var(--phosphor);
+  box-shadow: 0 0 4px rgba(98, 246, 208, 0.55);
 }
 
-.wave__placeholder:nth-child(3n) { height: 38%; }
-.wave__placeholder:nth-child(4n + 1) { height: 14%; }
-.wave__placeholder:nth-child(5n + 2) { height: 30%; }
-
-@keyframes waveIdle {
-  from { opacity: 0.35; }
-  to { opacity: 0.8; }
+.wtrack__layer span.wtrack__ghost {
+  background: var(--phosphor-dim);
 }
 
-.wplayer__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+/* Placeholder pattern while the waveform loads (8 heights, repeating) */
+.wtrack__ghost { height: 24%; }
+.wtrack__ghost:nth-child(8n + 1) { height: 18%; }
+.wtrack__ghost:nth-child(8n + 2) { height: 30%; }
+.wtrack__ghost:nth-child(8n + 3) { height: 22%; }
+.wtrack__ghost:nth-child(8n + 4) { height: 38%; }
+.wtrack__ghost:nth-child(8n + 5) { height: 26%; }
+.wtrack__ghost:nth-child(8n + 6) { height: 20%; }
+.wtrack__ghost:nth-child(8n + 7) { height: 34%; }
+
+/* Couldn't be measured: a flat trace, like a scope with nothing plugged in */
+.wtrack__flat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(98, 246, 208, 0.22);
+}
+
+.wtrack.is-loading .wtrack__layer--base {
+  animation: ghostPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ghostPulse {
+  50% { opacity: 0.4; }
+}
+
+.wtrack__time {
   margin-top: 6px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink-3);
+  font-family: var(--f-ui);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--legend-3);
+  white-space: nowrap;
+}
+
+.wtrack__elapsed {
+  color: rgba(98, 246, 208, 0.62);
+  transition: color var(--decay) ease-out, text-shadow var(--decay) ease-out;
+}
+
+.wtrack.is-playing .wtrack__elapsed {
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+  transition: none;
+}
+
+.wtrack__elapsed.is-ghost {
+  color: var(--legend-4);
+}
+
+/* ─── Ceramic PLAY key ─────────────────────────────────────────────────── */
+
+.play-key {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  padding: 0;
+  gap: 0;
+}
+
+.play-key__glyph {
+  display: block;
+  color: var(--ceramic-ink);
+}
+
+.play-key .glyph--play {
+  margin-left: 3px;
+}
+
+.play-key.is-busy .play-key__glyph {
+  animation: lampBlink 0.5s steps(1, end) infinite;
+}
+
+/* ─── Self-contained player: PLAY key + waveform well ──────────────────── */
+
+.wplayer {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.wplayer__well {
+  padding: 10px 12px 9px;
+}
+
+.wplayer--sm {
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.wplayer--sm .play-key {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.wplayer--sm .wtrack__bars {
+  height: 32px;
 }
 
 .wplayer__error {
-  font-family: var(--font-body);
-  color: #ffb3b9;
-  text-align: right;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--sodium);
 }
 
-/* ─── Stats ────────────────────────────────────────────────────────────── */
+/* ─── Legacy stat tiles (the recorder's review still uses these) ───────── */
 
-.rcard__stats,
 .review__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -140,25 +179,26 @@
   gap: 3px;
   min-width: 0;
   padding: 10px 12px 11px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: var(--well);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.95), inset 0 0 0 1px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .stat__label {
-  font-family: var(--font-ui);
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-family: var(--f-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--legend-2);
 }
 
 .stat__value {
-  font-family: var(--font-mono);
-  font-size: 19px;
-  font-weight: 600;
-  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--legend);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -166,9 +206,9 @@
 
 .stat__hint {
   min-height: 15px;
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--ink-3);
+  font-family: var(--f-ui);
+  font-size: 11px;
+  color: var(--legend-2);
 }
 
 .meter {
@@ -176,7 +216,7 @@
   height: 4px;
   margin-top: 5px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--phosphor-dim);
   overflow: hidden;
 }
 
@@ -184,13 +224,10 @@
   display: block;
   height: 100%;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--cyan), var(--amber), var(--rec));
-  background-size: 250px 100%;
-  transition: width 0.6s var(--ease-out);
+  background: var(--phosphor);
 }
 
 @media (max-width: 380px) {
-  .rcard__stats,
   .review__stats {
     gap: 6px;
   }
@@ -201,5 +238,12 @@
 
   .stat__value {
     font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wtrack.is-loading .wtrack__layer--base,
+  .play-key.is-busy .play-key__glyph {
+    animation: none;
   }
 }

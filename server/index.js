@@ -215,7 +215,7 @@ if (existsSync(DIST_DIR)) {
       const description = escapeHtml(`${seconds} of real audio, pinned where it happened. Tap to listen on Farts Around the World.`)
       const origin = `${req.protocol}://${req.get('host')}`
       const url = escapeHtml(`${origin}/r/${event.id}`)
-      const image = escapeHtml(`${origin}/share.jpg`)
+      const image = escapeHtml(`${origin}/share-v2.jpg`)
       // The page carries its recording, so the splash can title it and the card
       // can open before the list loads. (No audio preload: on slow connections
       // it delayed the page itself; the audio streams after the PLAY tap.)

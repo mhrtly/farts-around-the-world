@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { fileURLToPath } from 'url'
 import { dirname, join, extname, basename } from 'path'
-import { existsSync, readdirSync } from 'fs'
+import { existsSync, readdirSync, readFileSync } from 'fs'
 import { getArchiveAudioDir as resolveArchiveAudioDir } from './archiveDataset.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -102,6 +102,32 @@ if (!hasAudioMimeTypeColumn) {
 if (legacyNonAudioCount > 0) {
   db.prepare(`DELETE FROM events WHERE audio_data IS NULL`).run()
   console.log(`[DB] Removed ${legacyNonAudioCount} legacy non-audio event(s) from ${DB_PATH}`)
+}
+
+// Recordings posted before the recorder measured anything stored the whole
+// clip length as "duration" and no loudness or place. Fill in the real values
+// (measured from each stored file with the app's own analyzer). Only rows that
+// still have no measured loudness are touched, so this is safe on every start.
+const LEGACY_MEASUREMENTS = join(__dirname, 'migrations', 'legacy-measurements-2026-09.json')
+if (existsSync(LEGACY_MEASUREMENTS)) {
+  try {
+    const { rows } = JSON.parse(readFileSync(LEGACY_MEASUREMENTS, 'utf8'))
+    const fill = db.prepare(`
+      UPDATE events
+      SET duration = @duration, volume = @volume, peak_volume = @peakVolume, place = COALESCE(place, @place)
+      WHERE id = @id AND volume IS NULL
+    `)
+    const changed = db.transaction(entries => entries.reduce((count, [id, row]) => count + fill.run({
+      id,
+      duration: row.duration,
+      volume: row.volume,
+      peakVolume: row.peakVolume,
+      place: row.place ?? null,
+    }).changes, 0))(Object.entries(rows || {}))
+    if (changed) console.log(`[DB] Filled in real measurements for ${changed} older recording(s)`)
+  } catch (err) {
+    console.warn(`[DB] Could not apply legacy measurements: ${err.message}`)
+  }
 }
 
 const PUBLIC_EVENT_COLUMNS = `

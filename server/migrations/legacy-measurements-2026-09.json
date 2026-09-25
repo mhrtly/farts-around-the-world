@@ -1,0 +1,285 @@
+{
+ "about": "Real measurements for recordings posted before the recorder measured anything (Sept 2026). Measured from each stored audio file with the app's own analyzer (src/utils/audioAnalysis.js analyzeBuffer: sound length, mean and peak RMS x 100); place names from the same reverse geocoder the app uses. 'was' keeps the previous values so this can be undone.",
+ "rows": {
+  "8f93b36c-309f-4e48-9bc9-ac8058496ee2": {
+   "duration": 0.16,
+   "volume": 20,
+   "peakVolume": 26.6,
+   "place": "Wilton, New York",
+   "was": {
+    "duration": 5,
+    "place": null
+   }
+  },
+  "07af6635-ceaf-4386-8892-10ece5589dfb": {
+   "duration": 1.38,
+   "volume": 7.3,
+   "peakVolume": 26.7,
+   "place": "Cambridge, Massachusetts",
+   "was": {
+    "duration": 4,
+    "place": null
+   }
+  },
+  "c604705b-2692-46a8-b2e0-64b6c666af2f": {
+   "duration": 4.86,
+   "volume": 8.7,
+   "peakVolume": 29.6,
+   "place": "Grand Canyon Village, Arizona",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "88074e09-cd49-4fd7-8227-130471882b30": {
+   "duration": 5.14,
+   "volume": 6,
+   "peakVolume": 28.5,
+   "place": "Grand Canyon Village, Arizona",
+   "was": {
+    "duration": 5,
+    "place": null
+   }
+  },
+  "a6c4cf4e-8fcc-46b1-80ee-894c4a518dec": {
+   "duration": 4.3,
+   "volume": 10.1,
+   "peakVolume": 23.2,
+   "place": "Panguitch, Utah",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "02e3affd-f435-43f8-9409-9bc0644109ab": {
+   "duration": 3.1,
+   "volume": 10.4,
+   "peakVolume": 28.6,
+   "place": "Panguitch, Utah",
+   "was": {
+    "duration": 8,
+    "place": null
+   }
+  },
+  "843bcbf4-3e73-4ff9-b63d-190ed86be977": {
+   "duration": 0.26,
+   "volume": 22.3,
+   "peakVolume": 28.1,
+   "place": "Orderville, Utah",
+   "was": {
+    "duration": 5,
+    "place": null
+   }
+  },
+  "02963329-7c0e-4d4b-9899-c40b146d9f1e": {
+   "duration": 6.44,
+   "volume": 6.8,
+   "peakVolume": 16.4,
+   "place": "Springdale, Utah",
+   "was": {
+    "duration": 10,
+    "place": null
+   }
+  },
+  "d675d6c7-1420-4c65-b02b-517d2318e6a3": {
+   "duration": 1.24,
+   "volume": 9.9,
+   "peakVolume": 27.9,
+   "place": "Springdale, Utah",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "f3fd992b-088e-4120-85f7-7655264a191c": {
+   "duration": 9.5,
+   "volume": 8.2,
+   "peakVolume": 30.4,
+   "place": "Springdale, Utah",
+   "was": {
+    "duration": 9,
+    "place": null
+   }
+  },
+  "dc3dc8bd-64ab-467d-9a63-7fd32e6ac56e": {
+   "duration": 3.98,
+   "volume": 10.8,
+   "peakVolume": 27.3,
+   "place": "Springdale, Utah",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "39a3a197-8b32-424d-8ffe-2157b3a2c2ca": {
+   "duration": 1.14,
+   "volume": 12.4,
+   "peakVolume": 29.1,
+   "place": "Springdale, Utah",
+   "was": {
+    "duration": 7,
+    "place": null
+   }
+  },
+  "74d3406a-29e0-4351-a554-04cb91f69a8c": {
+   "duration": 5.44,
+   "volume": 2,
+   "peakVolume": 8.5,
+   "place": "Springdale, Utah",
+   "was": {
+    "duration": 5,
+    "place": null
+   }
+  },
+  "6518ad26-7662-4815-a1c5-42e0979f1dfa": {
+   "duration": 8.5,
+   "volume": 7.5,
+   "peakVolume": 26.9,
+   "place": "Henderson, Nevada",
+   "was": {
+    "duration": 10,
+    "place": null
+   }
+  },
+  "3c1526ed-12c8-4994-b594-461ff253c7f6": {
+   "duration": 5.26,
+   "volume": 12,
+   "peakVolume": 57.8,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 5,
+    "place": null
+   }
+  },
+  "6306d04c-6288-43a4-82d6-73a4375370c4": {
+   "duration": 2.8,
+   "volume": 12.5,
+   "peakVolume": 22.1,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "18eb67f5-1e13-4822-8db3-9a36bb562ba9": {
+   "duration": 0.86,
+   "volume": 16.6,
+   "peakVolume": 28.4,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "9b4d21e4-d017-4490-a33d-9a9666a2aed2": {
+   "duration": 1.22,
+   "volume": 8.4,
+   "peakVolume": 28.9,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 4,
+    "place": null
+   }
+  },
+  "fdb8fdb5-a31d-45c0-8dfb-75597e3c8ada": {
+   "duration": 5.74,
+   "volume": 7,
+   "peakVolume": 14.8,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 8,
+    "place": null
+   }
+  },
+  "467f1b3e-db5a-4b1d-a02a-b335de935f7c": {
+   "duration": 3.28,
+   "volume": 17.7,
+   "peakVolume": 47.4,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 6,
+    "place": null
+   }
+  },
+  "3d6fd0e7-d667-4cef-ad7d-140c1b8d17bb": {
+   "duration": 7.82,
+   "volume": 7,
+   "peakVolume": 16.5,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 8,
+    "place": null
+   }
+  },
+  "34d451ae-8297-4487-a898-f53922d43fa8": {
+   "duration": 1.32,
+   "volume": 13.3,
+   "peakVolume": 28.9,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 8,
+    "place": null
+   }
+  },
+  "749ecfbe-0066-40ca-9bd0-9dc6c2932321": {
+   "duration": 4.92,
+   "volume": 6.7,
+   "peakVolume": 17.5,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 9,
+    "place": null
+   }
+  },
+  "723fb1a2-14e6-4952-9df3-f92defbb574a": {
+   "duration": 4.54,
+   "volume": 9.9,
+   "peakVolume": 26.4,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 7,
+    "place": null
+   }
+  },
+  "3591a5e8-7894-4032-a50f-041aae0bbda6": {
+   "duration": 2.4,
+   "volume": 6.8,
+   "peakVolume": 28.3,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 4,
+    "place": null
+   }
+  },
+  "1948c019-f4dd-420e-bbb8-6170c9d80a19": {
+   "duration": 7.6,
+   "volume": 20.5,
+   "peakVolume": 63.3,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 10,
+    "place": null
+   }
+  },
+  "fefe7cdf-6ad7-413e-aa13-9331523cf240": {
+   "duration": 1.4,
+   "volume": 7,
+   "peakVolume": 19.3,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 3,
+    "place": null
+   }
+  },
+  "1740cb46-b5c3-471f-9b73-16676f0852b8": {
+   "duration": 4.28,
+   "volume": 2.5,
+   "peakVolume": 9.6,
+   "place": "Bedford, Massachusetts",
+   "was": {
+    "duration": 7,
+    "place": null
+   }
+  }
+ }
+}

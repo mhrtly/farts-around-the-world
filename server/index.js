@@ -10,7 +10,6 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
-import { clerkMiddleware } from '@clerk/express'
 import { existsSync, readFileSync } from 'fs'
 import { rm, appendFile } from 'fs/promises'
 import createRoutes from './routes.js'
@@ -84,7 +83,8 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors())
-app.use(clerkMiddleware())
+// (No Clerk middleware: no route needs a signed-in user, and it redirected
+// every first page load through Clerk's handshake.)
 app.use((req, _res, next) => {
   req.requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   req.headers['content-type'] = normalizeJsonContentTypeHeader(req.headers['content-type'])
@@ -206,18 +206,27 @@ if (existsSync(DIST_DIR)) {
       let country = event.country
       try { country = regionNames.of(event.country) } catch { /* keep the code */ }
       const where = event.place ? `${event.place}${event.place.includes(country) ? '' : `, ${country}`}` : country
-      const seconds = Number.isFinite(event.duration) ? `${event.duration} seconds` : 'A few seconds'
+      const d = Number(event.duration)
+      const seconds = !Number.isFinite(d) || d <= 0 ? 'A few seconds'
+        : d < 1 ? `${d.toFixed(2)} seconds`
+        : `${Math.round(d * 10) / 10} second${Math.round(d * 10) / 10 === 1 ? '' : 's'}`
       const title = escapeHtml(`A fart from ${where}`)
-      const description = escapeHtml(`${seconds} of real audio, pinned to the map. Tap to listen on Farts Around the World.`)
+      const description = escapeHtml(`${seconds} of real audio, pinned where it happened. Tap to listen on Farts Around the World.`)
       const origin = `${req.protocol}://${req.get('host')}`
       const url = escapeHtml(`${origin}/r/${event.id}`)
       const image = escapeHtml(`${origin}/share.jpg`)
+      const audioUrl = escapeHtml(`/api/events/${encodeURIComponent(event.id)}/audio`)
+      // The page carries its recording, so the splash can title it and the card
+      // can open before the list loads; the audio starts downloading right away.
+      const shared = JSON.stringify(event).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
       const html = indexHtmlCache
         .replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`)
         .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, open, close) => `${open}${title}${close}`)
         .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, open, close) => `${open}${description}${close}`)
+        .replace(/(<meta name="description" content=")[^"]*(")/, (_, open, close) => `${open}${description}${close}`)
         .replace(/(<meta property="og:image" content=")[^"]*(")/, (_, open, close) => `${open}${image}${close}`)
-        .replace('</head>', () => `    <meta property="og:url" content="${url}" />\n  </head>`)
+        .replace(/(<meta property="og:url" content=")[^"]*(")/, (_, open, close) => `${open}${url}${close}`)
+        .replace('</head>', () => `    <link rel="preload" as="fetch" href="${audioUrl}" crossorigin />\n    <script>window.__FATW_SHARED__ = ${shared}</script>\n  </head>`)
       res.set('Cache-Control', 'no-cache').send(html)
     } catch (err) {
       console.error('[SHARE PREVIEW]', err.message)
@@ -225,13 +234,20 @@ if (existsSync(DIST_DIR)) {
     }
   })
 
-  app.use(express.static(DIST_DIR))
+  // Built files have content hashes in their names: cache them for a year, and
+  // a missing one is a real 404 (not the app's HTML).
+  app.use('/assets', express.static(join(DIST_DIR, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }))
+  app.use(express.static(DIST_DIR, {
+    setHeaders(res, filePath) {
+      res.setHeader('Cache-Control', filePath.endsWith('.html') ? 'no-cache' : 'public, max-age=604800')
+    },
+  }))
   // SPA fallback: serve index.html for any non-API route
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/cmd-up')) {
       return next()
     }
-    res.sendFile(join(DIST_DIR, 'index.html'))
+    res.set('Cache-Control', 'no-cache').sendFile(join(DIST_DIR, 'index.html'))
   })
   console.log(`[STATIC] Serving frontend from ${DIST_DIR}`)
 }

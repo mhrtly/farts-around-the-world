@@ -566,6 +566,9 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       if (!down || down.dragged || wasMulti) return
       if (event.pointerType === 'mouse' && event.button !== 0) return
       if (performance.now() - down.t > (down.type === 'mouse' ? 900 : 650)) return
+      // A double tap is one tap: the camera has already started moving, so the
+      // second one would land on empty globe and close what the first opened
+      if (state.tap && performance.now() - state.tap.at < 450) return
       const rect = mount.getBoundingClientRect()
       const selected = propsRef.current.selectedKey
       const hit = markers.pick(event.clientX - rect.left, event.clientY - rect.top, down.type === 'mouse' ? 18 : 34, camera, size.w, size.h, selected)

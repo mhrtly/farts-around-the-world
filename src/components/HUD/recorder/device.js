@@ -175,7 +175,13 @@ export async function explainMicError(error, { fast = false } = {}) {
     return { kind: 'blocked', title: 'The mic is blocked for this site', body: unblockSteps(), canRetry: true }
   }
   if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') {
-    return { kind: 'nomic', title: 'No microphone found', body: 'Plug one in, or open this page on your phone.', canRetry: true }
+    const phone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    return {
+      kind: 'nomic',
+      title: 'No microphone found',
+      body: phone ? "Your phone didn't hand over a mic. Close other apps using it, then press REC." : 'Plug one in, or open this page on your phone.',
+      canRetry: true,
+    }
   }
   if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') {
     return { kind: 'busy', title: 'Your mic is busy', body: 'A call or another app is using it. Finish that, then press REC.', canRetry: true }

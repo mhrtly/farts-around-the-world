@@ -129,6 +129,8 @@ export default function App({ authEnabled = false }) {
     return shared ? [shared] : []
   })
   const [loadState, setLoadState] = useState('loading')
+  const loadStateRef = useRef('loading')
+  loadStateRef.current = loadState
   const [serverTotal, setServerTotal] = useState(0)
   const [live, setLive] = useState(false)
   const [places, setPlaces] = useState({})
@@ -160,6 +162,7 @@ export default function App({ authEnabled = false }) {
   const introDoneRef = useRef(false)
   const revealedRef = useRef(false)
   const deepLinkOpenedRef = useRef(false)
+  const deepLinkTriesRef = useRef(0)
   const ownIdsRef = useRef(ownIds)
   const lastCardRef = useRef(null)
   const requestedPlacesRef = useRef(new Set())
@@ -219,12 +222,13 @@ export default function App({ authEnabled = false }) {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [load])
 
-  // Poll only while the live socket is down
+  // Poll while the live socket is down, and keep retrying (faster) until
+  // the list has loaded at least once
   useEffect(() => {
-    if (live) return undefined
-    const timer = setInterval(load, 30_000)
+    if (live && loadState !== 'error') return undefined
+    const timer = setInterval(load, loadState === 'error' ? 10_000 : 30_000)
     return () => clearInterval(timer)
-  }, [live, load])
+  }, [live, load, loadState])
 
   const sites = useMemo(() => groupIntoSites(events).map(site => (
     site.place ? site : { ...site, place: places[site.key]?.place || null }
@@ -399,8 +403,9 @@ export default function App({ authEnabled = false }) {
       onDeleted: id => liveHandlersRef.current.handleRemoved(id),
       onStatus: connected => {
         setLive(connected)
-        // Catch up on anything missed while disconnected (not on the first connect)
-        if (connected && !wasLive && everLive) liveHandlersRef.current.load()
+        // Catch up on anything missed while disconnected (not on the first
+        // connect, unless the list never loaded)
+        if (connected && !wasLive && (everLive || loadStateRef.current === 'error')) liveHandlersRef.current.load()
         if (connected) everLive = true
         wasLive = connected
       },
@@ -439,8 +444,9 @@ export default function App({ authEnabled = false }) {
           pushToast({ tone: 'error', text: 'That fart has left the building. It was deleted, or never existed.' })
           globeRef.current?.frameAll?.(2200)
         } else {
-          pushToast({ tone: 'error', text: "Couldn't load that fart. Trying again…" })
-          setTimeout(() => { if (deepLinkRef.current === id) openDeepLinkRef.current({ autoplay: false }) }, 4000)
+          const tries = (deepLinkTriesRef.current += 1)
+          if (tries === 1) pushToast({ tone: 'error', text: "Couldn't load that fart. Trying again…" })
+          setTimeout(() => { if (deepLinkRef.current === id) openDeepLinkRef.current({ autoplay: false }) }, Math.min(30_000, 4000 * 2 ** (tries - 1)))
         }
       })
     return true
@@ -829,7 +835,7 @@ export default function App({ authEnabled = false }) {
 
 
       {loadState === 'error' && events.length === 0 && globeReady && !listOpen && !recorderOpen && (
-        <Hint compact={compact} tone="sodium" text="Can't reach the fart server. Tap to retry" onDismiss={load} />
+        <Hint compact={compact} tone="sodium" text={compact ? 'No connection · tap to retry' : "Can't reach the fart server · click to retry"} onDismiss={load} />
       )}
 
       {showHint && globeReady && globeWarm && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && !launching && (
@@ -846,7 +852,7 @@ export default function App({ authEnabled = false }) {
         getLandingPoint={getLandingPoint}
         onPostFailed={message => setLaunching(false) || pushToast({
           tone: 'error',
-          text: `Your fart didn't post (${message}). It's still saved in the recorder.`,
+          text: message,
           actionLabel: 'Open',
           action: openRecorder,
           duration: 12000,

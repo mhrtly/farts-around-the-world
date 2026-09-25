@@ -102,7 +102,10 @@ if (audio) {
           else if (res.status === 429) emit({ error: 'Easy there. Give it a few seconds.' })
           else if (res.status >= 500) emit({ error: 'The server hiccuped. Try again.' })
         })
-        .catch(() => {})
+        .catch(() => {
+          if (state.id !== failedId || state.status !== 'error') return
+          emit({ error: navigator.onLine === false ? "You're offline. Connect, then tap play." : "Couldn't reach the server. Tap play to try again." })
+        })
     }
   })
 }

@@ -639,6 +639,12 @@ const RecorderSheet = forwardRef(function RecorderSheet({
           // no meter; still records
         }
         attachInterruptions(stream)
+        if (document.visibilityState === 'hidden') {
+          // They left while the mic was opening: don't count down unseen
+          setPhaseBoth('countdown')
+          interrupt('hidden')
+          return
+        }
         setMicLabel(cleanMicLabel(stream.getAudioTracks()[0]?.label))
         setNotice(null)
         setMicLive(true)
@@ -664,14 +670,18 @@ const RecorderSheet = forwardRef(function RecorderSheet({
         setPhaseBoth('idle')
       },
     )
-  }, [announce, attachInterruptions, releaseMic, setPhaseBoth, startCountdown, startLocating])
+  }, [announce, attachInterruptions, interrupt, releaseMic, setPhaseBoth, startCountdown, startLocating])
 
   // ── Keys ────────────────────────────────────────────────────────────────
   const onRecKey = () => {
     const current = phaseRef.current
     if (current === 'idle') arm({ drawerSettled: true })
     else if (current === 'countdown') beginCapture(sessionRef.current, { byTap: true })
-    else if (current === 'recording') stopCapture({ byTap: true })
+    else if (current === 'recording') {
+      // A double tap on REC during the countdown is one press, not a 0.04 s take
+      if (performance.now() - startedAtRef.current < 500) return
+      stopCapture({ byTap: true })
+    }
   }
 
   // ✕ never loses a take: while recording it stops and keeps it.

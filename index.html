@@ -605,23 +605,42 @@
           place.textContent = ''
           words.forEach(function (word, w) {
             if (w) place.appendChild(doc.createTextNode(' '))
-            var group = doc.createElement('span')
-            group.className = 'w'
-            for (var i = 0; i < word.length; i++) {
-              var c = doc.createElement('span')
-              c.className = 'c'
-              c.textContent = word[i]
-              c.style.setProperty('--d', Math.round(index++ * step) + 'ms')
-              group.appendChild(c)
-            }
-            place.appendChild(group)
+            // Long hyphenated names (Stratford-upon-Avon) may wrap after a hyphen
+            var parts = word.split('-')
+            parts.forEach(function (part, p) {
+              if (p) place.appendChild(doc.createElement('wbr'))
+              var text = p < parts.length - 1 ? part + '-' : part
+              var group = doc.createElement('span')
+              group.className = 'w'
+              for (var i = 0; i < text.length; i++) {
+                var c = doc.createElement('span')
+                c.className = 'c'
+                c.textContent = text[i]
+                c.style.setProperty('--d', Math.round(index++ * step) + 'ms')
+                group.appendChild(c)
+              }
+              place.appendChild(group)
+            })
           })
           whenFont('Doto', '800 16px', 1500, function () {
+            // Shrink until the longest unbreakable piece fits the well
+            var groups = place.querySelectorAll('.w')
+            var widest = function () {
+              var max = 0
+              for (var g = 0; g < groups.length; g++) max = Math.max(max, groups[g].getBoundingClientRect().width)
+              return max
+            }
+            var size = parseFloat(getComputedStyle(place).fontSize) || 30
+            while (size > 18 && widest() > place.clientWidth) {
+              size -= 1
+              place.style.fontSize = size + 'px'
+            }
             setTimeout(function () { place.classList.add('is-lit') }, 120)
           })
         }
 
         function fill(event) {
+          if (leaving || !$('boot-place')) return // the splash is already gone
           var country = countryName(event.country)
           var parts = String(event.place || '').split(',').map(function (p) { return p.trim() }).filter(Boolean)
           var title = parts[0] || country
@@ -712,7 +731,11 @@
           if (!root || !root.children.length) return void setTimeout(safety, 500)
           ready = true
           if (root.querySelector('.crash')) wantLeave = true
-          if (mode === 'card' && !wantLeave) return armPlay(true)
+          if (mode === 'card' && !wantLeave) {
+            // A card with nothing in it can't offer PLAY: show the plain splash
+            if (filled) return armPlay(true)
+            return giveUp()
+          }
           minimum = 0
           tryLeave()
         }

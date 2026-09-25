@@ -591,6 +591,7 @@ export default function App({ authEnabled = false }) {
       setGlobeWarm(false)
       introDoneRef.current = false
       revealedRef.current = false
+      deepLinkOpenedRef.current = false
     }
   }, [route.page])
 

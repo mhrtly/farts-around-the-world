@@ -38,6 +38,9 @@
   flex-direction: column;
   max-height: calc(100% - var(--safe-top) - 24px);
   padding-bottom: var(--safe-bottom);
+  /* Phones held sideways: keep content out from under the notch / island */
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
   border-radius: 18px 18px 0 0;
   outline: none;
   transform: translate3d(0, 105%, 0);

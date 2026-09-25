@@ -121,6 +121,9 @@ function unlockOnFirstGesture() {
   let unlocked = false
   const unlock = () => {
     if (unlocked || unlocking) return // done, or an attempt is still in flight
+    // Muted media may play without a real gesture, so a resolved play() alone
+    // doesn't prove the element is unlocked; wait for an event that counts.
+    if (navigator.userActivation && !navigator.userActivation.isActive) return
     if (state.status !== 'idle' || audio.getAttribute('src')) { // real playback already started
       unlocked = true
       removeListeners()

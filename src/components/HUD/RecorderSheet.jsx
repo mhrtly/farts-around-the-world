@@ -218,6 +218,7 @@ const RecorderSheet = forwardRef(function RecorderSheet({
 
   const phaseRef = useRef('idle')
   const sessionRef = useRef(0)
+  const finishedRef = useRef(0) // the last session whose take was processed
   const streamRef = useRef(null)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -356,7 +357,9 @@ const RecorderSheet = forwardRef(function RecorderSheet({
 
   // ── Capture ─────────────────────────────────────────────────────────────
   const finishRecording = useCallback(async (session, mimeType) => {
-    if (session !== sessionRef.current) return
+    // Once per take, whichever way it ended (stop event, track loss, timeout)
+    if (session !== sessionRef.current || finishedRef.current === session) return
+    finishedRef.current = session
     clearTimers()
     const blob = new Blob(chunksRef.current, { type: mimeType || chunksRef.current[0]?.type || 'audio/webm' })
     const elapsed = Math.min(MAX_SECONDS, ((stoppedAtRef.current || performance.now()) - startedAtRef.current) / 1000)
@@ -445,7 +448,12 @@ const RecorderSheet = forwardRef(function RecorderSheet({
     const recorder = recorderRef.current
     try {
       if (recorder?.state === 'recording' || recorder?.state === 'paused') recorder.stop()
-      else finishRecording(sessionRef.current, recorder?.mimeType)
+      else if (recorder) {
+        // The browser already stopped it (e.g. the mic went away): its stop
+        // event, carrying the last chunk, is still on its way. Give it a moment.
+        const session = sessionRef.current
+        setTimeout(() => finishRecording(session, recorder.mimeType), 400)
+      } else finishRecording(sessionRef.current, recorder?.mimeType)
     } catch {
       finishRecording(sessionRef.current, recorder?.mimeType)
     }

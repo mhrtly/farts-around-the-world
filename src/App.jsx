@@ -119,6 +119,8 @@ function safeTop() {
 export default function App({ authEnabled = false }) {
   const compact = useMediaQuery(COMPACT_QUERY)
   const narrowDesktop = useMediaQuery('(max-width: 1100px)') // matches the CSS panel widths
+  // Phones held sideways: the front panel becomes a rail on the right edge
+  const landscapePhone = useMediaQuery('(max-width: 859px) and (max-height: 500px) and (orientation: landscape)')
   const viewportHeight = useViewportHeight()
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname))
   const [events, setEvents] = useState(() => {
@@ -352,6 +354,7 @@ export default function App({ authEnabled = false }) {
       const place = describePlace(event)
       pushToast({
         tone: 'new',
+        eventId: event.id,
         text: <>New fart from <strong>{place.title}</strong></>,
         actionLabel: 'Listen',
         action: () => select(event, { autoplay: true, style: 'crane' }),
@@ -367,6 +370,7 @@ export default function App({ authEnabled = false }) {
     if (!id || removedIdsRef.current.has(id)) return
     removedIdsRef.current.add(id)
     setEvents(prev => prev.filter(event => event.id !== id))
+    setToasts(list => list.filter(toast => toast.eventId !== id)) // no "Listen" to a deleted fart
     setServerTotal(total => Math.max(0, total - 1))
     setSelection(current => {
       if (current?.id !== id) return current
@@ -675,7 +679,9 @@ export default function App({ authEnabled = false }) {
       globeOffsetY = Math.round(freeCenter - viewportHeight / 2)
     }
   }
-  const globeOffsetX = compact ? 0 : cardOpen ? (narrowDesktop ? -29 : -32) : (narrowDesktop ? 158 : 170)
+  const globeOffsetX = compact
+    ? (landscapePhone && !cardOpen && !listOpen && !recorderOpen ? -52 : 0)
+    : cardOpen ? (narrowDesktop ? -29 : -32) : (narrowDesktop ? 158 : 170)
 
   const list = (
     <RecordingList

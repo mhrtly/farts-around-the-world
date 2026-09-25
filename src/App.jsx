@@ -133,6 +133,8 @@ export default function App({ authEnabled = false }) {
   const [recorderOpen, setRecorderOpen] = useState(false)
   const [recorderActive, setRecorderActive] = useState(false)
   const [launching, setLaunching] = useState(false) // our post is flying to the globe
+  const recorderActiveRef = useRef(false)
+  recorderActiveRef.current = recorderActive
   const [listOpen, setListOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [toasts, setToasts] = useState([])
@@ -152,6 +154,7 @@ export default function App({ authEnabled = false }) {
   const deepLinkRef = useRef(route.recordingId)
   const introDoneRef = useRef(false)
   const revealedRef = useRef(false)
+  const deepLinkOpenedRef = useRef(false)
   const ownIdsRef = useRef(ownIds)
   const lastCardRef = useRef(null)
   const requestedPlacesRef = useRef(new Set())
@@ -228,9 +231,14 @@ export default function App({ authEnabled = false }) {
   siteOfRef.current = siteOf
   const siteKeyOf = useCallback(event => siteOfRef.current.get(event.id) || siteKey(event.lat, event.lng), [])
 
+  // Place names by site key, and by each recording's own rounded cell (a
+  // recording merged into a nearby site still finds its name)
   const placeByKey = useMemo(() => {
     const map = {}
-    for (const site of sites) map[site.key] = site.place
+    for (const site of sites) {
+      map[site.key] = site.place
+      for (const event of site.events) map[siteKey(event.lat, event.lng)] ??= site.place
+    }
     return map
   }, [sites])
 
@@ -256,8 +264,8 @@ export default function App({ authEnabled = false }) {
   if (selectedEvent) lastCardRef.current = { event: selectedEvent, site: selectedSite }
 
   const stats = useMemo(() => (
-    loadState === 'ready' ? summarizeStats(events, serverTotal) : null
-  ), [events, serverTotal, loadState])
+    loadState === 'ready' ? { ...summarizeStats(events, serverTotal), places: sites.length } : null
+  ), [events, serverTotal, loadState, sites])
 
   const ordinal = useMemo(() => (
     selectedEvent && loadState === 'ready' ? ordinalOf(events, selectedEvent.id) : null
@@ -285,6 +293,7 @@ export default function App({ authEnabled = false }) {
     if (!event) return
     setSelection({ key: siteKeyOf(event), id: event.id })
     setListOpen(false)
+    globeRef.current?.highlight?.(null) // a touch "hover" from the list never ends by itself
     dismissHint()
     // Must run inside the tap for iOS to allow audio.
     if (autoplay) play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
@@ -389,6 +398,7 @@ export default function App({ authEnabled = false }) {
   const openDeepLink = useCallback(({ autoplay }) => {
     const id = deepLinkRef.current
     if (!id) return false
+    deepLinkOpenedRef.current = true
     const known = eventsRef.current.find(event => event.id === id)
     if (known) {
       deepLinkRef.current = null
@@ -424,7 +434,9 @@ export default function App({ authEnabled = false }) {
     if (revealedRef.current) return
     revealedRef.current = true
     globeRef.current?.warmUp?.()
-    if (openDeepLink({ autoplay: false })) return
+    // A shared link (possibly already opened by the splash's PLAY key) flies
+    // to its own pin; only a plain visit frames the whole map.
+    if (openDeepLink({ autoplay: false }) || deepLinkOpenedRef.current) return
     const g = globeRef.current
     const framing = g?.frameAll ? g.frameAll(2400) : null
     if (framing?.then) framing.then(() => g.resumeAutoRotate?.())
@@ -471,12 +483,13 @@ export default function App({ authEnabled = false }) {
     setRecorderOpen(true)
   }, [])
 
-  // Where the new pin will appear on screen: the middle of the globe's free area
-  const getLandingPoint = useCallback(() => {
-    if (safeTopRef.current == null) safeTopRef.current = safeTop()
-    const top = safeTopRef.current + TOP_STRIP
-    return { x: window.innerWidth / 2, y: compact ? top + (window.innerHeight * 0.55 - top) / 2 : window.innerHeight * 0.45 }
-  }, [compact])
+  // Where the new pin will be once the camera arrives: the launch move centres
+  // it on the globe, which sits at the middle of the screen plus its offset
+  // (no drawer or deck is open at that moment).
+  const getLandingPoint = useCallback(() => ({
+    x: window.innerWidth / 2 + (compact ? 0 : narrowDesktop ? 158 : 170),
+    y: window.innerHeight / 2,
+  }), [compact, narrowDesktop])
 
   const handleLaunch = useCallback(({ lat, lng }) => {
     // Start the camera now, so the pin is centred by the time the drawer is
@@ -491,7 +504,9 @@ export default function App({ authEnabled = false }) {
     rememberOwnRecording(event.id, created.deleteToken)
     setOwnIds(prev => new Set(prev).add(event.id))
     setEvents(prev => mergeEvents(prev, [event]))
-    setRecorderOpen(false)
+    // The recorder closes itself as the slip flies; only tidy up if it's idle
+    // (never cancel a new take someone started in the meantime).
+    if (!recorderActiveRef.current) setRecorderOpen(false)
     const flight = launchRef.current?.flight || fly({ lat: event.lat, lng: event.lng }, 'crane', 1300)
     launchRef.current = { lat: event.lat, lng: event.lng, at: Date.now(), flight }
     Promise.resolve(flight)
@@ -570,7 +585,13 @@ export default function App({ authEnabled = false }) {
   useEffect(() => {
     document.documentElement.dataset.routeMode = route.page === 'home' ? 'home' : 'subpage'
     if (route.page !== 'home') window.dispatchEvent(new Event('fatw:ready'))
-    if (route.page === 'home') setGlobeReady(false)
+    if (route.page === 'home') {
+      // A fresh globe mounts: run its intro again (warm-up and framing)
+      setGlobeReady(false)
+      setGlobeWarm(false)
+      introDoneRef.current = false
+      revealedRef.current = false
+    }
   }, [route.page])
 
   // ── Keyboard (desktop) ──────────────────────────────────────────────────
@@ -796,7 +817,10 @@ export default function App({ authEnabled = false }) {
           action: openRecorder,
           duration: 12000,
         })}
-        onActiveChange={setRecorderActive}
+        onActiveChange={active => {
+          setRecorderActive(active)
+          if (active) setLaunching(false)
+        }}
       />
 
       <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} onRecord={openRecorder} />

@@ -28,6 +28,7 @@ import { newPostKey, postRecording } from '../../data/recordingsApi.js'
 import { pause as pausePlayback, play as playTake, stop as stopPlayback } from '../../utils/player.js'
 import { sunPhase } from '../../utils/sunPhase.js'
 import { countryName, formatCoords, formatLength, loudnessLevel, loudnessWord, nickname, noteName } from '../../utils/recordings.js'
+import { rememberOwnRecording } from '../../utils/ownRecordings.js'
 
 const MAX_SECONDS = 10
 const STEP_MS = 700 // countdown step
@@ -766,6 +767,8 @@ const RecorderSheet = forwardRef(function RecorderSheet({
 
   // Stamp the slip, tear it off and throw it at the globe while the drawer closes.
   const landed = async created => {
+    // Keep the delete token right away, before any animation can be interrupted
+    rememberOwnRecording(created.id, created.deleteToken)
     buzz([10, 60, 30])
     const ctx = getAudioContext()
     if (ctx?.state === 'suspended') ctx.resume().catch(() => {})

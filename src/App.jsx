@@ -22,6 +22,7 @@ import {
   ordinalOf,
   recordingAudioUrl,
   recordingShareUrl,
+  siteIndex,
   siteKey,
   summarizeStats,
 } from './utils/recordings.js'
@@ -153,7 +154,7 @@ export default function App({ authEnabled = false }) {
   const lastCardRef = useRef(null)
   const requestedPlacesRef = useRef(new Set())
   const toastIdRef = useRef(0)
-  const launchRef = useRef(null) // { key, at, flight } while our own post is landing
+  const launchRef = useRef(null) // { lat, lng, at, flight } while our own post is landing
   const safeTopRef = useRef(null)
   const player = usePlayer()
 
@@ -219,6 +220,12 @@ export default function App({ authEnabled = false }) {
     site.place ? site : { ...site, place: places[site.key]?.place || null }
   )), [events, places])
 
+  // Which map site each recording belongs to (nearby recordings share one)
+  const siteOf = useMemo(() => siteIndex(sites), [sites])
+  const siteOfRef = useRef(siteOf)
+  siteOfRef.current = siteOf
+  const siteKeyOf = useCallback(event => siteOfRef.current.get(event.id) || siteKey(event.lat, event.lng), [])
+
   const placeByKey = useMemo(() => {
     const map = {}
     for (const site of sites) map[site.key] = site.place
@@ -256,7 +263,7 @@ export default function App({ authEnabled = false }) {
 
   // The site whose recording is audibly playing (the globe pulses it)
   const playingEvent = player.status === 'playing' ? eventsById.get(player.id) : null
-  const playingKey = playingEvent ? siteKey(playingEvent.lat, playingEvent.lng) : null
+  const playingKey = playingEvent ? siteKeyOf(playingEvent) : null
 
   // ── Camera ────────────────────────────────────────────────────────────────
   const fly = useCallback((target, style = 'push', ms) => (
@@ -274,14 +281,14 @@ export default function App({ authEnabled = false }) {
 
   const select = useCallback((event, { autoplay = false, fly: shouldFly = true, style = 'push', flyMs } = {}) => {
     if (!event) return
-    setSelection({ key: siteKey(event.lat, event.lng), id: event.id })
+    setSelection({ key: siteKeyOf(event), id: event.id })
     setListOpen(false)
     dismissHint()
     // Must run inside the tap for iOS to allow audio.
     if (autoplay) play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
     if (shouldFly) fly({ lat: event.lat, lng: event.lng }, style, flyMs)
     replaceUrl(`/r/${event.id}`)
-  }, [dismissHint, fly])
+  }, [dismissHint, fly, siteKeyOf])
 
   const selectSite = useCallback((key, { again = false } = {}) => {
     const site = sites.find(candidate => candidate.key === key)
@@ -325,7 +332,7 @@ export default function App({ authEnabled = false }) {
     setTimeout(() => {
       if (ownIdsRef.current.has(event.id)) return
       const launch = launchRef.current
-      if (launch && launch.key === siteKey(event.lat, event.lng) && Date.now() - launch.at < 20_000) return
+      if (launch && Math.abs(launch.lat - event.lat) <= 0.02 && Math.abs(launch.lng - event.lng) <= 0.05 && Date.now() - launch.at < 20_000) return
       globeRef.current?.burst(event.lat, event.lng, { color: '#ffa537' })
       const place = describePlace(event)
       pushToast({
@@ -472,7 +479,7 @@ export default function App({ authEnabled = false }) {
   const handleLaunch = useCallback(({ lat, lng }) => {
     // Start the camera now, so the pin is centred by the time the drawer is gone
     const flight = fly({ lat, lng, altitude: compact ? 1.5 : 1.3 }, 'crane', 1300)
-    launchRef.current = { key: siteKey(lat, lng), at: Date.now(), flight }
+    launchRef.current = { lat, lng, at: Date.now(), flight }
   }, [fly, compact])
 
   const handlePosted = useCallback(created => {
@@ -482,7 +489,7 @@ export default function App({ authEnabled = false }) {
     setEvents(prev => mergeEvents(prev, [event]))
     setRecorderOpen(false)
     const flight = launchRef.current?.flight || fly({ lat: event.lat, lng: event.lng }, 'crane', 1300)
-    launchRef.current = { key: siteKey(event.lat, event.lng), at: Date.now(), flight }
+    launchRef.current = { lat: event.lat, lng: event.lng, at: Date.now(), flight }
     Promise.resolve(flight)
       .then(() => globeRef.current?.land?.(event.lat, event.lng))
       .catch(() => {})
@@ -647,7 +654,7 @@ export default function App({ authEnabled = false }) {
       loadState={loadState}
       ownIds={ownIds}
       onSelect={(event, options) => select(event, { ...options, style: 'crane' })}
-      onHover={event => globeRef.current?.highlight(event ? siteKey(event.lat, event.lng) : null)}
+      onHover={event => globeRef.current?.highlight(event ? siteKeyOf(event) : null)}
       onRecord={openRecorder}
       onRetry={load}
     />

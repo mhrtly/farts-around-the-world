@@ -40,25 +40,48 @@ export function siteKey(lat, lng) {
   return `${Number(lat).toFixed(2)},${Number(lng).toFixed(2)}`
 }
 
-// Groups recordings that share a (rounded) location into one map site.
+// Recordings within about 2 km of each other share one map site, so GPS
+// jitter across a rounding line doesn't stack two dots on the same spot. The
+// first recording made there anchors (and names) the site.
+const NEAR_DEGREES = 0.02
+
 export function groupIntoSites(events) {
-  const sites = new Map()
-  for (const event of events) {
-    const key = siteKey(event.lat, event.lng)
-    let site = sites.get(key)
+  const ordered = [...events].sort((a, b) => a.timestamp - b.timestamp)
+  const sites = []
+  const byKey = new Map()
+  for (const event of ordered) {
+    const lat = Number(event.lat)
+    const lng = Number(event.lng)
+    const key = siteKey(lat, lng)
+    let site = byKey.get(key)
     if (!site) {
-      site = { key, lat: Number(event.lat), lng: Number(event.lng), country: event.country, events: [], latest: 0, place: null }
-      sites.set(key, site)
+      const lngSpan = NEAR_DEGREES / Math.max(0.3, Math.cos((lat * Math.PI) / 180))
+      site = sites.find(candidate => (
+        Math.abs(candidate.lat - lat) <= NEAR_DEGREES &&
+        Math.abs(((candidate.lng - lng + 540) % 360) - 180) <= lngSpan
+      ))
+      if (!site) {
+        site = { key, lat, lng, country: event.country, events: [], latest: 0, place: null }
+        sites.push(site)
+      }
+      byKey.set(key, site)
     }
     site.events.push(event)
     if (event.timestamp > site.latest) site.latest = event.timestamp
     if (!site.place && event.place) site.place = event.place
   }
-  for (const site of sites.values()) {
+  for (const site of sites) {
     site.events.sort((a, b) => b.timestamp - a.timestamp)
     site.country = site.events[0].country
   }
-  return [...sites.values()].sort((a, b) => b.latest - a.latest)
+  return sites.sort((a, b) => b.latest - a.latest)
+}
+
+// event id → the key of the map site it belongs to
+export function siteIndex(sites) {
+  const index = new Map()
+  for (const site of sites) for (const event of site.events) index.set(event.id, site.key)
+  return index
 }
 
 export function timeAgo(timestamp, now = Date.now()) {
@@ -134,12 +157,14 @@ export function formatClock(seconds) {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
 }
 
-// Loudness words keyed off peak level in dBFS (0 dB = the loudest the mic can capture).
+// Loudness words keyed off peak level in dBFS (0 dB = the loudest the mic can
+// capture). Calibrated on real recordings: most phone farts peak between
+// −16 and −10 dBFS, so HUGE is kept for the ones that nearly clip.
 export const LOUDNESS_BANDS = [
   { max: -40, word: 'Whisper' },
   { max: -30, word: 'Soft' },
-  { max: -21, word: 'Solid' },
-  { max: -13, word: 'Loud' },
+  { max: -20, word: 'Solid' },
+  { max: -9, word: 'Loud' },
   { max: Infinity, word: 'Huge' },
 ]
 

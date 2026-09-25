@@ -10,7 +10,7 @@ const MIN_DB = -50
 const MAX_DB = 0
 const angleFor = db => (Math.min(MAX_DB, Math.max(MIN_DB, db)) + 25) * 2 // −50° … +50°
 const REST = angleFor(MIN_DB)
-const HUGE_FROM = -13
+const HUGE_FROM = LOUDNESS_BANDS[LOUDNESS_BANDS.length - 2].max // where HUGE starts
 
 const CX = 74
 const CY = 122

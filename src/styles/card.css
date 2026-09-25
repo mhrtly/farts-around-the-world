@@ -1,101 +1,642 @@
-/* ─── Recording card ───────────────────────────────────────────────────── */
+/* ─── The listening deck (RecordingCard) ─────────────────────────────────
+   Phones: a drawer from the bottom (Sheet). Desktop: a 380 px panel on the
+   right. Order, top to bottom: the place as a dot-matrix line, where exactly,
+   the display well (VU needle + waveform), PLAY + the measurements, the
+   printed meta line, other farts at this spot, and the transport keys. */
 
-.rcard {
+.deck {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  flex: 1 1 auto;
   min-height: 0;
-  padding: 2px 18px 18px;
+  padding: 0 16px 10px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  transition: transform 380ms var(--spring-deck); /* content panels never bounce */
 }
 
-.rcard__head {
+.deck.is-swiping {
+  transition: none;
+}
+
+/* The two halves only matter sideways (see the landscape block); otherwise
+   their contents stack straight into the deck */
+.deck__side {
+  display: contents;
+}
+
+/* The deck scrolls as a whole when the screen is short; nothing inside squashes */
+.deck > *,
+.deck__side > * {
+  flex-shrink: 0;
+}
+
+/* Wide phones (landscape): keep the instrument at its natural width */
+@media (max-width: 859px) and (min-width: 600px) {
+  .deck {
+    width: 100%;
+    max-width: 560px;
+    align-self: center;
+  }
+}
+
+.deck::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Head ─────────────────────────────────────────────────────────────── */
+
+.deck__head {
   display: flex;
   align-items: flex-start;
   gap: 12px;
 }
 
-.rcard__flag {
-  font-size: 32px;
-  line-height: 1;
-  margin-top: 1px;
-}
-
-.rcard__place {
+.deck__id {
   flex: 1;
   min-width: 0;
+  padding-top: 3px;
 }
 
-.rcard__title {
-  font-family: var(--font-ui);
-  font-size: 23px;
-  font-weight: 700;
-  line-height: 1.12;
+.place-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
-}
-
-.rcard__subtitle {
-  margin-top: 3px;
-  font-size: 13.5px;
-  color: var(--ink-2);
-}
-
-.rcard__siblings {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.rcard__siblings-label {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-family: var(--f-dot);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.12;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--pink);
+  color: var(--phosphor);
+  text-shadow: 0 0 7px var(--phosphor-glow);
 }
 
-.rcard__chips {
+.place-name.is-measuring {
+  display: block;
+  white-space: nowrap;
+  -webkit-line-clamp: none;
+}
+
+.place-name.is-measuring-wrap {
+  display: block;
+  -webkit-line-clamp: none;
+}
+
+/* Characters light one after another; each switches on instantly. Each one
+   is held dark for its delay, then the animation ends and it's simply lit. */
+.place-name__chars > span {
+  animation: charDark calc(var(--d, 0ms) + 16ms) linear;
+}
+
+@keyframes charDark {
+  from, to { opacity: 0; }
+}
+
+.deck__where {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  min-width: 0;
+  margin-top: 6px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  color: var(--legend-3);
+  white-space: nowrap;
 }
 
-.rcard__chips::-webkit-scrollbar {
+.deck__region {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--legend-2);
+}
+
+.deck__coords {
+  flex: none;
+}
+
+.deck__region + .deck__coords::before {
+  content: '·';
+  margin: 0 0.6em;
+}
+
+.deck__close {
+  flex: none;
+  width: 44px;
+  padding: 0;
+}
+
+/* ─── Display well ─────────────────────────────────────────────────────── */
+
+.deck__display {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 12px 9px;
+}
+
+.deck__display.has-vu {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 6px 12px 6px 6px;
+}
+
+.deck__display .wtrack__bars {
+  height: 44px;
+}
+
+.deck__display.has-vu .wtrack__bars {
+  height: 46px;
+}
+
+.deck__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--sodium);
+}
+
+/* ─── PLAY + measurements ──────────────────────────────────────────────── */
+
+.deck__row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.deck__readings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--seam);
+  border-bottom: 1px solid var(--seam);
+}
+
+.reading {
+  min-width: 0;
+  padding: 8px 0 8px 10px;
+  border-left: 1px solid var(--seam);
+}
+
+.reading:first-child {
+  padding-left: 2px;
+  border-left: 0;
+}
+
+.reading__label {
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 9.5px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--legend-2);
+}
+
+.reading__value {
+  margin: 0;
+}
+
+.reading__value strong {
+  display: block;
+  margin-top: 7px;
+  overflow: hidden;
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--legend);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.reading__value strong.is-ghost {
+  color: var(--legend-4);
+}
+
+.reading__value em {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  font-family: var(--f-ui);
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--legend-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ─── Meta line (printed) ──────────────────────────────────────────────── */
+
+.deck__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 10px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--legend-3);
+}
+
+.deck__stamp > span {
+  white-space: nowrap;
+}
+
+.deck__stamp > span + span::before {
+  content: '·';
+  margin: 0 0.55em;
+  color: var(--legend-3);
+}
+
+.deck__yours {
+  color: var(--sodium);
+}
+
+/* Trimmed, in this order, when the line would wrap (RecordingCard: META_TRIMS) */
+.deck__meta.is-tight .deck__posted-word,
+.deck__meta.is-tighter .deck__phase,
+.deck__meta.is-tightest .deck__yours {
   display: none;
 }
 
-.rcard__meta {
-  display: flex;
-  flex-wrap: wrap;
+/* ─── Farts at this spot ───────────────────────────────────────────────── */
+
+.siblings {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 4px 10px;
-  font-size: 13.5px;
-  color: var(--ink-2);
+  gap: 12px;
+  margin-top: 10px;
 }
 
-.rcard__name {
-  font-family: var(--font-ui);
-  font-size: 14px;
+.siblings__legend {
+  max-width: 78px;
+  font-family: var(--f-ui);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 9.5px;
+  line-height: 1.35;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--legend-2);
 }
 
-.rcard__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
+.siblings__count {
+  color: var(--legend);
 }
 
-.rcard__nav {
+.siblings__scroll {
+  min-width: 0;
+  margin: -2px -16px -6px 0;
+  padding: 2px 16px 6px 2px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  --fade-l: #000;
+  --fade-r: #000;
+  -webkit-mask-image: linear-gradient(90deg, var(--fade-l), #000 24px, #000 calc(100% - 40px), var(--fade-r) calc(100% - 12px));
+  mask-image: linear-gradient(90deg, var(--fade-l), #000 24px, #000 calc(100% - 40px), var(--fade-r) calc(100% - 12px));
+}
+
+.siblings__scroll.has-before {
+  --fade-l: transparent;
+}
+
+.siblings__scroll.has-after {
+  --fade-r: transparent;
+}
+
+.siblings__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Interlocking preset keys: one strip of caps with seams between them */
+.presets {
+  display: inline-flex;
+  vertical-align: top;
+  border-radius: 8px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
+}
+
+.preset {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  flex: none;
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--legend-2);
+  background: linear-gradient(180deg, var(--key-hi), var(--key-lo));
+  box-shadow:
+    0 3px 0 var(--skirt),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset -1px 0 0 rgba(0, 0, 0, 0.6),
+    inset 1px 0 0 rgba(255, 255, 255, 0.03);
+  transition: transform 320ms var(--spring-key), box-shadow 320ms var(--spring-key), color 0.15s ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.preset:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.preset:last-child {
+  border-radius: 0 8px 8px 0;
+  box-shadow:
+    0 3px 0 var(--skirt),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 1px 0 0 rgba(255, 255, 255, 0.03);
+}
+
+.preset:only-child {
+  border-radius: 8px;
+}
+
+@media (hover: hover) {
+  .preset:hover {
+    color: var(--legend);
+  }
+}
+
+.preset:active,
+.preset[aria-pressed='true'] {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 var(--skirt),
+    inset 0 1px 3px rgba(0, 0, 0, 0.6),
+    inset -1px 0 0 rgba(0, 0, 0, 0.6);
+  transition: transform 70ms var(--ease-press), box-shadow 70ms var(--ease-press), color 0.15s ease;
+}
+
+.preset[aria-pressed='true'] {
+  background: linear-gradient(180deg, #16191b, #121416);
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}
+
+@media (pointer: coarse) {
+  .deck .preset {
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+/* ─── Transport keys ───────────────────────────────────────────────────── */
+
+.deck__keys {
   display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 3px; /* room for the key skirts */
+}
+
+.deck__keys .key {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.deck__keys .glyph {
+  flex: none;
+  opacity: 0.9;
+}
+
+.deck__keys.has-delete .deck__step {
+  flex: 0 0 48px;
+}
+
+.deck__keys.has-delete .deck__step-word {
+  display: none;
+}
+
+.deck__keys.has-delete .deck__shuffle {
+  flex: 0 0 52px;
+}
+
+.deck__delete {
+  gap: 7px;
+}
+
+.deck__delete .led {
+  background: #3a1410;
+  transition: background var(--decay) ease-out, box-shadow var(--decay) ease-out;
+}
+
+.deck__delete.is-armed .led,
+.deck__delete.is-busy .led {
+  background: var(--tally);
+  box-shadow: 0 0 6px var(--tally-glow);
+  transition: none;
+}
+
+.deck__delete.is-armed {
+  color: var(--legend);
+}
+
+/* ─── Phones: the deck shares the screen with the globe ──────────────────
+   Budget: under 48 % of an 844 px screen and 55 % of a 700 px one, counting
+   the home-indicator strip. */
+
+@media (max-width: 859px) {
+  .deck {
+    /* The home-indicator strip under the sheet already gives the keys room */
+    padding-bottom: max(2px, calc(10px - var(--safe-bottom)));
+  }
+
+  .deck__id {
+    padding-top: 2px;
+  }
+
+  .deck__where {
+    margin-top: 5px;
+  }
+
+  .deck__display {
+    margin-top: 8px;
+  }
+
+  .deck__display.has-vu {
+    padding: 5px 12px 5px 5px;
+  }
+
+  .deck__row {
+    margin-top: 8px;
+  }
+
+  .reading {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  /* The meter a touch smaller than on desktop (same face and needle) */
+  .deck__vu.vu--sm {
+    width: 112px;
+    height: 76px;
+  }
+
+  .deck__vu.vu--sm .vu__needle {
+    bottom: -20px;
+    height: 79px;
+  }
+
+  .deck__vu.vu--sm .vu__cowl {
+    bottom: -26px;
+    width: 53px;
+    height: 38px;
+    margin-left: -26.5px;
+  }
+
+  .reading__value strong {
+    margin-top: 6px;
+  }
+
+  .reading__value em {
+    margin-top: 4px;
+  }
+
+  .deck__meta,
+  .siblings,
+  .deck__keys {
+    margin-top: 8px;
+  }
+}
+
+/* Phones with a short window (an iPhone in Safari with its toolbar up):
+   a smaller meter, same face and needle */
+@media (max-width: 859px) and (max-height: 759px) and (orientation: portrait) {
+  .deck__vu.vu--sm {
+    width: 96px;
+    height: 65px;
+  }
+
+  .deck__vu.vu--sm .vu__needle {
+    bottom: -17px;
+    height: 68px;
+  }
+
+  .deck__vu.vu--sm .vu__cowl {
+    bottom: -22px;
+    width: 46px;
+    height: 32px;
+    margin-left: -23px;
+  }
+
+  .deck__display.has-vu .wtrack__bars {
+    height: 38px;
+  }
+}
+
+/* Shorter still: no meter (the waveform stays) and tighter wells */
+@media (max-height: 619px) {
+  .deck__display {
+    padding: 8px 12px 7px;
+  }
+
+  .deck__display .wtrack__bars {
+    height: 38px;
+  }
+}
+
+@media (max-width: 374px) {
+  .deck {
+    padding: 0 14px 10px;
+  }
+
+  .reading__value strong {
+    font-size: 16px;
+  }
+
+  .deck__keys {
+    gap: 6px;
+  }
+
+  .deck__keys .key {
+    letter-spacing: 0.12em;
+  }
+}
+
+/* ─── Desktop: floating panel on the right ─────────────────────────────── */
+
+@media (min-width: 860px) {
+  .deck {
+    padding: 0 16px 16px;
+  }
+
+  .deck__id {
+    padding-top: 2px;
+  }
+}
+
+@media (min-width: 860px) and (pointer: fine) {
+  .deck__close {
+    width: 38px;
+    min-width: 38px;
+    height: 34px;
+    border-radius: 7px;
+  }
+}
+
+/* ─── Phones held sideways: two halves side by side, nothing to scroll ─── */
+
+@media (max-width: 859px) and (max-height: 500px) and (orientation: landscape) {
+  .deck {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+    align-items: start;
+    column-gap: 18px;
+    max-width: 760px;
+  }
+
+  .deck__side {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .deck__side--b > .deck__row {
+    margin-top: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .place-name__chars > span {
+    animation: none;
+  }
+}
+
+/* Focus rings drawn inside, so scrolling strips don't clip them */
+.preset:focus-visible {
+  outline-offset: -4px;
 }

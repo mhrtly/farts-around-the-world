@@ -809,7 +809,7 @@ export default function App({ authEnabled = false }) {
         onShuffle={shuffle}
       />
 
-      {showHint && globeReady && globeWarm && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && (
+      {showHint && globeReady && globeWarm && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && !launching && (
         <Hint compact={compact} onDismiss={dismissHint} />
       )}
 

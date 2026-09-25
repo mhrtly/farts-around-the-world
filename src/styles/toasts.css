@@ -1,0 +1,103 @@
+/* ─── Toasts ───────────────────────────────────────────────────────────── */
+
+.toasts {
+  position: fixed;
+  top: calc(var(--safe-top) + 12px);
+  left: 50%;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(440px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  border-radius: 16px;
+  background: rgba(9, 15, 24, 0.96);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  pointer-events: auto;
+  animation: toastIn 0.5s var(--ease-out);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.toast--success {
+  border-color: rgba(157, 255, 74, 0.38);
+}
+
+.toast--error {
+  border-color: rgba(255, 77, 90, 0.45);
+}
+
+.toast__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 12px 6px 12px 14px;
+  text-align: left;
+  font-size: 14.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.toast__icon {
+  font-size: 18px;
+}
+
+.toast__text strong {
+  font-family: var(--font-ui);
+}
+
+.toast__action {
+  margin-left: auto;
+  padding-left: 8px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  color: var(--cyan);
+  white-space: nowrap;
+}
+
+.toast__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-right: 4px;
+  flex: none;
+  border-radius: 50%;
+  color: var(--ink-3);
+}
+
+@media (min-width: 860px) {
+  /* Desktop notifications live in the bottom-right corner, clear of the title */
+  .toasts {
+    top: auto;
+    bottom: 24px;
+    left: auto;
+    right: 24px;
+    width: 380px;
+    transform: none;
+  }
+
+  .toast {
+    animation-name: toastInDesktop;
+  }
+
+  @keyframes toastInDesktop {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+}

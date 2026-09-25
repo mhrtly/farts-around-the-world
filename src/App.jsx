@@ -8,6 +8,7 @@ import AboutPanel from './components/HUD/AboutPanel.jsx'
 import Sheet from './components/HUD/Sheet.jsx'
 import Toasts from './components/HUD/Toasts.jsx'
 import Icon from './components/HUD/Icon.jsx'
+import HomeControls, { Hint } from './components/HUD/HomeControls.jsx'
 import { AccountAvatar, AccountMenuItem } from './components/HUD/AccountControls.jsx'
 import {
   connectLive,
@@ -541,42 +542,17 @@ export default function App({ authEnabled = false }) {
         )}
       </Sheet>
 
-      {compact ? (
-        <nav className={`dock ${cardOpen || listOpen ? 'is-hidden' : ''}`} aria-label="Actions">
-          <button type="button" className="dock__side" onClick={() => setListOpen(true)}>
-            <Icon name="list" size={22} />
-            <span>Latest</span>
-          </button>
-          <button type="button" className="dock__rec" onClick={openRecorder} aria-label="Record a fart">
-            <span className="dock__rec-ring" aria-hidden="true" />
-            <span className="dock__rec-core" aria-hidden="true" />
-          </button>
-          <button type="button" className="dock__side" onClick={shuffle} disabled={!events.length}>
-            <Icon name="shuffle" size={22} />
-            <span>Random</span>
-          </button>
-        </nav>
-      ) : (
-        <div className="record-cta-wrap">
-          <button type="button" className="record-cta" onClick={openRecorder}>
-            <span className="record-cta__dot" aria-hidden="true" />
-            Record a fart
-            <kbd>R</kbd>
-          </button>
-          <button type="button" className="shuffle-cta" onClick={shuffle} disabled={!events.length} title="Play a random fart">
-            <Icon name="shuffle" size={18} /> Random
-          </button>
-        </div>
-      )}
+      <HomeControls
+        compact={compact}
+        hidden={cardOpen || listOpen}
+        canShuffle={events.length > 0}
+        onRecord={openRecorder}
+        onList={() => setListOpen(true)}
+        onShuffle={shuffle}
+      />
 
       {showHint && globeReady && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && (
-        <div className="hint" role="status">
-          <span className="hint__dot" aria-hidden="true" />
-          {compact ? 'Tap' : 'Click'} a glowing dot to hear a real fart
-          <button type="button" className="hint__close" onClick={dismissHint} aria-label="Dismiss hint">
-            <Icon name="close" size={14} />
-          </button>
-        </div>
+        <Hint compact={compact} onDismiss={dismissHint} />
       )}
 
       <RecorderSheet

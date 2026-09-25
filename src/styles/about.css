@@ -1,0 +1,79 @@
+/* ─── About ────────────────────────────────────────────────────────────── */
+
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 22px 22px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.about__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.about__head h2 {
+  font-family: var(--font-ui);
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.about__lead {
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.about__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--ink-2);
+}
+
+.about__steps strong {
+  color: var(--ink);
+}
+
+.about__note {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.about__keys {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.about__keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+@media (hover: none) {
+  .about__keys {
+    display: none;
+  }
+}
+
+.about__credit {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink-3);
+}

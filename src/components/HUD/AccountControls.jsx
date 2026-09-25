@@ -26,9 +26,13 @@ function Bridge({ onChange }) {
   return null
 }
 
+// Clerk's sign-in dialog in the app's own type (it would otherwise inherit the
+// page's old monospace base font)
+const APPEARANCE = { variables: { fontFamily: "'B612', system-ui, sans-serif", colorPrimary: '#1c1a16' } }
+
 export default function AccountHost({ publishableKey, onChange }) {
   return (
-    <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/">
+    <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/" appearance={APPEARANCE}>
       <Bridge onChange={onChange} />
     </ClerkProvider>
   )

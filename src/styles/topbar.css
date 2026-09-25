@@ -1,4 +1,8 @@
-/* ─── Top bar ──────────────────────────────────────────────────────────── */
+/* ─── Top strip ────────────────────────────────────────────────────────────
+   Pilot lamp (sodium when the live feed is connected, dark while it
+   reconnects), the Michroma wordmark, real counters, and the menu key.
+   The splash (index.html) flies its own lamp and wordmark onto these on the
+   way out, so the metrics below are mirrored there. */
 
 .topbar {
   position: absolute;
@@ -10,8 +14,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(var(--safe-top) + 14px) 14px 28px 16px;
-  background: linear-gradient(180deg, rgba(4, 7, 12, 0.85), rgba(4, 7, 12, 0.45) 60%, transparent);
+  /* Landscape iPhones: clear of the rounded corners and the sensor housing */
+  padding:
+    calc(var(--safe-top) + 14px)
+    max(12px, env(safe-area-inset-right, 0px))
+    26px
+    max(16px, env(safe-area-inset-left, 0px));
+  /* A little night under the type so it reads over stars and atmosphere */
+  background: linear-gradient(180deg, rgba(7, 9, 10, 0.72), rgba(7, 9, 10, 0.32) 55%, rgba(7, 9, 10, 0));
   pointer-events: none;
 }
 
@@ -19,198 +29,363 @@
   pointer-events: auto;
 }
 
-.brand {
+.topbar__id {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topbar__lockup {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
+  gap: 11px;
 }
 
-.brand__mark {
-  font-size: 26px;
-  line-height: 1;
-  filter: drop-shadow(0 0 10px rgba(157, 255, 74, 0.35));
+/* While the splash is flying its copy of the lockup up here, hide the real one
+   so the two never show at once. The splash removes the class when it lands. */
+html.is-booting .topbar__lockup {
+  opacity: 0;
 }
 
-.brand__text {
-  min-width: 0;
-}
-
-.brand__title {
-  font-family: var(--font-ui);
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1.05;
+.topbar__mark {
+  font-family: var(--f-mark);
+  font-weight: 400;
+  /* Michroma is wide: the whole wordmark is ~25 em. Fit it beside the menu key
+     (down to 320 px wide screens). */
+  font-size: clamp(8.5px, calc((100vw - 96px) / 25), 12.5px);
+  line-height: 1.5;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #f4fbff;
-  text-shadow: 0 0 22px rgba(56, 243, 255, 0.35);
-}
-
-.brand__tagline {
-  margin-top: 4px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-}
-
-.topbar__right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: none;
-}
-
-.topbar__stats {
-  display: none;
-  align-items: center;
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-2);
+  color: var(--legend);
   white-space: nowrap;
 }
 
-.live-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 9px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
+/* ─── Pilot lamp ───────────────────────────────────────────────────────── */
+
+.pilot {
+  position: relative;
+  width: 7px;
+  height: 7px;
   flex: none;
+  border-radius: 50%;
+  background: var(--lamp-off);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.55);
 }
 
-.live-dot.is-live {
-  background: var(--lime);
-  box-shadow: 0 0 10px rgba(157, 255, 74, 0.8);
-  animation: livePulse 2.4s ease-in-out infinite;
+/* The lit filament and its glow: only this layer's opacity changes */
+.pilot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--sodium);
+  box-shadow: 0 0 6px 1px rgba(255, 165, 55, 0.7);
+  opacity: 0;
+  transition: opacity var(--decay) ease-out;
 }
 
-@keyframes livePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+.pilot.is-live::after {
+  opacity: 1;
+  transition: none;
 }
 
-/* Stats line sits under the brand on phones, on the right on desktop */
-.topbar__stats--inline {
-  display: flex;
-  margin-top: 6px;
-  font-size: 12.5px;
+/* ─── Counters ─────────────────────────────────────────────────────────── */
+
+.topbar__counters {
+  margin-top: 4px;
+  padding-left: 18px; /* under the wordmark, not the lamp */
+  font-family: var(--f-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--legend-3);
+  transition: opacity 220ms ease-out;
 }
 
-.home--compact .brand__tagline {
-  display: none;
+/* Each "30 FARTS ·" stays whole; a very narrow screen wraps between them,
+   leaving the separator at the end of the first line */
+.topbar__count {
+  display: inline-block;
+  white-space: nowrap;
 }
 
-/* ─── Menu ─────────────────────────────────────────────────────────────── */
+.topbar__counters b {
+  font-weight: 400;
+  color: var(--phosphor-dim);
+}
+
+.topbar__counters.is-on b {
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}
+
+/* The readouts switch on (instantly, one after another) once the data is in
+   and the splash's lockup has landed up here */
+.topbar__count b {
+  transition: color 1ms linear, text-shadow 1ms linear;
+}
+
+.topbar__count:nth-child(2) b {
+  transition-delay: 90ms;
+}
+
+.topbar__count:nth-child(3) b {
+  transition-delay: 180ms;
+}
+
+/* While the splash's wordmark flies in over them, the counters stay out of
+   the way; they come up as it lands */
+html.is-booting .topbar__counters {
+  opacity: 0;
+  transition: none;
+}
+
+html.is-booting .topbar__counters.is-on b {
+  color: var(--phosphor-dim);
+  text-shadow: none;
+}
+
+.topbar__sep {
+  margin: 0 0.55em 0 0.6em;
+  color: var(--legend-4);
+}
+
+/* ─── Menu key ─────────────────────────────────────────────────────────── */
 
 .menu {
   position: relative;
+  flex: none;
 }
+
+.menu-key.key {
+  min-width: 0;
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+/* A full 44 px touch target around the smaller cap */
+.menu-key::after {
+  content: '';
+  position: absolute;
+  inset: -4px -4px -8px;
+}
+
+.menu-key[aria-expanded='true'] {
+  transform: translateY(3px);
+  background: linear-gradient(180deg, #181b1e, #131517);
+  box-shadow:
+    0 0 0 var(--skirt),
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  transition: transform 70ms var(--ease-press), box-shadow 70ms var(--ease-press);
+}
+
+.menu-key__lines,
+.menu-key__lines::before,
+.menu-key__lines::after {
+  display: block;
+  width: 15px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.menu-key__lines {
+  position: relative;
+}
+
+.menu-key__lines::before,
+.menu-key__lines::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+.menu-key__lines::before {
+  top: -5px;
+}
+
+.menu-key__lines::after {
+  top: 5px;
+}
+
+.menu-key[aria-expanded='true'] .menu-key__lines {
+  color: var(--phosphor);
+}
+
+/* ─── Menu panel ───────────────────────────────────────────────────────── */
 
 .menu__panel {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 12px);
   right: 0;
   z-index: 50;
-  width: 300px;
-  padding: 8px;
-  border-radius: 18px;
-  background: var(--glass-strong);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  animation: menuIn 0.22s var(--ease-out);
+  width: min(300px, calc(100vw - 24px));
+  max-height: calc(100vh - var(--safe-top) - 84px);
+  max-height: calc(100dvh - var(--safe-top) - 84px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px #050606,
+    0 22px 50px rgba(0, 0, 0, 0.6);
   transform-origin: top right;
+  animation: menuDrop 200ms var(--spring-deck) both;
 }
 
-@keyframes menuIn {
-  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+.menu__panel.is-closing {
+  pointer-events: none;
+  animation: menuLift var(--decay) ease-out both;
+}
+
+@keyframes menuDrop {
+  from { opacity: 0; transform: translate3d(0, -8px, 0); }
   to { opacity: 1; transform: none; }
 }
 
+@keyframes menuLift {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 .menu__panel button {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 12px;
   width: 100%;
-  padding: 10px;
-  border-radius: 12px;
+  min-height: 48px;
+  padding: 11px 16px 11px 16px;
   text-align: left;
-  color: var(--ink);
+  color: var(--legend);
+  outline-offset: -2px;
+  transition: background-color 0.12s ease;
 }
 
-.menu__panel button:hover {
-  background: rgba(255, 255, 255, 0.06);
+.menu__panel button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 0 1px 1px 0;
+  background: var(--phosphor);
+  box-shadow: 0 0 6px var(--phosphor-glow);
+  opacity: 0;
+  transition: opacity var(--decay) ease-out;
+}
+
+.menu__panel button:hover,
+.menu__panel button:focus-visible {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* Keyboard focus is the lit rule on the left plus the lit icon, not a box */
+.menu__panel button:focus-visible {
+  outline: none;
+  background: rgba(98, 246, 208, 0.06);
+}
+
+.menu__panel button:hover::before,
+.menu__panel button:focus-visible::before {
+  opacity: 1;
+  transition: none;
+}
+
+.menu__panel button:active {
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .menu__panel .icon {
   flex: none;
   margin-top: 1px;
-  color: var(--ink-2);
+  color: var(--legend-2);
+}
+
+.menu__panel button:hover .icon,
+.menu__panel button:focus-visible .icon {
+  color: var(--phosphor);
 }
 
 .menu__panel strong {
   display: block;
-  font-family: var(--font-ui);
+  font-family: var(--f-ui);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .menu__panel em {
   display: block;
-  margin-top: 1px;
+  margin-top: 2px;
+  font-family: var(--f-ui);
   font-size: 12.5px;
   font-style: normal;
-  color: var(--ink-3);
+  line-height: 1.4;
+  color: var(--legend-3);
 }
 
 .menu__divider {
   height: 1px;
-  margin: 6px 6px;
-  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 0;
+  background: var(--seam);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
 .menu__label {
-  padding: 6px 10px 2px;
-  font-family: var(--font-ui);
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  padding: 8px 16px 2px 46px;
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--legend-3);
 }
+
+/* ─── Desktop ──────────────────────────────────────────────────────────── */
 
 @media (min-width: 860px) {
   .topbar {
-    padding: 22px 24px 40px 28px;
+    padding:
+      22px
+      max(24px, env(safe-area-inset-right, 0px))
+      40px
+      max(28px, env(safe-area-inset-left, 0px));
   }
 
-  .brand__mark {
-    font-size: 34px;
+  .topbar__lockup {
+    gap: 13px;
   }
 
-  .brand__title {
-    font-size: 23px;
-  }
-
-  .brand__tagline {
+  .topbar__mark {
     font-size: 14px;
   }
 
-  .topbar__stats--side {
-    display: flex;
+  .topbar__counters {
+    margin-top: 5px;
+    padding-left: 20px;
   }
 
-  .topbar__stats--inline {
-    display: none;
+  .menu-key.key {
+    width: 42px;
+    height: 38px;
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .menu__panel,
+  .menu__panel.is-closing {
+    animation-name: fadeIn;
+  }
 
-@media (max-width: 380px) {
-  .brand__title {
-    font-size: 15px;
+  .menu__panel.is-closing {
+    animation-name: menuLift;
   }
 }

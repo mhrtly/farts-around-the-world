@@ -1,103 +1,130 @@
-/* ─── Toasts ───────────────────────────────────────────────────────────── */
+/* ─── Toasts ───────────────────────────────────────────────────────────────
+   Strips of chassis that drop in just under the top strip (phones) or beside
+   the menu key (desktop), each lit by an LED: phosphor (info, success),
+   sodium (a new arrival, blinks as it lands), tally (error). No icons, no
+   glass. On phones they sit below the strip, never over it: the counters
+   change at exactly the moments toasts appear (a post, a live arrival). */
 
 .toasts {
   position: fixed;
-  top: calc(var(--safe-top) + 12px);
+  top: calc(var(--safe-top) + 70px);
   left: 50%;
   z-index: 70;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: min(440px, calc(100vw - 24px));
+  width: min(440px, calc(100vw - 16px));
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .toast {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  border-radius: 16px;
-  background: rgba(9, 15, 24, 0.96);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  gap: 8px;
+  min-height: 56px;
+  padding: 7px 8px 7px 16px;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px #050606,
+    0 14px 36px rgba(0, 0, 0, 0.55);
   pointer-events: auto;
-  animation: toastIn 0.5s var(--ease-out);
+  animation: toastDrop 320ms var(--spring-deck) both;
 }
 
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(-14px) scale(0.97); }
+.toast.is-leaving {
+  pointer-events: none;
+  animation: toastDecay 160ms ease-out both;
+}
+
+/* A toast that arrives while the splash's lockup is still flying onto the
+   strip (a missing shared link, say) waits, invisible, and drops in once it
+   has landed (the splash removes html.is-booting) */
+html.is-booting .toast,
+html.is-booting .toast__led {
+  pointer-events: none;
+  animation-play-state: paused;
+}
+
+@keyframes toastDrop {
+  from { opacity: 0; transform: translate3d(0, -12px, 0); }
   to { opacity: 1; transform: none; }
 }
 
-.toast--success {
-  border-color: rgba(157, 255, 74, 0.38);
+@keyframes toastDecay {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translate3d(0, -4px, 0); }
 }
 
-.toast--error {
-  border-color: rgba(255, 77, 90, 0.45);
+.toast__led {
+  margin-right: 4px;
 }
 
-.toast__body {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
+/* A new arrival: the lamp blinks a few times, then stays lit */
+.toast__led.is-announce {
+  animation: lampBlink 0.36s steps(1, end) 4;
+}
+
+.toast__text {
   min-width: 0;
-  padding: 12px 6px 12px 14px;
-  text-align: left;
-  font-size: 14.5px;
-  line-height: 1.35;
-  color: var(--ink);
+  padding: 6px 4px 6px 0;
+  font-family: var(--f-ui);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--legend-2);
   overflow-wrap: anywhere;
 }
 
-.toast__icon {
-  font-size: 18px;
-}
-
 .toast__text strong {
-  font-family: var(--font-ui);
-}
-
-.toast__action {
-  margin-left: auto;
-  padding-left: 8px;
-  font-family: var(--font-ui);
   font-weight: 700;
-  color: var(--cyan);
-  white-space: nowrap;
+  color: var(--legend);
 }
 
-.toast__close {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  margin-right: 4px;
-  flex: none;
-  border-radius: 50%;
-  color: var(--ink-3);
+.toast__action.key {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  color: var(--legend);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+}
+
+.toast__close.key {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 var(--skirt), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* The close key needs a 44 px target on phones */
+.toast__close::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
 }
 
 @media (min-width: 860px) {
-  /* Desktop notifications live in the bottom-right corner, clear of the title */
+  /* Desktop: top right, beside the menu key, clear of the wordmark and the deck */
   .toasts {
-    top: auto;
-    bottom: 24px;
+    top: 22px;
     left: auto;
-    right: 24px;
-    width: 380px;
+    right: 80px;
+    width: min(380px, calc(100vw - 500px));
     transform: none;
   }
+}
 
+@media (prefers-reduced-motion: reduce) {
   .toast {
-    animation-name: toastInDesktop;
+    animation-name: fadeIn;
   }
 
-  @keyframes toastInDesktop {
-    from { opacity: 0; transform: translateY(14px) scale(0.97); }
-    to { opacity: 1; transform: none; }
+  .toast__led.is-announce {
+    animation: none;
   }
 }

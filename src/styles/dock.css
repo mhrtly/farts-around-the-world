@@ -1,288 +1,423 @@
-/* ─── Mobile dock ──────────────────────────────────────────────────────── */
+/* ─── Front panel ──────────────────────────────────────────────────────────
+   Phones: a full-width anodized plate in the thumb zone (the "dock").
+   Landscape phones: the same plate stood on end as a rail on the right edge,
+   where a camera app keeps its shutter, so the globe keeps the full height.
+   Desktop: a 460 × 104 console flush with the bottom edge, centred, which is
+   where the recorder drawer grows out of.
+   Each key is one button: the cap plus the legend printed under it, so the
+   whole column is the touch target. Pressing moves only the cap. */
 
-.dock {
+.front-panel {
   position: absolute;
-  left: 0;
-  right: 0;
   bottom: 0;
   z-index: 30;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding: 34px 22px calc(var(--safe-bottom) + 18px);
-  background: linear-gradient(0deg, rgba(4, 7, 12, 0.88), rgba(4, 7, 12, 0.5) 60%, transparent);
-  transition: transform 0.45s var(--ease-sheet), opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.dock > * {
-  pointer-events: auto;
-}
-
-.dock.is-hidden {
-  transform: translate3d(0, 120%, 0);
+  align-items: start;
+  border-radius: 18px 18px 0 0;
   opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition: transform 380ms var(--ease-close), opacity 200ms ease;
 }
 
-.dock.is-hidden > * {
-  pointer-events: none;
+/* Powers on after the splash hands over */
+.front-panel.is-powered {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition: transform 460ms var(--spring-deck), opacity 260ms ease-out;
 }
 
-.dock__side {
-  justify-self: center;
+/* ─── Keys ─────────────────────────────────────────────────────────────── */
+
+.fp-button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  font-family: var(--font-ui);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-2);
+  gap: 9px;
+  min-width: 64px;
+  padding: 0;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
-.dock__side .icon {
-  width: 50px;
-  height: 50px;
-  padding: 13px;
-  border-radius: 50%;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-sizing: border-box;
-  transition: transform 0.15s ease;
+.fp-button:focus-visible {
+  outline: none;
 }
 
-.dock__side:active .icon {
-  transform: scale(0.92);
+.fp-button--side {
+  padding-top: 13px;
 }
 
-.dock__side:disabled {
+.fp-button--side:first-child {
+  justify-self: start;
+}
+
+.fp-button--side:last-child {
+  justify-self: end;
+}
+
+.fp-cap.key {
+  width: 60px;
+  height: 44px;
+  padding: 0;
+  pointer-events: none;
+}
+
+.fp-button:focus-visible .fp-cap,
+.fp-button:focus-visible .bezel {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .fp-button:not(:disabled):hover .fp-cap,
+  .fp-button:not(:disabled):hover .key-legend {
+    color: var(--legend);
+  }
+}
+
+/* Pressed: the cap travels 3 px over its skirt in 70 ms, then springs back */
+.fp-button:not(:disabled):active .fp-cap,
+.fp-button:not(:disabled).is-down .fp-cap {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 var(--skirt),
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  transition: transform 70ms var(--ease-press), box-shadow 70ms var(--ease-press), color 0.15s ease;
+}
+
+.fp-button:disabled {
   opacity: 0.4;
+  cursor: default;
 }
 
-.dock__rec {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 86px;
-  height: 86px;
-  border-radius: 50%;
+.fp-button .key-legend {
+  line-height: 1;
+  transition: color 0.15s ease;
 }
 
-.dock__rec-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 107, 117, 0.55);
-  box-shadow: 0 0 30px rgba(255, 59, 75, 0.35);
-  animation: recHalo 2.6s ease-out infinite;
+.fp-count.is-ghost {
+  color: var(--legend-4);
 }
 
-.dock__rec-core {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #ff9aa2, #ff3b4b 52%, #c7182f);
-  box-shadow: 0 12px 34px -6px rgba(255, 59, 75, 0.75), inset 0 2px 0 rgba(255, 255, 255, 0.4), inset 0 -8px 16px rgba(0, 0, 0, 0.22);
-  transition: transform 0.18s var(--ease-out);
+/* REC: ceramic cap in the knurled bezel */
+.fp-button--rec {
+  gap: 5px;
 }
 
-.dock__rec-core::after {
-  content: '';
-  display: block;
-  width: 22px;
-  height: 22px;
-  margin: 24px auto;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.8);
+.fp-rec-cap {
+  pointer-events: none;
 }
 
-.dock__rec:active .dock__rec-core {
-  transform: scale(0.92);
+.fp-button--rec:active .fp-rec-cap,
+.fp-button--rec.is-down .fp-rec-cap,
+.home.has-recorder .fp-rec-cap {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 var(--ceramic-skirt),
+    0 2px 4px rgba(0, 0, 0, 0.6),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.12),
+    inset 0 2px 1px rgba(255, 255, 255, 0.7);
+  transition: transform 70ms var(--ease-press), box-shadow 70ms var(--ease-press);
 }
 
-@keyframes recHalo {
-  0% { transform: scale(0.92); opacity: 0.9; }
-  70% { transform: scale(1.18); opacity: 0; }
-  100% { transform: scale(1.18); opacity: 0; }
+/* While the recorder drawer rises over the panel, the other keys drop away */
+.front-panel .fp-button--side {
+  transition: transform 320ms var(--spring-deck), opacity 200ms ease;
 }
 
-/* ─── First-visit hint ─────────────────────────────────────────────────── */
-
-.hint {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--safe-bottom) + 150px);
-  z-index: 29;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 8px 8px 14px;
-  border-radius: 999px;
-  background: rgba(9, 15, 24, 0.82);
-  border: 1px solid rgba(157, 255, 74, 0.3);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  transform: translateX(-50%);
-  animation: hintIn 0.7s var(--ease-out) 1.2s both;
+.home.has-recorder .front-panel .fp-button--side {
+  opacity: 0;
+  transform: translate3d(0, 8px, 0);
+  transition: transform 120ms ease-in, opacity 120ms ease-in;
 }
 
-.hint__dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--lime);
-  box-shadow: 0 0 12px rgba(157, 255, 74, 0.9);
-  animation: livePulse 1.6s ease-in-out infinite;
-}
-
-.hint__close {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  color: var(--ink-3);
-}
-
-.hint__close:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--ink);
-}
-
-@keyframes hintIn {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-/* ─── Desktop record CTA ───────────────────────────────────────────────── */
-
-.record-cta-wrap {
-  position: absolute;
-  left: 50%;
-  bottom: 30px;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transform: translateX(-50%);
-}
-
-.record-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  height: 60px;
-  padding: 0 22px 0 20px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #ff5a66, #df2439);
-  color: #fff;
-  font-family: var(--font-ui);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  box-shadow: 0 16px 44px -10px rgba(255, 59, 75, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -3px 8px rgba(0, 0, 0, 0.15);
-  transition: transform 0.18s var(--ease-out), box-shadow 0.2s ease;
-}
-
-.record-cta:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 22px 54px -10px rgba(255, 59, 75, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-
-.record-cta:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.record-cta__dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
-  animation: dotPulse 1.8s ease-in-out infinite;
-}
-
-@keyframes dotPulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25); }
-  50% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.08); }
-}
-
-.record-cta kbd {
+/* The desktop shortcut, printed as a tiny key cap beside the legend */
+.fp-kbd {
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.2);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
+  min-width: 15px;
+  height: 15px;
+  margin: -3px 0 -3px 7px;
+  padding: 0 4px;
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--legend-3);
+  vertical-align: middle;
 }
 
-.shuffle-cta {
-  display: inline-flex;
-  align-items: center;
+/* ─── Phones: the dock ─────────────────────────────────────────────────── */
+
+.front-panel--dock {
+  left: 0;
+  right: 0;
+  height: var(--dock-h, calc(116px + var(--safe-bottom)));
+  padding: 10px max(22px, calc(50vw - 200px)) var(--safe-bottom);
+}
+
+.front-panel--dock.is-hidden {
+  opacity: 1;
+  transform: translate3d(0, 112%, 0);
+  transition: transform 380ms var(--ease-close);
+  pointer-events: none;
+}
+
+.front-panel--dock.is-hidden .fp-button {
+  pointer-events: none;
+}
+
+/* ─── Desktop: the console ─────────────────────────────────────────────── */
+
+/* Centred on the screen; on laptops it moves into the space right of the
+   list panel, under the recorder drawer that grows out of it. */
+.front-panel--console {
+  left: 50%;
+  width: 460px;
+  height: calc(104px + var(--safe-bottom));
+  padding: 5px 40px var(--safe-bottom);
+  transform: translate3d(-50%, 16px, 0);
+}
+
+.front-panel--console.is-powered {
+  transform: translate3d(-50%, 0, 0);
+}
+
+.front-panel--console .fp-button--side {
+  padding-top: 13px;
   gap: 8px;
-  height: 48px;
-  padding: 0 18px;
-  border-radius: 999px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  font-family: var(--font-ui);
+}
+
+/* 5 + 74 bezel + 4 + legend: the "REC [R]" line clears the bottom edge by
+   ~10 px (it used to touch it) */
+.front-panel--console .fp-button--rec {
+  gap: 4px;
+}
+
+.front-panel--console .fp-cap.key {
+  width: 58px;
+  height: 42px;
+}
+
+.front-panel--console .bezel {
+  width: 74px;
+  height: 74px;
+}
+
+.front-panel--console .fp-rec-cap {
+  width: 56px;
+  height: 56px;
+}
+
+.front-panel--console .fp-kbd {
+  height: 14px;
+  margin-top: -4px;
+  margin-bottom: -4px;
+}
+
+/* ─── Hint: a dot-matrix line in a small well ──────────────────────────── */
+
+.hint-slot {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--dock-h, calc(116px + var(--safe-bottom))) + 18px);
+  z-index: 29;
+  transform: translateX(-50%);
+}
+
+.hint.well {
+  display: block;
+  max-width: calc(100vw - 32px);
+  padding: 10px 15px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  animation: hintIn 280ms var(--spring-deck) both;
+}
+
+/* The well slides up out of the panel; its characters then switch on */
+@keyframes hintIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hint__line {
+  display: block;
+  font-family: var(--f-dot);
+  font-weight: 800;
   font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
-  transition: background 0.15s ease, transform 0.15s ease;
+  line-height: 1.15;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--phosphor-dim);
 }
 
-.shuffle-cta:hover {
-  background: rgba(20, 32, 48, 0.85);
+/* Each character switches on over its ghost, one after another. steps(1,
+   start): lit for any progress past zero, so a clamped duration (reduced
+   motion shortens every animation to 0.01 ms) can't leave it on the ghost */
+.hint__line > span {
+  animation: vfdOn 1ms steps(1, start) both;
+  animation-delay: calc(var(--i) * 30ms + 220ms);
 }
 
-.shuffle-cta:disabled {
-  opacity: 0.4;
+.hint--sodium .hint__line > span {
+  --vfd-on: var(--sodium);
+  --vfd-glow: var(--sodium-glow);
+}
+
+/* The hint rises out of the front panel, so it waits (invisible, its
+   characters unlit) until the panel has powered on */
+.front-panel:not(.is-powered) ~ .hint-slot .hint.well,
+.front-panel:not(.is-powered) ~ .hint-slot .hint__line > span {
+  animation-play-state: paused;
+}
+
+@keyframes vfdOn {
+  from {
+    color: var(--phosphor-dim);
+    text-shadow: none;
+  }
+  to {
+    color: var(--vfd-on, var(--phosphor));
+    text-shadow: 0 0 6px var(--vfd-glow, var(--phosphor-glow));
+  }
 }
 
 @media (min-width: 860px) {
-  /* Line the controls up under the globe, which is centered in the free space */
-  .record-cta-wrap,
-  .hint {
-    left: calc(50% + 182px);
-    transition: left 0.5s var(--ease-out);
-  }
-
-  .home--wide.has-card .record-cta-wrap {
-    left: calc(50% - 24px);
-  }
-
-  .hint {
-    bottom: 108px;
+  .hint-slot {
+    bottom: calc(104px + var(--safe-bottom) + 18px);
   }
 }
 
+/* Same centre line as the recorder drawer (recorder.css) on laptops */
+@media (min-width: 860px) and (max-width: 1239px) {
+  .front-panel--console,
+  .hint-slot {
+    left: max(50%, calc(360px + min(520px, 100vw - 380px) / 2));
+  }
+}
 
-@media (min-width: 860px) and (max-width: 1100px) {
-  .record-cta-wrap,
-  .hint {
-    left: calc(50% + 160px);
+/* ─── Landscape phones: the rail ───────────────────────────────────────── */
+
+@media (max-width: 859px) and (max-height: 500px) and (orientation: landscape) {
+  .front-panel--dock {
+    top: calc(var(--safe-top) + 68px);
+    left: auto;
+    right: 0;
+    width: calc(104px + env(safe-area-inset-right, 0px));
+    height: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto 1fr;
+    justify-items: center;
+    align-items: center;
+    padding: 6px env(safe-area-inset-right, 0px) var(--safe-bottom) 0;
+    border-radius: 18px 0 0 0;
+    box-shadow:
+      inset 1px 1px 0 rgba(255, 255, 255, 0.075),
+      -18px 0 44px rgba(0, 0, 0, 0.55);
+    transform: translate3d(16px, 0, 0);
   }
 
-  .home--wide.has-card .record-cta-wrap {
-    left: calc(50% - 25px);
+  .front-panel--dock.is-powered {
+    transform: translate3d(0, 0, 0);
   }
 
-  .shuffle-cta {
-    display: none;
+  .front-panel--dock.is-hidden {
+    transform: translate3d(112%, 0, 0);
+  }
+
+  .front-panel--dock .fp-button--side,
+  .front-panel--dock .fp-button--side:first-child,
+  .front-panel--dock .fp-button--side:last-child {
+    justify-self: center;
+    padding: 0;
+    gap: 8px;
+  }
+
+  .front-panel--dock .fp-cap.key {
+    width: 56px;
+    height: 40px;
+  }
+
+  .front-panel--dock .bezel {
+    width: 80px;
+    height: 80px;
+  }
+
+  .front-panel--dock .fp-rec-cap {
+    width: 60px;
+    height: 60px;
+  }
+
+  /* The recorder drawer has its own REC key: the rail steps aside while it's
+     open, so there's only ever one on screen */
+  .home.has-recorder .front-panel--dock {
+    transform: translate3d(112%, 0, 0);
+    pointer-events: none;
+    transition: transform 380ms var(--ease-close);
+  }
+
+  .home.has-recorder .front-panel--dock .fp-button {
+    pointer-events: none;
+  }
+
+  /* The hint moves out of the globe's way, into the bottom-left corner */
+  .hint-slot {
+    left: calc(env(safe-area-inset-left, 0px) + 16px);
+    bottom: calc(var(--safe-bottom) + 14px);
+    transform: none;
+  }
+
+  .hint.well {
+    max-width: calc(100vw - 160px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .front-panel,
+  .front-panel.is-powered,
+  .front-panel--dock.is-hidden {
+    transition: opacity 160ms linear !important;
+  }
+
+  .front-panel--dock,
+  .front-panel--dock.is-powered {
+    transform: none;
+  }
+
+  .front-panel--console,
+  .front-panel--console.is-powered {
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  .front-panel--dock.is-hidden {
+    opacity: 0;
+    transform: none;
+  }
+
+  .hint.well {
+    animation-name: fadeIn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 859px) and (max-height: 500px) and (orientation: landscape) {
+  .home.has-recorder .front-panel--dock {
+    opacity: 0;
+    transform: none;
   }
 }

@@ -84,6 +84,9 @@ export function siteIndex(sites) {
   return index
 }
 
+const LOCAL_DAY = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+const LOCAL_DAY_YEAR = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+
 export function timeAgo(timestamp, now = Date.now()) {
   const seconds = Math.max(0, Math.round((now - timestamp) / 1000))
   if (seconds < 45) return 'just now'
@@ -95,7 +98,7 @@ export function timeAgo(timestamp, now = Date.now()) {
   if (days < 7) return days === 1 ? 'yesterday' : `${days} days ago`
   const date = new Date(timestamp)
   const sameYear = date.getFullYear() === new Date(now).getFullYear()
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
+  return (sameYear ? LOCAL_DAY : LOCAL_DAY_YEAR).format(date)
 }
 
 export function formatDate(timestamp) {
@@ -145,10 +148,15 @@ export function ordinalOf(events, id) {
   return index < 0 ? null : { n: index + 1, total: sorted.length }
 }
 
+// Formatting dates is slow-ish and lists re-render during playback, so reuse
+// one formatter per style.
+const DAY_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+const DAY_YEAR_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
 export function formatDay(timestamp) {
   const date = new Date(timestamp)
   const sameYear = date.getFullYear() === new Date().getFullYear()
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) }).toUpperCase()
+  return (sameYear ? DAY_FORMAT : DAY_YEAR_FORMAT).format(date).toUpperCase()
 }
 
 export function formatClock(seconds) {

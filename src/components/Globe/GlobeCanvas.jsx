@@ -613,6 +613,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     const tipPos = { x: -1, y: -1 }
 
     const tick = now => {
+      if (disposed) return
       frame = requestAnimationFrame(tick)
       const dt = clamp(now - last, 0, 50)
       last = now
@@ -880,8 +881,9 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     }
 
     return () => {
+      setRunning(false) // before `disposed`, which makes setRunning a no-op
+      cancelAnimationFrame(frame)
       disposed = true
-      setRunning(false)
       rig.cancel()
       Object.values(timers).forEach(clearTimeout)
       observer.disconnect()

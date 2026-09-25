@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import Sheet from './Sheet.jsx'
 import Icon from './Icon.jsx'
 import WaveformPlayer from './WaveformPlayer.jsx'
@@ -109,11 +109,12 @@ function classify(duration, peakDb) {
   return { intensity, type }
 }
 
-export default function RecorderSheet({ open, onClose, onPosted, onPostFailed, onActiveChange }) {
+const RecorderSheet = forwardRef(function RecorderSheet({ open, onClose, onPosted, onPostFailed, onActiveChange, onLaunch }, ref) {
   const [phase, setPhase] = useState('idle')
   const [count, setCount] = useState(3)
   const [micError, setMicError] = useState(null)
   const [draft, setDraft] = useState(null)
+  const draftRef = useRef(null)
   const [loc, setLoc] = useState({ status: 'idle', value: null })
   const [postError, setPostError] = useState(null)
 
@@ -453,6 +454,7 @@ export default function RecorderSheet({ open, onClose, onPosted, onPostFailed, o
     setPostError(null)
     setPhaseBoth('posting')
     stopPlayback()
+    onLaunch?.({ lat: loc.value.lat, lng: loc.value.lng })
     const { intensity, type } = classify(draft.duration, draft.peakDb)
     try {
       const created = await postRecording({
@@ -518,6 +520,16 @@ export default function RecorderSheet({ open, onClose, onPosted, onPostFailed, o
     audioCtxRef.current = null
   }, [cancelCapture])
 
+  // One tap from the home screen straight to the countdown (called inside the tap)
+  useImperativeHandle(ref, () => ({
+    quickStart() {
+      if (phaseRef.current !== 'idle' || draftRef.current) return false
+      arm()
+      return true
+    },
+  }))
+
+  draftRef.current = draft
   const showCapture = phase === 'idle' || phase === 'arming' || phase === 'countdown' || phase === 'recording' || phase === 'processing'
   const peakDb = draft?.peakDb
   const draftName = draft ? nickname({ duration: draft.duration, peakDb }) : null
@@ -687,4 +699,6 @@ export default function RecorderSheet({ open, onClose, onPosted, onPostFailed, o
       </div>
     </Sheet>
   )
-}
+})
+
+export default RecorderSheet

@@ -256,6 +256,14 @@ export function currentLevel() {
   return (peaks[i] ?? 0) * (1 - frac) + (peaks[Math.min(peaks.length - 1, i + 1)] ?? 0) * frac
 }
 
+// The waveform a recording plays with: { peaks, start, end } (seconds), once analyzed.
+export function playbackEnvelope(id) {
+  const win = windowFor(id)
+  if (!win?.peaks?.length) return null
+  const end = win.end ?? (state.id === id && Number.isFinite(audio?.duration) ? audio.duration : null)
+  return { peaks: win.peaks, start: win.start, end }
+}
+
 // The id of whatever is audibly playing right now (null when paused/idle).
 export function playingId() {
   return state.status === 'playing' ? state.id : null

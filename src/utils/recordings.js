@@ -92,6 +92,42 @@ export function formatSeconds(seconds) {
   return `${Math.round(seconds)} s`
 }
 
+// Length of a sound: hundredths under a second ("0.16 s"), tenths under ten
+// ("4.6 s"), whole seconds after that ("10 s").
+export function formatLength(seconds) {
+  if (!Number.isFinite(seconds)) return '—'
+  if (seconds < 0.995) return `${Math.max(0.01, seconds).toFixed(2)} s`
+  if (seconds < 9.95) return `${seconds.toFixed(1)} s`
+  return `${Math.round(seconds)} s`
+}
+
+// Playback position for short clips: "0.7" / "1.6" (tenths), "0.16" under a second.
+export function formatPlayhead(seconds, total = seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
+  if (Number.isFinite(total) && total < 0.995) return seconds.toFixed(2)
+  return seconds.toFixed(1)
+}
+
+export function formatCoords(lat, lng) {
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return ''
+  const la = Number(lat)
+  const lo = Number(lng)
+  return `${Math.abs(la).toFixed(2)}°${la >= 0 ? 'N' : 'S'} ${Math.abs(lo).toFixed(2)}°${lo >= 0 ? 'E' : 'W'}`
+}
+
+// "No. 9 of 30": a recording's real position in time order (oldest = 1).
+export function ordinalOf(events, id) {
+  const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp)
+  const index = sorted.findIndex(event => event.id === id)
+  return index < 0 ? null : { n: index + 1, total: sorted.length }
+}
+
+export function formatDay(timestamp) {
+  const date = new Date(timestamp)
+  const sameYear = date.getFullYear() === new Date().getFullYear()
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) }).toUpperCase()
+}
+
 export function formatClock(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const whole = Math.floor(seconds)
@@ -99,7 +135,7 @@ export function formatClock(seconds) {
 }
 
 // Loudness words keyed off peak level in dBFS (0 dB = the loudest the mic can capture).
-const LOUDNESS_BANDS = [
+export const LOUDNESS_BANDS = [
   { max: -40, word: 'Whisper' },
   { max: -30, word: 'Soft' },
   { max: -21, word: 'Solid' },

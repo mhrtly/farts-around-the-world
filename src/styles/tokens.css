@@ -34,30 +34,111 @@
   --radius: 6px;
 }
 
-/* Core experience tokens (fonts, ink, glass, accents, motion) */
+/* ─── Core experience: "Phosphor & Needle" ─────────────────────────────────
+   A precise piece of night-time recording hardware for measuring farts.
+   Three materials: black anodized chassis · cream ceramic (REC, PLAY, POST
+   keys only) · backlit paper (VU face and take slip only).
+   Three lights: phosphor (readouts, farts) · sodium (city lights, countdown,
+   fresh, warnings) · tally (recording only). No glass anywhere. */
 :root {
-  --font-ui: 'Chakra Petch', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Chassis */
+  --night: #07090a;
+  --chassis: #121416;
+  --chassis-hi: #1a1d20;
+  --chassis-lo: #0f1113;
+  --key: #202428;
+  --key-hi: #25292d;
+  --key-lo: #1b1e21;
+  --skirt: #08090a;
+  --seam: #2a2f33;
+  --well: #040605;
 
-  --ink: rgba(238, 246, 255, 0.96);
-  --ink-2: rgba(186, 208, 228, 0.8);
-  --ink-3: rgba(150, 178, 202, 0.58);
+  /* Screen-printed legends */
+  --legend: #e8e2d4;
+  --legend-2: #9a958a;
+  --legend-3: #86817a;
+  --legend-4: #5e5b55; /* decorative ticks and ghost marks only */
 
-  --glass: rgba(9, 15, 24, 0.66);
-  --glass-strong: rgba(9, 15, 24, 0.9);
-  --glass-border: rgba(150, 220, 255, 0.13);
-  --glass-edge: rgba(255, 255, 255, 0.07);
+  /* Lights */
+  --phosphor: #62f6d0;
+  --phosphor-dim: rgba(98, 246, 208, 0.075);
+  --phosphor-soft: rgba(98, 246, 208, 0.28);
+  --phosphor-glow: rgba(98, 246, 208, 0.55);
+  --sodium: #ffa537;
+  --sodium-dim: rgba(255, 165, 55, 0.07);
+  --sodium-glow: rgba(255, 165, 55, 0.55);
+  --tally: #ff3d2e;
+  --tally-text: #ff5a45;
+  --tally-glow: rgba(255, 61, 46, 0.6);
+  --lamp-off: #3a2a14;
 
-  --cyan: #38f3ff;
-  --lime: #9dff4a;
-  --pink: #ff64ff;
-  --amber: #ffb020;
-  --rec: #ff3b4b;
-  --rec-soft: #ff6b75;
+  /* Ceramic (primary keys only) */
+  --ceramic: #e7e1d3;
+  --ceramic-hi: #f4efe4;
+  --ceramic-lo: #c9c1ae;
+  --ceramic-skirt: #8f8878;
+  --ceramic-ink: #1c1a16;
 
+  /* Backlit paper */
+  --vu-face: #f1e3c0;
+  --vu-ink: #2b2217;
+  --vu-red: #c8321f;
+  --paper: #e4ddcb;
+  --paper-ink: #1f1c17;
+  --paper-muted: #625b4d;
+  --paper-rule: #b9b09c;
+
+  /* Type */
+  --f-mark: 'Michroma', 'B612', ui-sans-serif, sans-serif;
+  --f-ui: 'B612', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'B612 Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --f-dot: 'Doto', 'B612 Mono', ui-monospace, monospace;
+  --f-note: 'B612', 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', sans-serif; /* ♭ ♯ fallback */
+
+  /* Static grain (4.5 % white noise) for chassis and paper */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Motion. Things with mass spring; electronics switch on instantly and decay off. */
+  --spring-drawer: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-key: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-deck: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-press: cubic-bezier(0.3, 0, 0.2, 1);
+  --ease-close: cubic-bezier(0.45, 0, 0.2, 1);
+  --ease-throw: cubic-bezier(0.5, 0, 0.75, 0);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --decay: 140ms;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Transitional aliases so not-yet-restyled rules still read in the new palette */
+  --font-ui: var(--f-ui);
+  --font-body: var(--f-ui);
+  --font-mono: var(--f-ui);
+  --ink: var(--legend);
+  --ink-2: var(--legend-2);
+  --ink-3: var(--legend-3);
+  --glass: var(--chassis);
+  --glass-strong: var(--chassis);
+  --glass-border: var(--seam);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --cyan: var(--phosphor);
+  --lime: var(--phosphor);
+  --pink: var(--phosphor);
+  --amber: var(--sodium);
+  --rec: var(--tally);
+  --rec-soft: var(--tally-text);
+  --ease-sheet: var(--spring-drawer);
+}
+
+/* Real spring curves (damped-spring sims) where the browser supports linear() */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* k260 c27 — the drawer docks with ~4 px of settle */
+    --spring-drawer: linear(0, 0.0346, 0.104, 0.1936, 0.2921, 0.4026, 0.4974, 0.5846, 0.6624, 0.7372, 0.7941, 0.8418, 0.881, 0.9158, 0.9404, 0.9595, 0.9741, 0.986, 0.9937, 0.9991, 1.0026, 1.0051, 1.0062, 1.0067, 1.0067, 1.0063, 1.0057, 1.0051, 1.0044, 1.0037, 1.0031, 1.0025, 1);
+    /* k900 c38 — a key snapping back up */
+    --spring-key: linear(0, 0.0469, 0.1513, 0.2866, 0.4324, 0.5967, 0.7221, 0.828, 0.9126, 0.9764, 1.0213, 1.05, 1.0656, 1.0711, 1.0694, 1.0642, 1.0554, 1.0452, 1.0349, 1.0252, 1.0168, 1.0098, 1.0044, 1.0003, 0.9976, 0.9959, 0.9951, 0.9949, 0.9952, 0.9957, 0.9964, 0.9972, 1);
+    /* k380 c36 — content panels: fast, no bounce */
+    --spring-deck: linear(0, 0.0261, 0.0752, 0.1509, 0.224, 0.3124, 0.3872, 0.4587, 0.5365, 0.5973, 0.661, 0.7094, 0.7522, 0.7957, 0.8278, 0.8598, 0.883, 0.9029, 0.9223, 0.9361, 0.9495, 0.959, 0.9668, 0.9743, 0.9795, 0.9844, 0.9877, 0.9904, 0.9929, 0.9946, 0.9961, 0.9971, 1);
+  }
 }

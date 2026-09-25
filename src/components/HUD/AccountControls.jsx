@@ -1,27 +1,35 @@
-import { Show, SignInButton, UserButton } from '@clerk/react'
-import Icon from './Icon.jsx'
+import { useEffect } from 'react'
+import { ClerkProvider, useClerk, useUser } from '@clerk/react'
 
-// Only rendered when Clerk is configured (VITE_CLERK_PUBLISHABLE_KEY).
-// Accounts are optional: nobody needs to sign in to record or listen.
+// Accounts are optional: nobody needs to sign in to record or listen. Clerk is
+// loaded lazily (only after someone opens the menu, or already has a session),
+// so its scripts never slow down the first visit. This host renders nothing;
+// it reports the account state up so the menu can show plain menu items.
 
-export function AccountAvatar() {
-  return (
-    <Show when="signed-in">
-      <UserButton appearance={{ elements: { avatarBox: { width: '30px', height: '30px' } } }} />
-    </Show>
-  )
+function Bridge({ onChange }) {
+  const clerk = useClerk()
+  const { isLoaded, isSignedIn, user } = useUser()
+  useEffect(() => {
+    if (!isLoaded) {
+      onChange({ status: 'loading' })
+      return
+    }
+    const name = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || null
+    onChange({
+      status: isSignedIn ? 'signedIn' : 'signedOut',
+      name,
+      openSignIn: () => clerk.openSignIn(),
+      openProfile: () => clerk.openUserProfile(),
+      signOut: () => clerk.signOut(),
+    })
+  }, [clerk, isLoaded, isSignedIn, user, onChange])
+  return null
 }
 
-export function AccountMenuItem() {
+export default function AccountHost({ publishableKey, onChange }) {
   return (
-    <Show when="signed-out">
-      <div className="menu__divider" />
-      <SignInButton mode="modal">
-        <button type="button" role="menuitem">
-          <Icon name="link" size={18} />
-          <span><strong>Sign in</strong><em>Optional — not needed to record</em></span>
-        </button>
-      </SignInButton>
-    </Show>
+    <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/">
+      <Bridge onChange={onChange} />
+    </ClerkProvider>
   )
 }

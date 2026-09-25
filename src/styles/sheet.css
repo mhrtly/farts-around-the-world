@@ -1,4 +1,8 @@
-/* ─── Sheets / panels ──────────────────────────────────────────────────── */
+/* ─── Sheets: drawers that slide out of the hardware ──────────────────────
+   Phones: every sheet is a drawer from the bottom edge (grip to drag down).
+   Desktop: the card (deck) floats on the right, the recorder grows out of the
+   bottom-centre console, the list and about are centred panels.
+   Opening uses a spring; closing accelerates and lands softly. */
 
 .sheet-layer {
   position: fixed;
@@ -15,9 +19,9 @@
 .sheet-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(2, 5, 9, 0.55);
+  background: rgba(4, 6, 6, 0.62);
   opacity: 0;
-  transition: opacity 0.42s ease;
+  transition: opacity 360ms ease;
   pointer-events: auto;
 }
 
@@ -34,80 +38,129 @@
   flex-direction: column;
   max-height: calc(100% - var(--safe-top) - 24px);
   padding-bottom: var(--safe-bottom);
-  border-radius: 26px 26px 0 0;
-  border: 1px solid var(--glass-border);
-  border-bottom: none;
-  background: linear-gradient(180deg, rgba(14, 23, 35, 0.94), rgba(8, 13, 21, 0.97));
-  box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 var(--glass-edge);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border-radius: 18px 18px 0 0;
+  outline: none;
   transform: translate3d(0, 105%, 0);
-  transition: transform 0.5s var(--ease-sheet);
+  transition: transform 380ms var(--ease-close);
   pointer-events: auto;
   overflow: hidden;
   will-change: transform;
 }
 
+/* A 1 px seam of sodium light along the top edge, like light spilling out */
+.sheet::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 165, 55, 0.35) 30%, rgba(255, 165, 55, 0.35) 70%, transparent);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .sheet-layer.is-open .sheet {
   transform: translate3d(0, 0, 0);
+  transition: transform 340ms var(--spring-deck);
+}
+
+.sheet-layer--recorder.is-open .sheet {
+  transition: transform 500ms var(--spring-drawer);
+}
+
+.sheet-layer--recorder.is-open .sheet::before {
+  animation: seamGlow 900ms ease-out both;
+}
+
+@keyframes seamGlow {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0.35; }
 }
 
 .sheet.is-dragging {
-  transition: none;
+  transition: none !important;
 }
 
 .sheet__grip {
   flex: none;
   display: grid;
   place-items: center;
-  height: 28px;
+  height: 24px;
   touch-action: none;
   cursor: grab;
 }
 
 .sheet__handle {
-  width: 42px;
-  height: 5px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: #2c3034;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .sheet--list {
-  height: min(78%, 680px);
+  height: min(80%, 700px);
 }
 
 .sheet--card {
   max-height: 72%;
 }
 
+/* ─── Desktop ──────────────────────────────────────────────────────────── */
+
 @media (min-width: 860px) {
   .sheet__grip {
     display: none;
   }
 
-  /* Card: floating panel on the right */
+  .sheet::before {
+    display: none;
+  }
+
+  /* Deck: floating panel on the right */
   .sheet-layer--card .sheet {
-    top: 104px;
-    right: 20px;
+    top: 96px;
+    right: 24px;
     bottom: auto;
     left: auto;
-    width: 392px;
-    max-height: calc(100% - 124px);
+    width: 380px;
+    max-height: calc(100% - 120px);
     padding: 16px 0 0;
-    border-radius: 22px;
-    border-bottom: 1px solid var(--glass-border);
-    transform: translate3d(28px, 0, 0) scale(0.98);
+    border-radius: 14px;
+    transform: translate3d(24px, 0, 0);
     opacity: 0;
-    transition: transform 0.42s var(--ease-out), opacity 0.3s ease;
+    transition: transform 300ms var(--ease-close), opacity 200ms ease;
   }
 
   .sheet-layer--card.is-open .sheet {
     transform: none;
     opacity: 1;
+    transition: transform 340ms var(--spring-deck), opacity 160ms linear;
   }
 
-  /* Recorder + about: centered dialog */
-  .sheet-layer--recorder .sheet,
+  /* Recorder: grows up out of the bottom-centre console */
+  .sheet-layer--recorder .sheet {
+    left: 50%;
+    right: auto;
+    bottom: 0;
+    width: min(520px, calc(100vw - 40px));
+    max-height: calc(100% - 48px);
+    padding: 6px 0 0;
+    border-radius: 18px 18px 0 0;
+    transform: translate3d(-50%, 105%, 0);
+  }
+
+  .sheet-layer--recorder.is-open .sheet {
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  .sheet-layer--recorder .sheet::before {
+    display: block;
+  }
+
+  /* About + list: centred panels */
   .sheet-layer--about .sheet,
   .sheet-layer--list .sheet {
     top: 50%;
@@ -117,30 +170,29 @@
     width: min(480px, calc(100vw - 40px));
     max-height: calc(100% - 60px);
     padding: 18px 0 0;
-    border-radius: 26px;
-    border-bottom: 1px solid var(--glass-border);
-    transform: translate3d(-50%, -46%, 0) scale(0.96);
+    border-radius: 14px;
+    transform: translate3d(-50%, -47%, 0) scale(0.98);
     opacity: 0;
-    transition: transform 0.45s var(--ease-out), opacity 0.3s ease;
+    transition: transform 300ms var(--ease-close), opacity 200ms ease;
   }
 
-  .sheet-layer--recorder.is-open .sheet,
   .sheet-layer--about.is-open .sheet,
   .sheet-layer--list.is-open .sheet {
     transform: translate3d(-50%, -50%, 0) scale(1);
     opacity: 1;
-  }
-
-  .sheet-backdrop {
-    background: rgba(2, 5, 9, 0.5);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    transition: transform 340ms var(--spring-deck), opacity 160ms linear;
   }
 }
-
 
 @media (min-width: 860px) and (max-width: 1100px) {
   .sheet-layer--card .sheet {
     width: 350px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet-layer.is-open .sheet {
+    transition: opacity 160ms linear !important;
   }
 }

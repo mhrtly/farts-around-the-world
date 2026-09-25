@@ -9,7 +9,6 @@ import Sheet from './components/HUD/Sheet.jsx'
 import Toasts from './components/HUD/Toasts.jsx'
 import Icon from './components/HUD/Icon.jsx'
 import HomeControls, { Hint } from './components/HUD/HomeControls.jsx'
-import { AccountAvatar, AccountMenuItem } from './components/HUD/AccountControls.jsx'
 import {
   connectLive,
   deleteRecording,
@@ -20,13 +19,14 @@ import {
 import {
   describePlace,
   groupIntoSites,
+  ordinalOf,
   recordingAudioUrl,
   recordingShareUrl,
   siteKey,
   summarizeStats,
 } from './utils/recordings.js'
 import { lookupPlace } from './utils/location.js'
-import { play, stop as stopPlayback, toggle } from './utils/player.js'
+import { play, stop as stopPlayback, toggle, usePlayer } from './utils/player.js'
 import {
   forgetOwnRecording,
   ownRecordingIds,
@@ -34,12 +34,15 @@ import {
   rememberOwnRecording,
 } from './utils/ownRecordings.js'
 
-// Side projects load only when someone visits them.
+// Side projects and the (optional) account menu load only when needed.
 const FartTagLab = lazy(() => import('./components/HUD/FartTagLab.jsx'))
 const FartSommelierSalon = lazy(() => import('./components/HUD/FartSommelierSalon.jsx'))
+const AccountHost = lazy(() => import('./components/HUD/AccountControls.jsx'))
+const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 const MAX_EVENTS = 500
 const COMPACT_QUERY = '(max-width: 859px)'
+const TOP_STRIP = 64 // px under the safe area the top strip covers on phones
 
 function parseRoute(pathname) {
   if (pathname.startsWith('/sommelier')) return { page: 'sommelier' }
@@ -59,8 +62,15 @@ function mergeEvents(current, incoming) {
 }
 
 function cleanEvent(event) {
-  const { deleteToken, ingest, audioData, ...rest } = event
+  const { deleteToken, ingest, audioData, duplicate, ...rest } = event
   return rest
+}
+
+// The recording a shared /r/:id page was served with (inlined by the server),
+// so its card can open before the list has even loaded.
+function sharedFromPage(recordingId) {
+  const shared = typeof window !== 'undefined' ? window.__FATW_SHARED__ : null
+  return shared && recordingId && shared.id === recordingId ? cleanEvent(shared) : null
 }
 
 function useMediaQuery(query) {
@@ -75,11 +85,45 @@ function useMediaQuery(query) {
   return matches
 }
 
+function useViewportHeight() {
+  const [height, setHeight] = useState(() => window.innerHeight)
+  useEffect(() => {
+    const update = () => setHeight(window.innerHeight)
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  return height
+}
+
+// Does this browser already have a Clerk session? Then load accounts right away;
+// otherwise only once someone opens the menu (Clerk is ~365 KB).
+function hasClerkSession() {
+  try {
+    return /(?:^|;\s*)__client_uat(?:_[^=]+)?=(?!0(?:;|$))\d+/.test(document.cookie)
+  } catch {
+    return false
+  }
+}
+
+// env(safe-area-inset-top) in px (the notch), read once per call
+function safeTop() {
+  const probe = document.createElement('div')
+  probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none'
+  document.body.appendChild(probe)
+  const value = probe.offsetHeight
+  probe.remove()
+  return value
+}
+
 export default function App({ authEnabled = false }) {
   const compact = useMediaQuery(COMPACT_QUERY)
   const narrowDesktop = useMediaQuery('(max-width: 1100px)') // matches the CSS panel widths
+  const viewportHeight = useViewportHeight()
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname))
-  const [events, setEvents] = useState([])
+  const [events, setEvents] = useState(() => {
+    const shared = sharedFromPage(parseRoute(window.location.pathname).recordingId)
+    return shared ? [shared] : []
+  })
   const [loadState, setLoadState] = useState('loading')
   const [serverTotal, setServerTotal] = useState(0)
   const [live, setLive] = useState(false)
@@ -92,17 +136,26 @@ export default function App({ authEnabled = false }) {
   const [toasts, setToasts] = useState([])
   const [ownIds, setOwnIds] = useState(() => ownRecordingIds())
   const [globeReady, setGlobeReady] = useState(false)
+  const [sheetHeights, setSheetHeights] = useState({ card: 0, list: 0 })
+  const [accountWanted, setAccountWanted] = useState(() => authEnabled && hasClerkSession())
+  const [account, setAccount] = useState(null)
+  const pendingSignInRef = useRef(false)
   const [showHint, setShowHint] = useState(() => {
     try { return !localStorage.getItem('fatw:hinted') } catch { return true }
   })
 
   const globeRef = useRef(null)
+  const recorderRef = useRef(null)
   const deepLinkRef = useRef(route.recordingId)
   const introDoneRef = useRef(false)
+  const revealedRef = useRef(false)
   const ownIdsRef = useRef(ownIds)
   const lastCardRef = useRef(null)
   const requestedPlacesRef = useRef(new Set())
   const toastIdRef = useRef(0)
+  const launchRef = useRef(null) // { key, at, flight } while our own post is landing
+  const safeTopRef = useRef(null)
+  const player = usePlayer()
 
   ownIdsRef.current = ownIds
 
@@ -110,25 +163,27 @@ export default function App({ authEnabled = false }) {
   const dismissToast = useCallback(id => setToasts(list => list.filter(toast => toast.id !== id)), [])
   const pushToast = useCallback(toast => {
     const id = ++toastIdRef.current
-    setToasts(list => [...list.slice(-2), { ...toast, id }])
+    setToasts(list => [...list.slice(-2), { tone: 'info', ...toast, id }])
     setTimeout(() => dismissToast(id), toast.duration || 5000)
   }, [dismissToast])
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const loadSeqRef = useRef(0)
   const selectionRef = useRef(null)
+  const removedIdsRef = useRef(new Set())
   const load = useCallback(async () => {
     const seq = ++loadSeqRef.current
     try {
       const [list, stats] = await Promise.all([fetchRecordings(MAX_EVENTS), fetchStats().catch(() => null)])
       if (seq !== loadSeqRef.current) return // a newer refresh already answered
-      const fresh = list.map(cleanEvent)
+      const fresh = list.map(cleanEvent).filter(event => !removedIdsRef.current.has(event.id))
       const freshIds = new Set(fresh.map(event => event.id))
       setEvents(prev => mergeEvents(fresh, prev.filter(event => (
         // Keep what the server list can't know about yet: the open recording
         // (e.g. an older shared link) and anything that arrived in the last minutes.
         !freshIds.has(event.id) &&
-        (event.id === selectionRef.current?.id || Date.now() - event.timestamp < 3 * 60 * 1000)
+        !removedIdsRef.current.has(event.id) &&
+        (event.id === selectionRef.current?.id || event.id === deepLinkRef.current || Date.now() - event.timestamp < 3 * 60 * 1000)
       ))))
       if (stats) setServerTotal(stats.totalAllTime || 0)
       setLoadState('ready')
@@ -170,7 +225,7 @@ export default function App({ authEnabled = false }) {
     return map
   }, [sites])
 
-  // Older recordings were posted without a place name — look them up once.
+  // Recordings posted without a place name get looked up once.
   useEffect(() => {
     for (const site of sites) {
       if (site.place || requestedPlacesRef.current.has(site.key)) continue
@@ -192,8 +247,24 @@ export default function App({ authEnabled = false }) {
   if (selectedEvent) lastCardRef.current = { event: selectedEvent, site: selectedSite }
 
   const stats = useMemo(() => (
-    loadState === 'ready' || events.length ? summarizeStats(events, serverTotal) : null
+    loadState === 'ready' ? summarizeStats(events, serverTotal) : null
   ), [events, serverTotal, loadState])
+
+  const ordinal = useMemo(() => (
+    selectedEvent && loadState === 'ready' ? ordinalOf(events, selectedEvent.id) : null
+  ), [events, selectedEvent, loadState])
+
+  // The site whose recording is audibly playing (the globe pulses it)
+  const playingEvent = player.status === 'playing' ? eventsById.get(player.id) : null
+  const playingKey = playingEvent ? siteKey(playingEvent.lat, playingEvent.lng) : null
+
+  // ── Camera ────────────────────────────────────────────────────────────────
+  const fly = useCallback((target, style = 'push', ms) => (
+    globeRef.current?.flyTo(
+      { lat: target.lat, lng: target.lng, altitude: target.altitude },
+      { style, ms },
+    ) || Promise.resolve()
+  ), [])
 
   // ── Selection ─────────────────────────────────────────────────────────────
   const dismissHint = useCallback(() => {
@@ -201,20 +272,27 @@ export default function App({ authEnabled = false }) {
     try { localStorage.setItem('fatw:hinted', '1') } catch { /* private mode */ }
   }, [])
 
-  const select = useCallback((event, { autoplay = false, fly = true, flyMs } = {}) => {
+  const select = useCallback((event, { autoplay = false, fly: shouldFly = true, style = 'push', flyMs } = {}) => {
     if (!event) return
     setSelection({ key: siteKey(event.lat, event.lng), id: event.id })
     setListOpen(false)
     dismissHint()
     // Must run inside the tap for iOS to allow audio.
     if (autoplay) play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
-    if (fly) globeRef.current?.flyTo({ lat: event.lat, lng: event.lng, altitude: compact ? 1.3 : 1.2 }, flyMs)
+    if (shouldFly) fly({ lat: event.lat, lng: event.lng }, style, flyMs)
     replaceUrl(`/r/${event.id}`)
-  }, [compact, dismissHint])
+  }, [dismissHint, fly])
 
-  const selectSite = useCallback((key, options) => {
+  const selectSite = useCallback((key, { again = false } = {}) => {
     const site = sites.find(candidate => candidate.key === key)
-    if (site) select(site.events[0], options)
+    if (!site) return
+    let event = site.events[0]
+    // Tapping the dot that's already open plays the next fart recorded there
+    if (again && selectionRef.current?.key === key) {
+      const index = site.events.findIndex(candidate => candidate.id === selectionRef.current.id)
+      event = site.events[(index + 1) % site.events.length]
+    }
+    select(event, { autoplay: true, fly: !again })
   }, [sites, select])
 
   const closeSelection = useCallback(() => {
@@ -227,38 +305,42 @@ export default function App({ authEnabled = false }) {
     if (!chronological.length) return
     const index = chronological.findIndex(event => event.id === selection?.id)
     const next = chronological[(index + direction + chronological.length) % chronological.length]
-    select(next, { autoplay: true })
+    select(next, { autoplay: true, style: 'crane' })
   }, [chronological, selection, select])
 
   const shuffle = useCallback(() => {
     if (!chronological.length) return
     const pool = chronological.length > 1 ? chronological.filter(event => event.id !== selection?.id) : chronological
-    select(pool[Math.floor(Math.random() * pool.length)], { autoplay: true })
+    select(pool[Math.floor(Math.random() * pool.length)], { autoplay: true, style: 'whip' })
   }, [chronological, selection, select])
 
   // ── Live feed ─────────────────────────────────────────────────────────────
   const handleIncoming = useCallback(raw => {
     const event = cleanEvent(raw)
+    if (removedIdsRef.current.has(event.id)) return
     const isNew = !eventsRef.current.some(existing => existing.id === event.id)
     setEvents(prev => mergeEvents(prev, [event]))
     if (isNew) setServerTotal(total => total + 1)
     // Give our own POST a moment to register so we don't announce ourselves.
     setTimeout(() => {
       if (ownIdsRef.current.has(event.id)) return
-      globeRef.current?.burst(event.lat, event.lng, { color: '#9dff4a' })
+      const launch = launchRef.current
+      if (launch && launch.key === siteKey(event.lat, event.lng) && Date.now() - launch.at < 20_000) return
+      globeRef.current?.burst(event.lat, event.lng, { color: '#ffa537' })
       const place = describePlace(event)
       pushToast({
-        icon: '💨',
+        tone: 'new',
         text: <>New fart from <strong>{place.title}</strong></>,
         actionLabel: 'Listen',
-        action: () => select(event, { autoplay: true }),
+        action: () => select(event, { autoplay: true, style: 'crane' }),
         duration: 8000,
       })
-    }, 1200)
+    }, 1500)
   }, [pushToast, select])
 
   // Runs for our own deletes and again when the server broadcasts them.
-  const removedIdsRef = useRef(new Set())
+  const playerIdRef = useRef(null)
+  playerIdRef.current = player.id
   const handleRemoved = useCallback(id => {
     if (!id || removedIdsRef.current.has(id)) return
     removedIdsRef.current.add(id)
@@ -269,6 +351,7 @@ export default function App({ authEnabled = false }) {
       replaceUrl('/')
       return null
     })
+    if (playerIdRef.current === id) stopPlayback()
   }, [])
 
   // One socket for the app's lifetime; handlers are read through a ref.
@@ -288,92 +371,153 @@ export default function App({ authEnabled = false }) {
     })
   }, [])
 
-  // ── First view: shared link, or the most recent fart ─────────────────────
+  // ── First view ────────────────────────────────────────────────────────────
+  // 1. When the data and the globe are ready, tell the splash (fatw:ready).
+  // 2. When the splash starts to leave (fatw:reveal), the instrument warms up
+  //    and the camera frames every fart — or flies to a shared one.
+  // 3. On a shared link, the splash's PLAY key fires fatw:play inside the tap,
+  //    so the fart starts playing immediately (iOS needs the gesture).
+  const openDeepLink = useCallback(({ autoplay }) => {
+    const id = deepLinkRef.current
+    if (!id) return false
+    const known = eventsRef.current.find(event => event.id === id)
+    if (known) {
+      deepLinkRef.current = null
+      select(known, { autoplay, style: 'crane', flyMs: 1800 })
+      return true
+    }
+    fetchRecording(id)
+      .then(event => {
+        if (deepLinkRef.current !== id) return
+        deepLinkRef.current = null
+        const clean = cleanEvent(event)
+        setEvents(prev => mergeEvents(prev, [clean]))
+        select(clean, { style: 'crane', flyMs: 1800 })
+      })
+      .catch(error => {
+        if (deepLinkRef.current !== id) return
+        if (error?.status === 404) {
+          deepLinkRef.current = null
+          replaceUrl('/')
+          pushToast({ tone: 'error', text: 'That fart has left the building. It was deleted, or never existed.' })
+          globeRef.current?.frameAll?.(2200)
+        } else {
+          pushToast({ tone: 'error', text: "Couldn't load that fart. Trying again…" })
+          setTimeout(() => { if (deepLinkRef.current === id) openDeepLinkRef.current({ autoplay: false }) }, 4000)
+        }
+      })
+    return true
+  }, [select, pushToast])
+  const openDeepLinkRef = useRef(openDeepLink)
+  openDeepLinkRef.current = openDeepLink
+
+  const reveal = useCallback(() => {
+    if (revealedRef.current) return
+    revealedRef.current = true
+    globeRef.current?.warmUp?.()
+    if (openDeepLink({ autoplay: false })) return
+    const g = globeRef.current
+    const framing = g?.frameAll ? g.frameAll(2400) : null
+    if (framing?.then) framing.then(() => g.resumeAutoRotate?.())
+    else setTimeout(() => g?.resumeAutoRotate?.(), 2600)
+  }, [openDeepLink])
+
   useEffect(() => {
     if (loadState === 'loading' || !globeReady || introDoneRef.current) return
     introDoneRef.current = true
     window.dispatchEvent(new Event('fatw:ready'))
+    // No splash on screen (already gone, or it never ran): reveal right away
+    if (!document.getElementById('boot')) reveal()
+  }, [loadState, globeReady, reveal])
 
-    const id = deepLinkRef.current
-    deepLinkRef.current = null
-    if (id) {
-      const known = eventsById.get(id)
-      if (known) {
-        select(known, { flyMs: 1800 })
-      } else {
-        fetchRecording(id)
-          .then(event => {
-            const clean = cleanEvent(event)
-            setEvents(prev => mergeEvents(prev, [clean]))
-            select(clean, { flyMs: 1800 })
-          })
-          .catch(() => {
-            replaceUrl('/')
-            pushToast({ icon: '🫥', text: 'That fart has left the building (it was deleted or never existed).' })
-          })
-      }
-      return
+  useEffect(() => {
+    const onReveal = () => reveal()
+    const onPlay = () => {
+      // Inside the splash's tap: play first, then everything else
+      openDeepLink({ autoplay: true })
+      reveal()
     }
-
-    const latest = events[0]
-    if (latest) {
-      globeRef.current?.flyTo({ lat: latest.lat, lng: latest.lng, altitude: compact ? 2.6 : 2.1 }, 2200)
-      setTimeout(() => globeRef.current?.resumeAutoRotate(), 2600)
+    window.addEventListener('fatw:reveal', onReveal)
+    window.addEventListener('fatw:play', onPlay)
+    return () => {
+      window.removeEventListener('fatw:reveal', onReveal)
+      window.removeEventListener('fatw:play', onPlay)
     }
-  }, [loadState, globeReady, events, eventsById, select, compact, pushToast])
+  }, [reveal, openDeepLink])
 
   // Never leave the splash up forever if the globe texture is slow (or fails to
   // load) — carry on without it so shared links and the intro still happen.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event('fatw:ready'))
-      setGlobeReady(true)
-    }, 6000)
+    const timer = setTimeout(() => setGlobeReady(true), 6000)
     return () => clearTimeout(timer)
   }, [])
 
   // ── Recorder / posting ──────────────────────────────────────────────────
+  // Call from inside a tap or key press: the recorder arms the microphone in
+  // that same gesture (iOS), so one tap goes straight to the countdown.
   const openRecorder = useCallback(() => {
+    recorderRef.current?.quickStart?.()
     setListOpen(false)
     setAboutOpen(false)
     setRecorderOpen(true)
   }, [])
+
+  // Where the new pin will appear on screen: the middle of the globe's free area
+  const getLandingPoint = useCallback(() => {
+    if (safeTopRef.current == null) safeTopRef.current = safeTop()
+    const top = safeTopRef.current + TOP_STRIP
+    return { x: window.innerWidth / 2, y: compact ? top + (window.innerHeight * 0.55 - top) / 2 : window.innerHeight * 0.45 }
+  }, [compact])
+
+  const handleLaunch = useCallback(({ lat, lng }) => {
+    // Start the camera now, so the pin is centred by the time the drawer is gone
+    const flight = fly({ lat, lng, altitude: compact ? 1.5 : 1.3 }, 'crane', 1300)
+    launchRef.current = { key: siteKey(lat, lng), at: Date.now(), flight }
+  }, [fly, compact])
 
   const handlePosted = useCallback(created => {
     const event = cleanEvent(created)
     rememberOwnRecording(event.id, created.deleteToken)
     setOwnIds(prev => new Set(prev).add(event.id))
     setEvents(prev => mergeEvents(prev, [event]))
-    setTimeout(() => {
-      setRecorderOpen(false)
-      setTimeout(() => {
-        select(event, { flyMs: 1600 })
-        setTimeout(() => globeRef.current?.burst(event.lat, event.lng, { color: '#9dff4a', big: true }), 1400)
-        pushToast({ icon: '🎉', tone: 'success', text: 'Posted! Your fart is officially on the map.' })
-      }, 380)
-    }, 1100)
-  }, [select, pushToast])
+    setRecorderOpen(false)
+    const flight = launchRef.current?.flight || fly({ lat: event.lat, lng: event.lng }, 'crane', 1300)
+    launchRef.current = { key: siteKey(event.lat, event.lng), at: Date.now(), flight }
+    Promise.resolve(flight)
+      .then(() => globeRef.current?.land?.(event.lat, event.lng))
+      .catch(() => {})
+      .then(() => {
+        // The fart plays as it lands (the audio element was unlocked by an
+        // earlier tap; if the browser refuses, the deck's PLAY key is right there).
+        select(event, { fly: false, autoplay: true })
+        pushToast({ tone: 'success', text: 'Posted. Your fart is on the map.' })
+      })
+  }, [fly, select, pushToast])
 
   const handleDelete = useCallback(async event => {
     const token = ownRecordingToken(event.id)
     if (!token) {
-      pushToast({ icon: '🔒', text: 'This one can only be deleted from the device that posted it.' })
+      pushToast({ tone: 'error', text: 'This one can only be deleted from the device that posted it.' })
       return
     }
     try {
       await deleteRecording(event.id, token)
-      forgetOwnRecording(event.id)
-      setOwnIds(prev => {
-        const next = new Set(prev)
-        next.delete(event.id)
-        return next
-      })
-      handleRemoved(event.id)
-      stopPlayback()
-      pushToast({ icon: '🧹', text: 'Deleted. It never happened.' })
     } catch (error) {
-      pushToast({ icon: '⚠️', tone: 'error', text: error.message || 'Could not delete it. Try again?' })
+      if (error?.status !== 404) {
+        pushToast({ tone: 'error', text: error.message || 'Could not delete it. Try again?' })
+        return
+      }
+      // Already gone: treat it as deleted
     }
+    forgetOwnRecording(event.id)
+    setOwnIds(prev => {
+      const next = new Set(prev)
+      next.delete(event.id)
+      return next
+    })
+    handleRemoved(event.id)
+    stopPlayback()
+    pushToast({ tone: 'info', text: 'Deleted. It never happened.' })
   }, [handleRemoved, pushToast])
 
   const handleShare = useCallback(async (event, place) => {
@@ -389,9 +533,9 @@ export default function App({ authEnabled = false }) {
     }
     try {
       await navigator.clipboard.writeText(url)
-      pushToast({ icon: '🔗', text: 'Link copied. Send it to someone who deserves it.' })
+      pushToast({ tone: 'info', text: 'Link copied. Send it to someone who deserves it.' })
     } catch {
-      pushToast({ icon: '🔗', text: url, duration: 10000 })
+      pushToast({ tone: 'info', text: url, duration: 10000 })
     }
   }, [pushToast])
 
@@ -426,6 +570,7 @@ export default function App({ authEnabled = false }) {
       if (recorderOpen || aboutOpen) return
       const key = event.key
       if (key === 'r' || key === 'R') {
+        if (event.repeat) return
         event.preventDefault()
         openRecorder()
       } else if (key === 'Escape') {
@@ -434,15 +579,25 @@ export default function App({ authEnabled = false }) {
       } else if (key === ' ' && selectedEvent && !event.target.closest?.('button')) {
         event.preventDefault()
         toggle(selectedEvent.id, recordingAudioUrl(selectedEvent.id), { duration: selectedEvent.duration })
-      } else if (key === 'ArrowRight' && selection) {
-        step(1)
-      } else if (key === 'ArrowLeft' && selection) {
-        step(-1)
+      } else if ((key === 'ArrowRight' || key === 'ArrowLeft') && selection) {
+        if (event.repeat) return
+        step(key === 'ArrowRight' ? 1 : -1)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [route.page, recorderOpen, aboutOpen, selection, selectedEvent, listOpen, openRecorder, closeSelection, step])
+
+  const onAccountChange = useCallback(next => {
+    setAccount(next.status === 'loading' ? null : next)
+    if (pendingSignInRef.current && next.status === 'signedOut') {
+      pendingSignInRef.current = false
+      next.openSignIn()
+    }
+  }, [])
+
+  const onCardHeight = useCallback(height => setSheetHeights(prev => (prev.card === height ? prev : { ...prev, card: height })), [])
+  const onListHeight = useCallback(height => setSheetHeights(prev => (prev.list === height ? prev : { ...prev, list: height })), [])
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (route.page !== 'home') {
@@ -452,7 +607,7 @@ export default function App({ authEnabled = false }) {
           <button type="button" className="pill-button" onClick={() => navigate('/')}>
             <Icon name="back" size={18} /> Back to the map
           </button>
-          <span className="subpage__brand">💨 Farts Around the World</span>
+          <span className="subpage__brand">Farts Around the World</span>
         </header>
         <main className={`route-stage route-stage--${route.page}`}>
           <div className="route-stage__inner">
@@ -469,10 +624,19 @@ export default function App({ authEnabled = false }) {
 
   const card = selectedEvent ? { event: selectedEvent, site: selectedSite } : lastCardRef.current
   const cardOpen = Boolean(selectedEvent)
-  // Keep the globe centered in the space the panels leave free
-  const globeOffsetY = compact
-    ? cardOpen ? -Math.round(window.innerHeight * 0.2) : listOpen ? -Math.round(window.innerHeight * 0.24) : 0
-    : 0
+
+  // Keep the selected pin centred in the space the panels leave free. On
+  // phones that's between the top strip and the top of the open drawer.
+  let globeOffsetY = 0
+  if (compact) {
+    const covered = cardOpen ? sheetHeights.card : listOpen ? sheetHeights.list : 0
+    if (covered > 0) {
+      if (safeTopRef.current == null) safeTopRef.current = safeTop()
+      const top = safeTopRef.current + TOP_STRIP
+      const freeCenter = top + (viewportHeight - covered - top) / 2
+      globeOffsetY = Math.round(freeCenter - viewportHeight / 2)
+    }
+  }
   const globeOffsetX = compact ? 0 : cardOpen ? (narrowDesktop ? -25 : -24) : (narrowDesktop ? 160 : 182)
 
   const list = (
@@ -482,25 +646,58 @@ export default function App({ authEnabled = false }) {
       selectedId={selection?.id}
       loadState={loadState}
       ownIds={ownIds}
-      onSelect={select}
+      onSelect={(event, options) => select(event, { ...options, style: 'crane' })}
       onHover={event => globeRef.current?.highlight(event ? siteKey(event.lat, event.lng) : null)}
       onRecord={openRecorder}
       onRetry={load}
     />
   )
 
+  const menuExtra = authEnabled ? (
+    account?.status === 'signedIn' ? (
+      <>
+        <div className="menu__divider" />
+        <button type="button" role="menuitem" onClick={() => account.openProfile()}>
+          <Icon name="link" size={18} />
+          <span><strong>{account.name || 'Your account'}</strong><em>Signed in</em></span>
+        </button>
+        <button type="button" role="menuitem" onClick={() => account.signOut()}>
+          <Icon name="back" size={18} />
+          <span><strong>Sign out</strong><em>Your farts stay on the map</em></span>
+        </button>
+      </>
+    ) : (
+      <>
+        <div className="menu__divider" />
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            if (account?.openSignIn) account.openSignIn()
+            else pendingSignInRef.current = true
+          }}
+        >
+          <Icon name="link" size={18} />
+          <span><strong>Sign in</strong><em>{account ? 'Optional — not needed to record' : 'Loading…'}</em></span>
+        </button>
+      </>
+    )
+  ) : null
+
   return (
-    <div className={`home ${compact ? 'home--compact' : 'home--wide'} ${cardOpen ? 'has-card' : ''}`}>
+    <div className={`home ${compact ? 'home--compact' : 'home--wide'} ${cardOpen ? 'has-card' : ''} ${recorderOpen ? 'has-recorder' : ''}`}>
       <div className="home__globe">
         <GlobeCanvas
           ref={globeRef}
           sites={sites}
           selectedKey={selection?.key || null}
+          playingKey={playingKey}
           compact={compact}
           offsetX={globeOffsetX}
           offsetY={globeOffsetY}
           paused={recorderActive && compact}
-          onSiteSelect={key => selectSite(key, { autoplay: true })}
+          dimmed={recorderOpen}
+          onSiteSelect={(key, options) => selectSite(key, options)}
           onBackgroundClick={() => { if (selection) closeSelection() }}
           onReady={() => setGlobeReady(true)}
         />
@@ -514,23 +711,30 @@ export default function App({ authEnabled = false }) {
           setListOpen(false)
           setAboutOpen(true)
         }}
-        accountSlot={authEnabled ? <AccountAvatar /> : null}
-        menuExtra={authEnabled ? <AccountMenuItem /> : null}
+        menuExtra={menuExtra}
+        onMenuOpen={() => { if (authEnabled) setAccountWanted(true) }}
       />
 
-      {!compact && <aside className="side-panel" aria-label="Latest farts">{list}</aside>}
+      {authEnabled && accountWanted && (
+        <Suspense fallback={null}>
+          <AccountHost publishableKey={CLERK_KEY} onChange={onAccountChange} />
+        </Suspense>
+      )}
+
+      {!compact && <aside className="side-panel chassis" aria-label="All farts">{list}</aside>}
       {compact && (
-        <Sheet open={listOpen} onClose={() => setListOpen(false)} variant="list" label="Latest farts" modal>
+        <Sheet open={listOpen} onClose={() => setListOpen(false)} variant="list" label="All farts" modal onHeightChange={onListHeight}>
           {list}
         </Sheet>
       )}
 
-      <Sheet open={cardOpen} onClose={closeSelection} variant="card" label="Selected fart">
+      <Sheet open={cardOpen} onClose={closeSelection} variant="card" label="Selected fart" onHeightChange={onCardHeight}>
         {card?.event && (
           <RecordingCard
             site={card.site}
             recording={card.event}
             isOwn={ownIds.has(card.event.id)}
+            ordinal={ordinal}
             onSelectRecording={event => select(event, { autoplay: true, fly: false })}
             onClose={closeSelection}
             onPrev={() => step(-1)}
@@ -546,6 +750,7 @@ export default function App({ authEnabled = false }) {
         compact={compact}
         hidden={cardOpen || listOpen}
         canShuffle={events.length > 0}
+        total={stats?.total ?? null}
         onRecord={openRecorder}
         onList={() => setListOpen(true)}
         onShuffle={shuffle}
@@ -556,11 +761,14 @@ export default function App({ authEnabled = false }) {
       )}
 
       <RecorderSheet
+        ref={recorderRef}
         open={recorderOpen}
+        totalCount={stats?.total ?? null}
         onClose={() => setRecorderOpen(false)}
+        onLaunch={handleLaunch}
         onPosted={handlePosted}
+        getLandingPoint={getLandingPoint}
         onPostFailed={message => pushToast({
-          icon: '⚠️',
           tone: 'error',
           text: `Your fart didn't post (${message}). It's still saved in the recorder.`,
           actionLabel: 'Open',

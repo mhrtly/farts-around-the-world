@@ -18,7 +18,7 @@ export default class ErrorBoundary extends Component {
     if (!this.state.error) return this.props.children
     return (
       <div className="crash" role="alert">
-        <div className="crash__mark" aria-hidden="true">💨</div>
+        <div className="crash__mark" aria-hidden="true" />
         <h1 className="crash__title">Well, that stinks.</h1>
         <p className="crash__body">Something broke while loading the map. A reload usually clears the air.</p>
         <button type="button" className="crash__button" onClick={() => window.location.assign('/')}>

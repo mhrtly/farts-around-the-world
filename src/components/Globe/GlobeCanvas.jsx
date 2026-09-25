@@ -111,12 +111,14 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   callbacksRef.current = { onSiteSelect, onBackgroundClick, onReady }
 
   useImperativeHandle(ref, () => ({
-    flyTo({ lat, lng, altitude }, ms = 1100) {
+    flyTo({ lat, lng, altitude }, options = 1100) {
       const g = globeRef.current
-      if (!g) return
+      if (!g) return Promise.resolve()
+      const ms = (typeof options === 'number' ? options : options?.ms) ?? 1100
       stopAutoRotate()
       const pov = g.pointOfView()
       g.pointOfView({ lat, lng, altitude: altitude ?? Math.min(pov.altitude, compact ? 1.6 : 1.4) }, ms)
+      return new Promise(resolve => setTimeout(resolve, ms))
     },
     burst(lat, lng, { color = '#9dff4a', big = false } = {}) {
       spawnBurst(lat, lng, color, big)

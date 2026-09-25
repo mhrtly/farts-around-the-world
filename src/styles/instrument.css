@@ -1,0 +1,535 @@
+/* ─── Instrument primitives ─────────────────────────────────────────────────
+   The shared hardware vocabulary. Use these; don't fork them.
+   - .chassis        anodized panel surface
+   - .well           recessed display glass (everything lit lives in one)
+   - .key            dark key: cap over a skirt; press/latch = the cap travels
+   - .key-ceramic    cream primary key (REC, PLAY, POST only)
+   - .bezel          knurled ring around the REC key, with a ring lamp
+   - .led            indicator lamp
+   - .plate-title    Michroma panel plate
+   - .vfd            Doto dot-matrix line
+   - .cc-chip        [US] country code chip
+   - .key-legend     screen-printed legend under a key
+   Motion: keys go down in 70 ms and spring back; electronics switch on
+   instantly and only decay when switching off. */
+
+/* ─── Chassis ──────────────────────────────────────────────────────────── */
+
+.chassis {
+  background: var(--grain), linear-gradient(180deg, #17191c 0%, var(--chassis) 45%, var(--chassis-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 -18px 44px rgba(0, 0, 0, 0.55);
+  color: var(--legend);
+}
+
+/* ─── Display well ─────────────────────────────────────────────────────── */
+
+.well {
+  position: relative;
+  border-radius: 8px;
+  background: radial-gradient(120% 90% at 50% 0%, #0a0e0d 0%, var(--well) 70%);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.95),
+    inset 0 0 0 1px #000,
+    0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.well::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(162deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 38%);
+}
+
+.well--sm {
+  border-radius: 6px;
+}
+
+/* ─── Dark key ─────────────────────────────────────────────────────────── */
+/* The skirt (a 3 px lip under the cap) is the first shadow; pressing moves
+   the cap down over it. */
+
+.key {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: var(--legend-2);
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, var(--key-hi), var(--key-lo));
+  box-shadow:
+    0 3px 0 var(--skirt),
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  transform: translateY(0);
+  transition: transform 320ms var(--spring-key), box-shadow 320ms var(--spring-key), color 0.15s ease, opacity 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.key:hover {
+  color: var(--legend);
+}
+
+.key:active:not(:disabled),
+.key[aria-pressed='true'] {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 var(--skirt),
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  transition: transform 70ms var(--ease-press), box-shadow 70ms var(--ease-press), color 0.15s ease;
+}
+
+.key[aria-pressed='true'] {
+  background: linear-gradient(180deg, #181b1e, #131517);
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}
+
+.key:disabled {
+  opacity: 0.4;
+}
+
+.key--sm {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 7px;
+}
+
+.key--wide {
+  width: 100%;
+}
+
+.key .icon {
+  display: block;
+}
+
+/* ─── Ceramic key (REC, PLAY, POST only) ───────────────────────────────── */
+
+.key-ceramic {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  color: var(--ceramic-ink);
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #f1ece1, var(--ceramic) 50%, #d6cfbf);
+  box-shadow:
+    0 3px 0 var(--ceramic-skirt),
+    0 7px 14px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(0);
+  transition: transform 320ms var(--spring-key), box-shadow 320ms var(--spring-key), opacity 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.key-ceramic:active:not(:disabled),
+.key-ceramic[aria-pressed='true'] {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 var(--ceramic-skirt),
+    0 2px 5px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.12);
+  transition: transform 70ms var(--ease-press), box-shadow 70ms var(--ease-press);
+}
+
+.key-ceramic:disabled {
+  opacity: 0.55;
+}
+
+/* Round ceramic cap for REC, with its printed tally dot */
+.key-ceramic--round {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, var(--ceramic-hi) 0%, var(--ceramic) 45%, var(--ceramic-lo) 100%);
+  box-shadow:
+    0 3px 0 var(--ceramic-skirt),
+    0 5px 10px rgba(0, 0, 0, 0.6),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.12),
+    inset 0 2px 1px rgba(255, 255, 255, 0.7);
+}
+
+.key-ceramic--round:active:not(:disabled),
+.key-ceramic--round[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 var(--ceramic-skirt),
+    0 2px 4px rgba(0, 0, 0, 0.6),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.12),
+    inset 0 2px 1px rgba(255, 255, 255, 0.7);
+}
+
+.rec-dot {
+  display: block;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 40%, #ff6a4f, var(--tally) 60%, #c7261a);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(120, 20, 10, 0.35);
+}
+
+/* ─── Knurled bezel with ring lamp ─────────────────────────────────────── */
+
+.bezel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  flex: none;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #2c3136 0deg 2deg, #1c1f22 2deg 4deg);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.6),
+    0 0 0 1px #050606,
+    0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* The inner well (pseudo-elements paint before the key, which is positioned) */
+.bezel::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: #0b0c0d;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* The ring lamp: a separate layer so only its opacity animates */
+.bezel::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 0 1.5px var(--sodium), 0 0 12px 2px var(--sodium-glow);
+  transition: opacity var(--decay) ease-out;
+}
+
+.bezel.is-armed::after {
+  opacity: 1;
+  transition: none;
+  animation: lampBlink 0.5s steps(1, end) infinite;
+}
+
+.bezel.is-live::after {
+  opacity: 1;
+  transition: none;
+  box-shadow: 0 0 0 1.5px var(--tally), 0 0 16px 3px var(--tally-glow);
+}
+
+@keyframes lampBlink {
+  50% { opacity: 0.15; }
+}
+
+/* ─── LEDs ─────────────────────────────────────────────────────────────── */
+
+.led {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--lamp-off);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.led--tally {
+  background: var(--tally);
+  box-shadow: 0 0 6px var(--tally-glow);
+}
+
+.led--sodium {
+  background: var(--sodium);
+  box-shadow: 0 0 6px 1px var(--sodium-glow);
+}
+
+.led--phosphor {
+  background: var(--phosphor);
+  box-shadow: 0 0 6px 1px var(--phosphor-glow);
+}
+
+.led.is-blink {
+  animation: lampBlink 1s steps(1, end) infinite;
+}
+
+.led.is-blink-fast {
+  animation: lampBlink 0.36s steps(1, end) infinite;
+}
+
+/* ─── Type ─────────────────────────────────────────────────────────────── */
+
+.plate-title {
+  font-family: var(--f-mark);
+  font-weight: 400;
+  font-size: 11.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--legend);
+  white-space: nowrap;
+}
+
+.vfd {
+  font-family: var(--f-dot);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}
+
+.vfd--sodium {
+  color: var(--sodium);
+  text-shadow: 0 0 6px var(--sodium-glow);
+}
+
+.vfd--tally {
+  color: var(--tally-text);
+  text-shadow: 0 0 6px var(--tally-glow);
+}
+
+.vfd--ghost {
+  color: var(--phosphor-dim);
+  text-shadow: none;
+}
+
+.key-legend {
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--legend-2);
+  white-space: nowrap;
+}
+
+.cc-chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--legend-2);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px 4px;
+  border-radius: 3px;
+  background: #0b0c0d;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.05);
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sodium);
+  white-space: nowrap;
+}
+
+.note-name {
+  font-family: var(--f-note);
+}
+
+/* Instruments switch on with a brief brightness flash */
+.flash-on {
+  animation: flashOn 90ms linear;
+}
+
+@keyframes flashOn {
+  from { filter: brightness(1.6); }
+  to { filter: brightness(1); }
+}
+
+/* ─── Seven-segment display (SevenSeg.jsx) ─────────────────────────────── */
+
+.seg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 0 3px var(--seg-glow, rgba(98, 246, 208, 0.7)));
+}
+
+.seg path,
+.seg circle {
+  fill: var(--seg-on, var(--phosphor));
+}
+
+/* Unlit segments: ghost 8s. Switching off decays; switching on is instant. */
+.seg .is-off {
+  fill: var(--seg-off, var(--phosphor-dim));
+  transition: fill var(--decay) ease-out;
+}
+
+.seg--sodium {
+  --seg-on: var(--sodium);
+  --seg-off: var(--sodium-dim);
+  --seg-glow: rgba(255, 165, 55, 0.7);
+}
+
+.seg--tally {
+  --seg-on: var(--tally-text);
+  --seg-off: rgba(255, 61, 46, 0.07);
+  --seg-glow: rgba(255, 61, 46, 0.7);
+}
+
+.seg--dark {
+  filter: none;
+  --seg-on: var(--phosphor-dim);
+}
+
+/* ─── VU meter (VuMeter.jsx) ───────────────────────────────────────────── */
+
+.vu {
+  position: relative;
+  width: 148px;
+  height: 100px;
+  flex: none;
+  border-radius: 5px;
+  overflow: hidden;
+  background: radial-gradient(90% 110% at 50% 100%, #fff3d6 0%, var(--vu-face) 45%, #d8bd85 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 3px 8px rgba(80, 40, 0, 0.35);
+}
+
+.vu__face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Unlit: the backlight is off until the mic (or playback) is really live */
+.vu__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20, 12, 4, 0.78), rgba(10, 6, 2, 0.86));
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+  pointer-events: none;
+}
+
+.vu.is-lit .vu__shade {
+  opacity: 0;
+  animation: vuStrike 340ms linear;
+}
+
+@keyframes vuStrike {
+  0% { opacity: 1; }
+  8% { opacity: 0.2; }
+  16% { opacity: 0.9; }
+  26% { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+.vu__needle {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  width: 1.6px;
+  height: 104px;
+  margin-left: -0.8px;
+  border-radius: 1px;
+  background: #1a130c;
+  box-shadow: 1px 2px 2px rgba(60, 30, 0, 0.35);
+  transform-origin: 50% 100%;
+  transform: rotate(-50deg);
+  will-change: transform;
+}
+
+.vu__cowl {
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  width: 70px;
+  height: 50px;
+  margin-left: -35px;
+  border-radius: 50% 50% 0 0;
+  background: linear-gradient(#1b1d20, #0e0f11);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.vu__peak-label {
+  position: absolute;
+  right: 16px;
+  top: 6px;
+  font: 700 6px/1 var(--f-ui);
+  letter-spacing: 0.12em;
+  color: rgba(43, 34, 23, 0.65);
+}
+
+.vu__peak {
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3a1410;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+  transition: background var(--decay) ease-out, box-shadow var(--decay) ease-out;
+}
+
+.vu__peak.is-on {
+  background: #ff4a33;
+  box-shadow: 0 0 6px 2px rgba(255, 74, 51, 0.8);
+  transition: none;
+}
+
+.vu--sm {
+  width: 118px;
+  height: 80px;
+}
+
+.vu--sm .vu__needle {
+  bottom: -21px;
+  height: 83px;
+}
+
+.vu--sm .vu__cowl {
+  bottom: -28px;
+  width: 56px;
+  height: 40px;
+  margin-left: -28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu.is-lit .vu__shade {
+    animation: none;
+  }
+}

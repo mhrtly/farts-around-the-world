@@ -644,7 +644,7 @@ export default function App({ authEnabled = false }) {
       globeOffsetY = Math.round(freeCenter - viewportHeight / 2)
     }
   }
-  const globeOffsetX = compact ? 0 : cardOpen ? (narrowDesktop ? -25 : -24) : (narrowDesktop ? 160 : 182)
+  const globeOffsetX = compact ? 0 : cardOpen ? (narrowDesktop ? -29 : -32) : (narrowDesktop ? 158 : 170)
 
   const list = (
     <RecordingList
@@ -730,7 +730,15 @@ export default function App({ authEnabled = false }) {
 
       {!compact && <aside className="side-panel chassis" aria-label="All farts">{list}</aside>}
       {compact && (
-        <Sheet open={listOpen} onClose={() => setListOpen(false)} variant="list" label="All farts" modal onHeightChange={onListHeight}>
+        <Sheet
+          open={listOpen}
+          onClose={() => setListOpen(false)}
+          variant="list"
+          label="All farts"
+          modal
+          initialFocus=".presets--sort [aria-pressed='true']"
+          onHeightChange={onListHeight}
+        >
           {list}
         </Sheet>
       )}

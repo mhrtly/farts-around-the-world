@@ -81,8 +81,10 @@
   touch-action: manipulation;
 }
 
-.key:hover {
-  color: var(--legend);
+@media (hover: hover) {
+  .key:hover {
+    color: var(--legend);
+  }
 }
 
 .key:active:not(:disabled),

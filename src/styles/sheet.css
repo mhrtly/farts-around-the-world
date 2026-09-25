@@ -79,6 +79,10 @@
   100% { opacity: 0.35; }
 }
 
+.sheet:focus-visible {
+  outline: none; /* the panel itself only holds focus as a container */
+}
+
 .sheet.is-dragging {
   transition: none !important;
 }

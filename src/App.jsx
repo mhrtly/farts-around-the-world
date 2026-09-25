@@ -132,6 +132,7 @@ export default function App({ authEnabled = false }) {
   const [selection, setSelection] = useState(null) // { key, id }
   const [recorderOpen, setRecorderOpen] = useState(false)
   const [recorderActive, setRecorderActive] = useState(false)
+  const [launching, setLaunching] = useState(false) // our post is flying to the globe
   const [listOpen, setListOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [toasts, setToasts] = useState([])
@@ -477,7 +478,9 @@ export default function App({ authEnabled = false }) {
   }, [compact])
 
   const handleLaunch = useCallback(({ lat, lng }) => {
-    // Start the camera now, so the pin is centred by the time the drawer is gone
+    // Start the camera now, so the pin is centred by the time the drawer is
+    // gone (the globe keeps rendering under the drawer while it does)
+    setLaunching(true)
     const flight = fly({ lat, lng, altitude: compact ? 1.5 : 1.3 }, 'crane', 1300)
     launchRef.current = { lat, lng, at: Date.now(), flight }
   }, [fly, compact])
@@ -496,6 +499,7 @@ export default function App({ authEnabled = false }) {
       .then(() => {
         // The fart plays as it lands (the audio element was unlocked by an
         // earlier tap; if the browser refuses, the deck's PLAY key is right there).
+        setLaunching(false)
         select(event, { fly: false, autoplay: true })
         pushToast({ tone: 'success', text: 'Posted. Your fart is on the map.' })
       })
@@ -702,7 +706,7 @@ export default function App({ authEnabled = false }) {
           compact={compact}
           offsetX={globeOffsetX}
           offsetY={globeOffsetY}
-          paused={recorderActive && compact}
+          paused={recorderActive && compact && !launching}
           dimmed={recorderOpen}
           onSiteSelect={(key, options) => selectSite(key, options)}
           onBackgroundClick={() => { if (selection) closeSelection() }}
@@ -783,7 +787,7 @@ export default function App({ authEnabled = false }) {
         onLaunch={handleLaunch}
         onPosted={handlePosted}
         getLandingPoint={getLandingPoint}
-        onPostFailed={message => pushToast({
+        onPostFailed={message => setLaunching(false) || pushToast({
           tone: 'error',
           text: `Your fart didn't post (${message}). It's still saved in the recorder.`,
           actionLabel: 'Open',

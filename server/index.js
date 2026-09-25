@@ -95,22 +95,18 @@ app.use((req, _res, next) => {
 // cached for a year, so they get their own looser budget: opening one card
 // can take 3-4 requests (analysis fetch + the audio element's byte ranges).
 const isAudioFile = req => req.method !== 'POST' && /^\/[^/]+\/audio\/?$/.test(req.path)
-app.use('/api/events', rateLimit({
+const limiter = (max, skip, error = 'Too many requests, please try again later') => rateLimit({
   windowMs: 60_000,
-  max: (req) => req.method === 'POST' ? 10 : 120,
-  skip: isAudioFile,
+  max,
+  skip,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later' },
-}))
-app.use('/api/events', rateLimit({
-  windowMs: 60_000,
-  max: 600,
-  skip: req => !isAudioFile(req),
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later' },
-}))
+  message: { error },
+})
+// Separate counters, so browsing never uses up someone's posts
+app.use('/api/events', limiter(10, req => req.method !== 'POST', 'Too many posts from your network just now. Try again in a minute.'))
+app.use('/api/events', limiter(120, req => req.method === 'POST' || isAudioFile(req)))
+app.use('/api/events', limiter(600, req => !isAudioFile(req)))
 
 app.use('/api/archive', rateLimit({
   windowMs: 60_000,

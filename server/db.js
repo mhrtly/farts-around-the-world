@@ -84,7 +84,11 @@ export const MIN_AUDIO_BASE64 = 1400
 // A few early test rows stored placeholder text instead of audio. Anything
 // under ~1 KB can't be a real recording, so it's left out of public results
 // (kept in the table, not deleted).
-const PLAYABLE = `audio_data IS NOT NULL AND length(audio_data) >= ${MIN_AUDIO_BASE64}`
+// The stored size is kept in its own column: measuring length(audio_data)
+// would read every recording off disk on each query.
+try { db.exec(`ALTER TABLE events ADD COLUMN audio_size INTEGER DEFAULT NULL`) } catch { /* exists */ }
+db.exec(`UPDATE events SET audio_size = length(audio_data) WHERE audio_size IS NULL AND audio_data IS NOT NULL`)
+const PLAYABLE = `audio_data IS NOT NULL AND COALESCE(audio_size, ${MIN_AUDIO_BASE64}) >= ${MIN_AUDIO_BASE64}`
 
 const legacyNonAudioCount = db.prepare(`
   SELECT COUNT(*) as count FROM events WHERE audio_data IS NULL
@@ -145,10 +149,10 @@ const PUBLIC_EVENT_COLUMNS = `
 const stmts = {
   insert: db.prepare(`
     INSERT INTO events (
-      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, duration, volume, peak_volume, place, delete_token_hash, client_post_id
+      id, lat, lng, intensity, country, timestamp, type, audio_data${hasAudioMimeTypeColumn ? ', audio_mime_type' : ''}, audio_size, duration, volume, peak_volume, place, delete_token_hash, client_post_id
     )
     VALUES (
-      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @duration, @volume, @peakVolume, @place, @deleteTokenHash, @clientPostId
+      @id, @lat, @lng, @intensity, @country, @timestamp, @type, @audioData${hasAudioMimeTypeColumn ? ', @audioMimeType' : ''}, @audioSize, @duration, @volume, @peakVolume, @place, @deleteTokenHash, @clientPostId
     )
   `),
 
@@ -379,7 +383,7 @@ export function insertEvent(event) {
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      stmts.insert.run(event)
+      stmts.insert.run({ ...event, audioSize: typeof event.audioData === 'string' ? event.audioData.length : null })
       return
     } catch (error) {
       lastError = error

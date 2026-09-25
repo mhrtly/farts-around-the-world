@@ -69,6 +69,7 @@ export default function AboutPanel({ open, onClose, onRecord }) {
             <div><dt><kbd>R</kbd></dt><dd>Record</dd></div>
             <div><dt><kbd>Space</kbd></dt><dd>Play / pause</dd></div>
             <div><dt><kbd aria-label="Left arrow">←</kbd><kbd aria-label="Right arrow">→</kbd></dt><dd>Newer / older</dd></div>
+            <div><dt><kbd>+</kbd><kbd aria-label="Minus">−</kbd></dt><dd>Zoom in / out</dd></div>
             <div><dt><kbd>Esc</kbd></dt><dd>Close</dd></div>
           </dl>
         </section>
@@ -80,6 +81,7 @@ export default function AboutPanel({ open, onClose, onRecord }) {
         </button>
 
         <p className="about__credit">A Potato Propaganda production</p>
+        <p className="about__credit about__credit--data">Night lights up close: NASA Black Marble (VIIRS), via NASA GIBS</p>
       </div>
     </Sheet>
   )

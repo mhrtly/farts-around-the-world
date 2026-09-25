@@ -254,6 +254,15 @@
   color: var(--legend-3);
 }
 
+.about__credit--data {
+  margin-top: -8px;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--legend-4);
+}
+
 @media (min-width: 860px) {
   .about {
     padding: 0 26px 26px;

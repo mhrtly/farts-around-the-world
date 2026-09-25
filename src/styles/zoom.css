@@ -1,0 +1,188 @@
+/* ─── Zoom rocker ────────────────────────────────────────────────────────
+   Two dark keys on a small anodized plate at the edge of the globe (+ in,
+   − out), a key above them that pulls back to the whole planet once you're
+   down close, and a scale readout in a display well that lights up beside
+   them while the zoom changes, then decays.
+   Phones: right edge, just above the dock (it steps aside when a drawer
+   opens). Landscape phones: left edge, above the hint. Desktop: bottom
+   right (left of the deck, on windows short enough for the deck to reach
+   down to it). */
+
+.zoom {
+  position: absolute;
+  z-index: 28;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+  transition: transform 420ms var(--spring-deck), opacity 220ms ease, right 380ms var(--spring-deck);
+}
+
+.zoom.is-hidden {
+  opacity: 0;
+  transition: transform 300ms var(--ease-close), opacity 160ms ease, right 380ms var(--spring-deck);
+}
+
+.zoom__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoom__rocker {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 5px 8px;
+  border-radius: 13px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 8px 22px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+
+.zoom.is-hidden .zoom__rocker,
+.zoom.is-hidden .zoom__earth {
+  pointer-events: none;
+}
+
+.zoom__key.key {
+  width: 42px;
+  min-width: 42px;
+  height: 40px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.zoom__key + .zoom__key {
+  margin-top: 7px;
+}
+
+.zoom__key:disabled {
+  opacity: 0.35;
+}
+
+/* Appears once the view is closer than a planet */
+.zoom__earth.key {
+  width: 42px;
+  min-width: 42px;
+  height: 38px;
+  padding: 0;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translate3d(0, 10px, 0) scale(0.92);
+  pointer-events: none;
+  transition: transform 320ms var(--spring-key), opacity 160ms ease, box-shadow 320ms var(--spring-key), color 0.15s ease;
+}
+
+.zoom__earth.key.is-on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.zoom__earth.key.is-on:active {
+  transform: translateY(3px);
+}
+
+/* Scale: a bracket the length of a round distance, and the distance */
+.zoom__scale {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-bottom: 2px;
+  padding: 7px 10px 7px;
+  opacity: 0;
+  transition: opacity 500ms ease-out;
+}
+
+.zoom__scale.is-on {
+  opacity: 1;
+  transition: none;
+}
+
+.zoom__bar {
+  display: block;
+  width: 60px;
+  height: 6px;
+  border: 1.5px solid var(--phosphor);
+  border-top: 0;
+  box-shadow: 0 3px 6px -3px var(--phosphor-glow);
+  transition: width 120ms linear;
+}
+
+.zoom__text {
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}
+
+/* ─── Phones ───────────────────────────────────────────────────────────── */
+
+.zoom--compact {
+  right: calc(12px + var(--safe-right));
+  bottom: calc(var(--dock-h, calc(116px + max(12px, var(--safe-bottom)))) + 16px);
+}
+
+.zoom--compact .zoom__key.key {
+  width: 44px;
+  min-width: 44px;
+  height: 42px;
+}
+
+.zoom--compact.is-hidden {
+  transform: translate3d(calc(100% + 24px), 0, 0);
+}
+
+@media (max-width: 859px) and (max-height: 500px) and (orientation: landscape) {
+  .zoom--compact {
+    right: auto;
+    left: calc(12px + var(--safe-left));
+    bottom: calc(var(--safe-bottom) + 66px);
+    flex-direction: row-reverse;
+  }
+
+  .zoom--compact.is-hidden {
+    transform: translate3d(calc(-100% - 24px), 0, 0);
+  }
+}
+
+/* ─── Desktop ──────────────────────────────────────────────────────────── */
+
+.zoom--wide {
+  right: 24px;
+  bottom: calc(24px + var(--safe-bottom));
+}
+
+/* The deck (top right) only reaches down this far on short windows */
+@media (max-height: 720px) {
+  .home.has-card .zoom--wide {
+    right: calc(24px + 380px + 18px);
+  }
+}
+
+@media (min-width: 860px) and (max-width: 1100px) and (max-height: 720px) {
+  .home.has-card .zoom--wide {
+    right: calc(24px + 350px + 18px);
+  }
+}
+
+.zoom--wide.is-hidden {
+  transform: translate3d(0, 16px, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoom,
+  .zoom__earth.key,
+  .zoom__bar {
+    transition: opacity 160ms linear !important;
+  }
+}

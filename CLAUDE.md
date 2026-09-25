@@ -88,7 +88,9 @@ Two core flows, and everything should serve them:
    length / loudness / pitch) → post. The clip is trimmed, re-encoded as WAV,
    and pinned to the globe at the poster's location (rounded to ~1 km).
 2. **Browse & listen**: spin the globe, tap a glowing dot (or pick from the
-   list), hear it. Shareable `/r/:id` links.
+   list), hear it. Zoom from orbit down to ~12 km: dots split apart as you go
+   in, and farts recorded at the same spot open into a ring of petals, one per
+   fart. Shareable `/r/:id` links.
 
 Real, and funny because it's real — no fictional "intelligence agency" copy.
 The old mission-control dashboard lives in `_archive/hud-v1/`.
@@ -149,7 +151,9 @@ client measures it (and the waveform) in a Web Worker when a recording is
 opened. The 28 recordings posted before the recorder measured anything were
 backfilled with real values by `server/migrations/legacy-measurements-2026-09.json`
 (applied idempotently on startup; the file keeps the old values).
-Recordings within ~2 km share one globe site (`groupIntoSites`).
+Recordings within ~2 km share one site for the deck's "N at this spot" keys
+(`groupIntoSites`). The globe groups by exact spot (same rounded coordinate)
+and clusters by zoom instead (`Globe/clusters.js`).
 
 ---
 
@@ -176,10 +180,16 @@ Recordings within ~2 km share one globe site (`groupIntoSites`).
 │   │   ├── ErrorBoundary.jsx
 │   │   ├── Globe/
 │   │   │   ├── GlobeCanvas.jsx    ← Globe engine: taps, warm-up, audio-reactive pulse, land()
-│   │   │   └── camera.js, markers.js, reticle.js, rings.js, glows.js, look.js, geo.js
+│   │   │   ├── clusters.js        ← Spots, zoom clustering (spanning tree), petal rings
+│   │   │   ├── markers.js         ← One point per fart; split/merge/bloom animation, picking
+│   │   │   ├── zoom.js            ← Wheel / pinch / double-tap zoom, anchored under the finger
+│   │   │   ├── tiles.js           ← NASA Black Marble close-up tiles (GIBS, fetched at runtime)
+│   │   │   ├── labels.js          ← Place names + counts beside markers (DOM, collision-free)
+│   │   │   └── camera.js, reticle.js, rings.js, glows.js, look.js (+ coordinate grid), geo.js
 │   │   └── HUD/
 │   │       ├── instrument/        ← SevenSeg.jsx, VuMeter.jsx (shared instruments)
 │   │       ├── HomeControls.jsx   ← Front panel (ALL n / ceramic REC / RANDOM) + hint
+│   │       ├── ZoomControls.jsx   ← Zoom rocker (+ / −), whole-Earth key, scale readout
 │   │       ├── TopBar.jsx         ← Pilot lamp, wordmark, counters, ⋯ menu
 │   │       ├── RecordingList.jsx  ← The log: Newest / Longest / Loudest / Mine
 │   │       ├── RecordingCard.jsx  ← The deck (+ deck/*): place, VU, waveform, readings
@@ -302,7 +312,21 @@ Rate limits per IP per minute: 10 posts, 120 other API calls, 600 audio files.
 - [ ] Clerk runs on a development key in production; sign-in is optional and now
       loads only from the menu — use a production instance or remove the keys
 - [ ] Big phones held sideways (wider than 859 px) get the desktop layout
+- [ ] Close-up imagery comes live from NASA GIBS (no key; tiles aren't
+      cacheable, so each visit re-downloads them — proxy through the server if
+      traffic grows). If GIBS is down the globe keeps its own texture.
 - [ ] Moderation: anyone can post; only the poster's device can delete
+
+### Done on 2026-09-25 (deep zoom)
+- [x] Zoom from orbit to ~12 km (was stuck at ~1,400 km): wheel/trackpad toward
+      the cursor, pinch-and-pan, double tap in, two-finger tap out, +/− keys
+      and a zoom rocker with a whole-Earth key and a scale readout
+- [x] Markers cluster by zoom and split apart as you go in; farts at the same
+      spot open into petals (one per fart, clockwise from 12 in the order they
+      were made, like the deck's numbered keys); tapping a cluster plays its
+      newest fart and flies in until it opens
+- [x] Sharp NASA night lights up close, a lat/long grid (1° → 0.01°), and
+      place names + counts beside the markers
 
 ### Done on 2026-09-25 ("Phosphor & Needle" redesign)
 - [x] New design system (three materials, three lights), no glass, no emoji
@@ -351,6 +375,10 @@ primitives in `src/styles/instrument.css` and `src/components/HUD/instrument/`.
 - **Motion**: keys travel and latch; drawers spring (`--spring-*` linear()
   curves); electronics switch on instantly and decay off. No glass, no emoji,
   no invented jargon — only real measurements, plainly worded.
+- **The globe up close**: NASA night lights in the same sodium/teal, a fine
+  phosphor lat/long grid (recordings are rounded to 0.01°, so every dot sits on
+  a crossing of the finest one), names printed in the legend face, and shared
+  spots as petal rings on hairlines around a pin.
 
 The old side projects keep their own palette (`--bg-*`, `--accent-*` tokens).
 

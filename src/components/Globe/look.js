@@ -6,6 +6,30 @@ import * as THREE from 'three'
 import { isAppleWebKit } from '../../utils/browserEnv.js'
 import { GLOBE_RADIUS, lightBlending } from './geo.js'
 
+// ── Coordinate grid for close up ─────────────────────────────────────────
+// Lines of latitude and longitude every 1°, 0.1° and 0.01°, drawn in the
+// surface shaders so they stay one pixel wide at any zoom. Each level fades
+// in once its lines are far enough apart on screen. Recordings are rounded
+// to 0.01°, so up close every dot sits on a crossing of the finest grid.
+const GRID_GLSL = `
+uniform float uGrid;
+float fatwGridLevel(vec2 ll, vec2 w, float spacing) {
+  vec2 dist = abs(fract(ll / spacing + 0.5) - 0.5) * spacing / max(w, vec2(1e-9));
+  float line = 1.0 - smoothstep(0.4, 1.4, min(dist.x, dist.y));
+  float gap = spacing / max(max(w.x, w.y), 1e-9);
+  return line * smoothstep(28.0, 120.0, gap);
+}
+float fatwGrid(vec2 ll) {
+  vec2 w = fwidth(ll);
+  if (w.x > 60.0) w.x = w.y; // across the date line seam
+  float g = fatwGridLevel(ll, w, 1.0);
+  g = max(g, fatwGridLevel(ll, w, 0.1) * 0.75);
+  g = max(g, fatwGridLevel(ll, w, 0.01) * 0.55);
+  return g * uGrid;
+}
+`
+const GRID_LIGHT = 'outgoingLight += vec3(0.38, 0.96, 0.82) * fatwGrid(fatwLL) * 0.075;'
+
 // ── Globe material (MeshPhong from three-globe, recoloured in its shader) ──
 // The night texture has warm city lights in the red channel and faint land in
 // the blue one. Cities become emissive sodium; everything else goes dark teal.
@@ -14,9 +38,11 @@ import { GLOBE_RADIUS, lightBlending } from './geo.js'
 export function applyPhosphorLook(material, uniforms) {
   material.onBeforeCompile = shader => {
     shader.uniforms.uWarm = uniforms.uWarm
+    shader.uniforms.uGrid = uniforms.uGrid
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-uniform float uWarm;`)
+uniform float uWarm;
+${GRID_GLSL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
 float fatwCity = 0.0;
 #ifdef USE_MAP
@@ -30,6 +56,9 @@ float fatwCity = 0.0;
   vec3 fatwBase = mix(vec3(0.0022, 0.0060, 0.0068), vec3(0.012, 0.030, 0.031), fatwLand);
   fatwBase = mix(fatwBase, vec3(0.024, 0.050, 0.050), fatwBright);
   fatwCity = smoothstep(0.004, 0.14 + fatwSoft * 3.0, fatwSrc.r);
+  // Far past its resolution (before the close-up tiles arrive) the lights
+  // are blobs: pull them back like the tiles do
+  fatwCity *= 1.0 - 0.7 * smoothstep(1.5, 7.0, 1.0 / max(max(fatwTexels.x, fatwTexels.y), 1e-4));
   diffuseColor.rgb = fatwBase * (1.0 - fatwCity * 0.6);
   vec2 fatwCell = floor(vMapUv * vec2(180.0, 90.0));
   float fatwTurn = fract(sin(dot(fatwCell, vec2(12.9898, 78.233))) * 43758.5453);
@@ -42,10 +71,95 @@ float fatwCity = 0.0;
 totalEmissiveRadiance += mix(vec3(0.55, 0.09, 0.02), vec3(1.0, 0.43, 0.1), fatwOn) * fatwCity * fatwOn * 0.85;`)
       .replace('#include <opaque_fragment>', `float fatwFacing = clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);
 outgoingLight += vec3(0.12, 0.92, 0.63) * pow(1.0 - fatwFacing, 4.0) * (0.018 + 0.03 * uWarm);
+#ifdef USE_MAP
+  vec2 fatwLL = vec2(vMapUv.x * 360.0 - 180.0, vMapUv.y * 180.0 - 90.0);
+  ${GRID_LIGHT}
+#endif
 #include <opaque_fragment>`)
   }
-  material.customProgramCacheKey = () => 'fatw-phosphor-1'
+  material.customProgramCacheKey = () => 'fatw-phosphor-4'
   // A dim teal glint instead of three-globe's grey specular haze at the top
+  material.specular?.set?.('#0a1613')
+  material.shininess = 8
+  material.needsUpdate = true
+}
+
+// ── Close-up tiles (NASA Black Marble), recoloured the same way ──────────
+// Read raw (no colour space). Ocean is ~(4, 5, 15)/255; land is bluish, from
+// ~(9, 10, 19) in the east to ~(24, 22, 46) over desert (snow is brighter
+// and bluer still); city light is warm, red over blue, burning out to white
+// at the core. Land/sea split on green; city light is warmth, or sheer
+// brightness that isn't blue. Then the globe's own palette and sodium.
+export function applyNightTileLook(material, uniforms) {
+  material.onBeforeCompile = shader => {
+    shader.uniforms.uGrid = uniforms.uGrid
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+attribute vec2 aLatLng;
+varying vec2 vFatwLL;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vFatwLL = aLatLng;`)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying vec2 vFatwLL;
+${GRID_GLSL}
+// Cubic B-spline filtering from four bilinear taps: up close each tile
+// pixel is magnified several times, and plain bilinear shows its grid
+vec4 fatwSpline(float v) {
+  vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v;
+  vec4 s = n * n * n;
+  float x = s.x;
+  float y = s.y - 4.0 * s.x;
+  float z = s.z - 4.0 * s.y + 6.0 * s.x;
+  return vec4(x, y, z, 6.0 - x - y - z) / 6.0;
+}
+vec4 fatwBicubic(sampler2D tex, vec2 uv) {
+  vec2 size = vec2(textureSize(tex, 0));
+  vec2 p = uv * size - 0.5;
+  vec2 f = fract(p);
+  p -= f;
+  vec4 xc = fatwSpline(f.x);
+  vec4 yc = fatwSpline(f.y);
+  vec4 c = p.xxyy + vec2(-0.5, 1.5).xyxy;
+  vec4 w = vec4(xc.xz + xc.yw, yc.xz + yc.yw);
+  vec4 o = (c + vec4(xc.yw, yc.yw) / w) / size.xxyy;
+  vec4 s0 = texture2D(tex, o.xz);
+  vec4 s1 = texture2D(tex, o.yz);
+  vec4 s2 = texture2D(tex, o.xw);
+  vec4 s3 = texture2D(tex, o.yw);
+  float sx = w.x / (w.x + w.y);
+  float sy = w.z / (w.z + w.w);
+  return mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
+}`)
+      .replace('#include <map_fragment>', `
+float fatwCity = 0.0;
+#ifdef USE_MAP
+  diffuseColor *= fatwBicubic(map, vMapUv);
+  vec3 fatwSrc = diffuseColor.rgb;
+  float fatwLand = smoothstep(0.024, 0.036, fatwSrc.g);
+  float fatwBright = smoothstep(0.13, 0.22, fatwSrc.b) * fatwLand;
+  vec3 fatwBase = mix(vec3(0.0022, 0.0060, 0.0068), vec3(0.012, 0.030, 0.031), fatwLand);
+  fatwBase = mix(fatwBase, vec3(0.024, 0.050, 0.050), fatwBright * 0.6);
+  // Graded, not thresholded: suburbs glow less than downtowns, and the
+  // dark between towns stays dark
+  float fatwWarmth = smoothstep(-0.12, 0.02, fatwSrc.r - fatwSrc.b);
+  fatwCity = pow(smoothstep(0.07, 1.0, max(fatwSrc.r, fatwSrc.g)) * fatwWarmth, 1.9);
+  // Magnified far past the data (500 m a pixel) lights are soft blobs:
+  // pull them back so the markers and the grid are the sharp things
+  vec2 fatwTexels = fwidth(vMapUv) * 256.0;
+  float fatwMag = 1.0 / max(max(fatwTexels.x, fatwTexels.y), 1e-4);
+  fatwCity *= 1.0 - 0.62 * smoothstep(2.5, 11.0, fatwMag);
+  diffuseColor.rgb = fatwBase * (1.0 - fatwCity * 0.6);
+#endif`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+totalEmissiveRadiance += vec3(1.0, 0.43, 0.1) * fatwCity * 0.95;`)
+      .replace('#include <opaque_fragment>', `float fatwFacing = clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);
+outgoingLight += vec3(0.12, 0.92, 0.63) * pow(1.0 - fatwFacing, 4.0) * 0.048;
+vec2 fatwLL = vFatwLL;
+${GRID_LIGHT}
+#include <opaque_fragment>`)
+  }
+  material.customProgramCacheKey = () => 'fatw-night-tile-6'
   material.specular?.set?.('#0a1613')
   material.shininess = 8
   material.needsUpdate = true

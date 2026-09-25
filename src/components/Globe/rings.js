@@ -2,12 +2,15 @@
 // pings, "still warm" pulses, pulses on the loud moments of a playing fart,
 // arrival bursts and the landing shockwave. Thick and glowing (WebGL lines are
 // one device pixel), sized in screen pixels, hidden behind the planet's edge
-// by the depth test, and allocated once.
+// by the depth test, and allocated once. A ring can follow a marker that's
+// moving (a petal springing out) and hugs the ground closer the lower the
+// camera is.
 
 import * as THREE from 'three'
-import { FOV, clamp, easeOutCubic, lightBlending, toVector } from './geo.js'
+import { FOV, GLOBE_RADIUS, clamp, easeOutCubic, lightBlending, toVector } from './geo.js'
 
-const RING_ALTITUDE = 0.004
+// Height above the ground: 25 km from orbit, ~100 m at town level
+const ringAltitude = cameraAltitude => clamp(cameraAltitude * 0.002, 0.000015, 0.004)
 const LINE = 0.8 // the ring line sits at 80% of the mesh radius; the rest is glow room
 const TAN = Math.tan(((FOV / 2) * Math.PI) / 180)
 const _view = new THREE.Vector3()
@@ -62,8 +65,9 @@ export class RingPool {
     }
   }
 
-  // { lat, lng, color: [r,g,b], from, to (px radius), width (px), life (ms),
-  //   delay (ms), alpha, ease }
+  // { lat, lng | at: () → world position (followed each frame), color:
+  //   [r,g,b], from, to (px radius), width (px), life (ms), delay (ms),
+  //   alpha, ease }
   spawn(now, options) {
     let ring = this.rings.find(candidate => !candidate.live)
     if (!ring) {
@@ -71,10 +75,11 @@ export class RingPool {
       ring = this.rings.reduce((oldest, candidate) => (candidate.start < oldest.start ? candidate : oldest))
     }
     const { mesh } = ring
-    toVector(options.lat, options.lng, RING_ALTITUDE, mesh.position)
-    mesh.lookAt(0, 0, 0)
     mesh.material.uniforms.uColor.value.set(...options.color)
     Object.assign(ring, {
+      lat: options.lat,
+      lng: options.lng,
+      at: options.at || null,
       live: true,
       start: now + (options.delay || 0),
       life: options.life || 900,
@@ -88,8 +93,9 @@ export class RingPool {
     return ring
   }
 
-  update(now, camera, viewportHeight) {
+  update(now, camera, viewportHeight, cameraAltitude = 1) {
     const worldPerPxAt1 = (2 * TAN) / viewportHeight
+    const lift = GLOBE_RADIUS * (1 + ringAltitude(cameraAltitude))
     for (const ring of this.rings) {
       if (!ring.live) continue
       const t = (now - ring.start) / ring.life
@@ -102,6 +108,10 @@ export class RingPool {
         ring.mesh.visible = false
         continue
       }
+      const followed = ring.at ? ring.at() : null
+      if (followed) ring.mesh.position.copy(followed).normalize().multiplyScalar(lift)
+      else toVector(ring.lat, ring.lng, 0, ring.mesh.position).normalize().multiplyScalar(lift)
+      ring.mesh.lookAt(0, 0, 0)
       const radiusPx = Math.max(ring.width * 1.5, ring.from + (ring.to - ring.from) * ring.ease(t))
       _view.copy(ring.mesh.position).applyMatrix4(camera.matrixWorldInverse)
       const depth = Math.max(1, -_view.z)

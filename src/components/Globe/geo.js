@@ -4,12 +4,28 @@
 import * as THREE from 'three'
 
 export const GLOBE_RADIUS = 100
+export const EARTH_KM = 6371
 export const FOV = 50 // globe.gl's camera field of view (degrees, vertical)
 const RAD = Math.PI / 180
 export const RAD_TO_DEG = 180 / Math.PI
 export const TAN_HALF_FOV = Math.tan((FOV / 2) * RAD)
 
+// Camera height limits, in globe radii above the surface (globe.gl's
+// "altitude"): about 12 km up (town level: dots ~1 km apart sit well over a
+// fingertip apart on a phone) to a whole-planet view.
+export const MIN_ALTITUDE = 12 / EARTH_KM
+export const MAX_ALTITUDE = 5
+
 export const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
+// Kilometres of ground per CSS pixel at the middle of the view, looking
+// straight down from `altitude`, and back.
+export function kmPerPx(altitude, viewportHeight) {
+  return (altitude * EARTH_KM * 2 * TAN_HALF_FOV) / Math.max(1, viewportHeight)
+}
+export function altitudeForKmPerPx(km, viewportHeight) {
+  return (km * Math.max(1, viewportHeight)) / (EARTH_KM * 2 * TAN_HALF_FOV)
+}
 
 // three-globe's polar2Cartesian, written into `out`
 export function toVector(lat, lng, altitude = 0, out = new THREE.Vector3()) {
@@ -39,6 +55,32 @@ export function arcDegrees(latA, lngA, latB, lngB) {
   toVector(latA, lngA, 0, _a).normalize()
   toVector(latB, lngB, 0, _b).normalize()
   return Math.acos(clamp(_a.dot(_b), -1, 1)) / RAD
+}
+
+// Great-circle distance in km between two unit vectors
+export function arcKm(a, b) {
+  return Math.acos(clamp(a.dot(b), -1, 1)) * EARTH_KM
+}
+
+// Where a ray through a canvas pixel meets the planet (world point on the
+// sphere), or null when it misses. Uses the camera's real projection, so it
+// includes the globe offset (a view offset on the camera).
+const _ray = new THREE.Ray()
+const _ndc = new THREE.Vector3()
+export function surfacePoint(camera, x, y, width, height, out = new THREE.Vector3()) {
+  _ndc.set((x / width) * 2 - 1, -(y / height) * 2 + 1, 0.5)
+  _ray.origin.setFromMatrixPosition(camera.matrixWorld)
+  _ray.direction.copy(_ndc).unproject(camera).sub(_ray.origin).normalize()
+  // |o + t d|² = R²
+  const o = _ray.origin
+  const d = _ray.direction
+  const b = o.dot(d)
+  const c = o.lengthSq() - GLOBE_RADIUS * GLOBE_RADIUS
+  const disc = b * b - c
+  if (disc < 0) return null
+  const t = -b - Math.sqrt(disc)
+  if (t < 0) return null
+  return out.copy(o).addScaledVector(d, t)
 }
 
 // Frame-rate independent exponential approach (time constant in ms)

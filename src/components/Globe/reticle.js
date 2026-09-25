@@ -87,8 +87,12 @@ export class Reticle {
     slot.spring.v = 0
   }
 
-  // half: box half-size in px for the locked place; level: 0..1 audio level
-  update(now, dt, camera, half, level) {
+  // half: box half-size in px for the locked place; level: 0..1 audio level;
+  // at: where the locked marker is this frame (it can move: petals spring
+  // out, clusters split)
+  update(now, dt, camera, half, level, at = null) {
+    const active = this.slots[this.current]
+    if (at && active.on) active.pos.copy(at)
     this.slots.forEach((slot, i) => {
       if (slot.on) {
         stepSpring(slot.spring, dt / 1000, 520, 26)

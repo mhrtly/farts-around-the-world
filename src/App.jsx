@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import GlobeCanvas from './components/Globe/GlobeCanvas.jsx'
+import ZoomControls from './components/HUD/ZoomControls.jsx'
 import TopBar from './components/HUD/TopBar.jsx'
 import RecordingList from './components/HUD/RecordingList.jsx'
 import RecordingCard from './components/HUD/RecordingCard.jsx'
@@ -280,9 +281,8 @@ export default function App({ authEnabled = false }) {
     selectedEvent && loadState === 'ready' ? ordinalOf(events, selectedEvent.id) : null
   ), [events, selectedEvent, loadState])
 
-  // The site whose recording is audibly playing (the globe pulses it)
+  // The recording that's audibly playing (the globe pulses its marker)
   const playingEvent = player.status === 'playing' ? eventsById.get(player.id) : null
-  const playingKey = playingEvent ? siteKeyOf(playingEvent) : null
 
   // ── Camera ────────────────────────────────────────────────────────────────
   const fly = useCallback((target, style = 'push', ms) => (
@@ -316,17 +316,14 @@ export default function App({ authEnabled = false }) {
     replaceUrl(`/r/${event.id}`)
   }, [dismissHint, fly, siteKeyOf])
 
-  const selectSite = useCallback((key, { again = false } = {}) => {
-    const site = sites.find(candidate => candidate.key === key)
-    if (!site) return
-    let event = site.events[0]
-    // Tapping the dot that's already open plays the next fart recorded there
-    if (again && selectionRef.current?.key === key) {
-      const index = site.events.findIndex(candidate => candidate.id === selectionRef.current.id)
-      event = site.events[(index + 1) % site.events.length]
-    }
-    select(event, { autoplay: true, fly: !again })
-  }, [sites, select])
+  // A tap on the globe. The globe says which fart: the one tapped (a dot or
+  // a petal), or for a cluster the newest there (or the next one, when it
+  // holds the open fart) — and it moves the camera in on a cluster itself.
+  const pickFromGlobe = useCallback(({ id, kind, again = false }) => {
+    const event = eventsRef.current.find(candidate => candidate.id === id)
+    if (!event) return
+    select(event, { autoplay: true, fly: kind === 'recording' && !again })
+  }, [select])
 
   const closeSelection = useCallback(() => {
     setSelection(null)
@@ -523,11 +520,13 @@ export default function App({ authEnabled = false }) {
 
   const handleLaunch = useCallback(({ lat, lng }) => {
     // Start the camera now, so the pin is centred by the time the drawer is
-    // gone (the globe keeps rendering under the drawer while it does)
+    // gone (the globe keeps rendering under the drawer while it does). The
+    // globe picks the height: where farts were already recorded at that spot,
+    // low enough that the new one lands as a petal among them.
     setLaunching(true)
-    const flight = fly({ lat, lng, altitude: compact ? 1.5 : 1.3 }, 'crane', 1300)
+    const flight = fly({ lat, lng }, 'crane', 1300)
     launchRef.current = { lat, lng, at: Date.now(), flight }
-  }, [fly, compact])
+  }, [fly])
 
   const handlePosted = useCallback(created => {
     const event = cleanEvent(created)
@@ -647,6 +646,10 @@ export default function App({ authEnabled = false }) {
       } else if ((key === 'ArrowRight' || key === 'ArrowLeft') && selection) {
         if (event.repeat) return
         step(key === 'ArrowRight' ? 1 : -1)
+      } else if (key === '+' || key === '=' || key === '-' || key === '_') {
+        if (event.target.closest?.('[role="dialog"]')) return
+        event.preventDefault()
+        globeRef.current?.zoomBy?.(key === '+' || key === '=' ? 1 / 2 : 2)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -714,7 +717,7 @@ export default function App({ authEnabled = false }) {
       loadState={loadState}
       ownIds={ownIds}
       onSelect={(event, options) => select(event, { ...options, style: 'crane' })}
-      onHover={event => globeRef.current?.highlight(event ? siteKeyOf(event) : null)}
+      onHover={event => globeRef.current?.highlight(event ? event.id : null)}
       onRecord={openRecorder}
       onRetry={load}
     />
@@ -757,14 +760,14 @@ export default function App({ authEnabled = false }) {
         <GlobeCanvas
           ref={globeRef}
           sites={sites}
-          selectedKey={selection?.key || null}
-          playingKey={playingKey}
+          selectedId={selection?.id || null}
+          playingId={playingEvent?.id || null}
           compact={compact}
           offsetX={globeOffsetX}
           offsetY={globeOffsetY}
           paused={recorderActive && compact && !launching}
           dimmed={recorderOpen}
-          onSiteSelect={(key, options) => selectSite(key, options)}
+          onPick={pickFromGlobe}
           onBackgroundClick={() => { if (selection) closeSelection() }}
           onReady={() => setGlobeReady(true)}
           onWarmupDone={() => setGlobeWarm(true)}
@@ -798,6 +801,13 @@ export default function App({ authEnabled = false }) {
         onRecord={openRecorder}
         onList={() => setListOpen(true)}
         onShuffle={shuffle}
+      />
+
+      <ZoomControls
+        globeRef={globeRef}
+        compact={compact}
+        hidden={!globeWarm || recorderOpen || (compact && (cardOpen || listOpen))}
+        onEarth={() => globeRef.current?.frameAll?.(1700)}
       />
 
       {!compact && <aside className="side-panel chassis" aria-label="All farts">{list}</aside>}

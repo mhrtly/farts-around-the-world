@@ -64,8 +64,11 @@ export class CameraRig {
     const omega = Math.acos(clamp(a.dot(b), -1, 1))
     const deg = omega * RAD_TO_DEG
     const spec = STYLES[style] || STYLES.push
-    const duration = reduced ? 0 : ms ?? spec.ms(deg)
-    if (duration <= 0 || (deg < 0.01 && Math.abs(to.altitude - from.altitude) < 0.001)) {
+    // Height moves in log space (a dive from orbit to a town is ×200), and a
+    // big change of height takes a little longer
+    const zoomSpan = Math.abs(Math.log(Math.max(1e-5, to.altitude) / Math.max(1e-5, from.altitude)))
+    const duration = reduced ? 0 : ms ?? spec.ms(deg) + Math.min(800, zoomSpan * 160)
+    if (duration <= 0 || (deg < 1e-5 && zoomSpan < 1e-3)) {
       g.pointOfView(to, 0)
       return Promise.resolve(true)
     }
@@ -100,9 +103,10 @@ export class CameraRig {
       }
       tween.side = _v.clone().multiplyScalar(duration)
       if (tween.side.lengthSq() < 1e-10) tween.side = null
-      const altVelocity = (trail.alt - trail.prevAlt) / dt
-      if (Math.abs(to.altitude - from.altitude) > 1e-4) {
-        tween.altSlope = clamp((altVelocity * duration) / (to.altitude - from.altitude), -3, 3)
+      const logVelocity = Math.log(Math.max(1e-5, trail.alt) / Math.max(1e-5, trail.prevAlt)) / dt
+      const logSpan = Math.log(Math.max(1e-5, to.altitude) / Math.max(1e-5, from.altitude))
+      if (Math.abs(logSpan) > 1e-3) {
+        tween.altSlope = clamp((logVelocity * duration) / logSpan, -3, 3)
       } else {
         tween.altSlope = null
       }
@@ -152,7 +156,9 @@ export class CameraRig {
     if (tween.side) _p.addScaledVector(tween.side, bulge(t))
     _p.normalize()
     const altE = tween.altSlope == null ? e : hermite(t, tween.altSlope)
-    const altitude = tween.fromAlt + (tween.toAlt - tween.fromAlt) * altE + tween.bump * Math.sin(Math.PI * clamp(e, 0, 1))
+    const logFrom = Math.log(Math.max(1e-5, tween.fromAlt))
+    const logTo = Math.log(Math.max(1e-5, tween.toAlt))
+    const altitude = Math.exp(logFrom + (logTo - logFrom) * altE) + tween.bump * Math.sin(Math.PI * clamp(e, 0, 1))
     const { lat, lng } = toLatLng(_p)
     this.globe.pointOfView({ lat, lng, altitude }, 0)
     const trail = this.trail

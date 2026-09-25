@@ -93,9 +93,12 @@ Two core flows, and everything should serve them:
 Real, and funny because it's real — no fictional "intelligence agency" copy.
 The old mission-control dashboard lives in `_archive/hud-v1/`.
 
-**Status (2026-09-23)**: Core rebuilt on `feature/core-polish` — live backend,
-real-time updates over Socket.IO, desktop + mobile layouts. Side projects
-(Archive Lab, Sommelier Salon) sit behind the ⋯ menu.
+**Status (2026-09-25)**: Redesigned as **"Phosphor & Needle"** — the site is a
+precise piece of night-time recording hardware for measuring farts (see Design
+System below). One tap on the ceramic REC key goes straight to a 3-2-1; the
+globe is a teal-graphite Earth with sodium city lights and phosphor farts; a
+posted take prints a slip that flies to the globe and lands as a comet. Side
+projects (Archive Lab, Sommelier Salon) sit behind the ⋯ menu.
 
 ---
 
@@ -106,7 +109,7 @@ real-time updates over Socket.IO, desktop + mobile layouts. Side projects
 | Framework | React 18 (JSX) | No TypeScript components — all `.jsx` |
 | Globe | `globe.gl` + `three-globe` + Three.js | 3D visualization |
 | Bundler | Vite 6 | Config in `vite.config.ts` only |
-| Styling | CSS custom properties + glassmorphism | Core UI in `src/styles/home.css` |
+| Styling | CSS custom properties, no glass | Per-area files in `src/styles/` (see Design System) |
 | State | React `useState` in App.jsx | No Zustand (ignore old docs saying otherwise) |
 | Backend | Express + Socket.IO + SQLite (better-sqlite3) | Port 3001 |
 | Entry | `index.html` → `src/main.jsx` → `src/App.jsx` | Root: `<div id="root">` |
@@ -129,11 +132,11 @@ real-time updates over Socket.IO, desktop + mobile layouts. Side projects
   lat: number,           // -90 to 90, rounded to 2 decimals (~1 km) for privacy
   lng: number,           // -180 to 180, rounded to 2 decimals
   country: string,       // ISO 3166-1 alpha-2 (any country; 'XX' if unknown)
-  place: string | null,  // "Grand Canyon Village, Arizona" (older rows: null)
+  place: string | null,  // "Grand Canyon Village, Arizona" (older rows backfilled)
   timestamp: number,     // epoch ms, server-generated
-  duration: number,      // seconds of actual sound (older rows: whole clip length)
-  volume: number | null,     // mean RMS × 100 of the sound (older rows: null)
-  peakVolume: number | null, // peak RMS × 100
+  duration: number,      // seconds of actual sound
+  volume: number | null,     // mean RMS × 100 of the sound
+  peakVolume: number | null, // peak RMS × 100 (loudness words: src/utils/recordings.js)
   intensity: number,     // 1-10, derived from loudness
   type: 'standard' | 'epic' | 'silent-but-deadly',  // derived from length/loudness
   audioMimeType: string, // 'audio/wav' for new posts; older rows webm/opus
@@ -142,7 +145,11 @@ real-time updates over Socket.IO, desktop + mobile layouts. Side projects
 ```
 
 Audio is served from `GET /api/events/:id/audio`. Pitch is not stored — the
-client measures it (and the waveform) when a recording is opened.
+client measures it (and the waveform) in a Web Worker when a recording is
+opened. The 28 recordings posted before the recorder measured anything were
+backfilled with real values by `server/migrations/legacy-measurements-2026-09.json`
+(applied idempotently on startup; the file keeps the old values).
+Recordings within ~2 km share one globe site (`groupIntoSites`).
 
 ---
 
@@ -151,42 +158,52 @@ client measures it (and the waveform) when a recording is opened.
 ```
 /
 ├── CLAUDE.md              ← YOU ARE HERE (single source of truth)
-├── index.html             ← Fast splash (hides on `fatw:ready`) + React mount + meta
-├── vite.config.ts         ← Vite config (ONLY config — no .js duplicate)
+├── index.html             ← Splash (+ shared-link title card with PLAY) + fonts + meta
+├── vite.config.ts         ← Vite config: vendor stubs + library chunks (see comments)
 ├── package.json           ← Frontend deps (LOCKED)
-├── public/textures/       ← Self-hosted globe textures (earth-night 2k/4k)
+├── public/textures/       ← Globe textures: earth-night 1k (first paint) → 2k/4k
 ├── server/                ← Backend (Express + SQLite + Socket.IO)
-│   ├── index.js           ← Server entry (port 3001), /r/:id link previews
+│   ├── index.js           ← Server entry (port 3001), rate limits, caching, /r/:id pages
 │   ├── routes.js          ← REST endpoints (incl. audio w/ Range, delete-by-token)
-│   ├── db.js              ← SQLite setup + migrations
-│   ├── validation.js      ← Event validation (rounds coords to ~1 km)
+│   ├── db.js              ← SQLite setup + migrations (incl. legacy backfill)
+│   ├── migrations/        ← legacy-measurements-2026-09.json
+│   ├── validation.js      ← Event validation (rounds coords to ~1 km, real audio only)
 │   └── package.json       ← Server deps
 ├── src/
-│   ├── main.jsx           ← React entry (ErrorBoundary; ClerkProvider only if key set)
-│   ├── App.jsx            ← Shell: data, selection, routing, live feed, layout
+│   ├── main.jsx           ← React entry (ErrorBoundary)
+│   ├── App.jsx            ← Shell: data, selection, routing, intro, live feed, post landing
 │   ├── components/
 │   │   ├── ErrorBoundary.jsx
 │   │   ├── Globe/
-│   │   │   └── GlobeCanvas.jsx    ← Globe: one marker per place, pulses, puffs, fly-to
+│   │   │   ├── GlobeCanvas.jsx    ← Globe engine: taps, warm-up, audio-reactive pulse, land()
+│   │   │   └── camera.js, markers.js, reticle.js, rings.js, glows.js, look.js, geo.js
 │   │   └── HUD/
-│   │       ├── TopBar.jsx         ← Brand, live stats, ⋯ menu
-│   │       ├── RecordingList.jsx  ← Latest / Longest / Loudest / Mine
-│   │       ├── RecordingCard.jsx  ← Selected fart: player, stats, share, delete
-│   │       ├── WaveformPlayer.jsx ← Play button + real waveform
-│   │       ├── RecorderSheet.jsx  ← Record → review → post
-│   │       ├── Sheet.jsx          ← Bottom sheet (mobile) / floating panel (desktop)
-│   │       ├── AboutPanel.jsx, Toasts.jsx, Icon.jsx, AccountControls.jsx (Clerk)
+│   │       ├── instrument/        ← SevenSeg.jsx, VuMeter.jsx (shared instruments)
+│   │       ├── HomeControls.jsx   ← Front panel (ALL n / ceramic REC / RANDOM) + hint
+│   │       ├── TopBar.jsx         ← Pilot lamp, wordmark, counters, ⋯ menu
+│   │       ├── RecordingList.jsx  ← The log: Newest / Longest / Loudest / Mine
+│   │       ├── RecordingCard.jsx  ← The deck (+ deck/*): place, VU, waveform, readings
+│   │       ├── WaveformPlayer.jsx ← Ceramic PLAY + phosphor waveform
+│   │       ├── RecorderSheet.jsx  ← The field recorder (+ recorder/*: tape, slip, flight)
+│   │       ├── Sheet.jsx          ← Drawers (phones) / floating panels (desktop); focus mgmt
+│   │       ├── AboutPanel.jsx, Toasts.jsx, Icon.jsx
+│   │       ├── AccountControls.jsx ← Clerk sign-in, loaded lazily from the menu
 │   │       └── FartTagLab.jsx, FartSommelierSalon.jsx ← side projects (lazy-loaded)
 │   ├── data/
 │   │   └── recordingsApi.js       ← REST + Socket.IO client
 │   ├── utils/
 │   │   ├── audioAnalysis.js       ← decode, trim, loudness, YIN pitch, WAV encode
-│   │   ├── location.js            ← GPS → network fallback, place names (BigDataCloud)
-│   │   ├── player.js              ← single shared <audio> (iOS-safe), playback window
-│   │   ├── recordings.js          ← places, flags, sites, formatting, nicknames
+│   │   ├── analysisWorker.js      ← runs the analysis off the main thread
+│   │   ├── audioContext.js        ← shared AudioContext, unlocked inside the REC tap
+│   │   ├── location.js            ← GPS + network estimate in parallel, place names
+│   │   ├── player.js              ← shared <audio> (iOS-safe), windows, currentLevel()
+│   │   ├── recordings.js          ← places, sites (merged ~2 km), loudness words, formatting
+│   │   ├── sunPhase.js            ← DAY / NIGHT / DAWN / DUSK where and when recorded
+│   │   ├── browserEnv.js          ← in-app browser detection (mic escape card)
 │   │   └── ownRecordings.js       ← this device's posts + delete tokens (localStorage)
+│   ├── vendor-stubs/              ← stand-ins for three/webgpu, three/tsl, h3-js (unused)
 │   ├── config/humor.ts            ← old joke copy (used by proposals only)
-│   ├── styles/                    ← tokens.css, app.css (base), home.css (core UI)
+│   ├── styles/                    ← tokens, base, instrument (primitives), one file per area
 │   └── types/                     ← TypeScript type defs (reference only)
 ├── village/                        ← Andean Village agent monitor
 ├── _archive/hud-v1/               ← The old mission-control dashboard (not rendered)
@@ -262,24 +279,41 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 | `GET` | `/api/events/range?start=&end=` | Historical range |
 | `GET` | `/api/stats` | Aggregates: totalToday, totalAllTime, etc. |
 | `GET` | `/api/health` | Health check |
-| `GET` | `/r/:id` | (production) index.html with a per-recording link-preview title |
+| `GET` | `/r/:id` | (production) index.html with the recording's preview tags, `window.__FATW_SHARED__` and an audio preload |
 
 **WebSocket** (Socket.IO on same port):
 - `fart:new` — single new event
 - `fart:deleted` — `{ id }` when a poster deletes theirs
 - `fart:burst` — batch of events
-- `stats:update` — pushed every 5s
+- (no periodic `stats:update` any more — nothing listened to it)
+
+Rate limits per IP per minute: 10 posts, 120 other API calls, 600 audio files.
 
 ---
 
 ## Known Issues & Next Steps
 
-### Open (as of 2026-09-23)
-- [ ] Test the recorder on a real iPhone + Android phone (built for iOS gesture
-      rules; verified in desktop Chrome with a simulated mic)
-- [ ] Older recordings (pre-rebuild) have no `place`/`volume`; the client looks
-      places up lazily and measures loudness/pitch on open
+### Open (as of 2026-09-25)
+- [ ] Test on a real iPhone + Android phone: one-tap recording, audio session,
+      in-app browsers, haptics, safe areas (all verified only in headless Chrome
+      with a simulated mic)
+- [ ] Two placeholder test rows (<1 KB of "audio") are hidden from the API but
+      still in the DB — delete with `X-Admin-Token` once `ADMIN_TOKEN` is set
+- [ ] Clerk runs on a development key in production; sign-in is optional and now
+      loads only from the menu — use a production instance or remove the keys
+- [ ] Big phones held sideways (wider than 859 px) get the desktop layout
 - [ ] Moderation: anyone can post; only the poster's device can delete
+
+### Done on 2026-09-25 ("Phosphor & Needle" redesign)
+- [x] New design system (three materials, three lights), no glass, no emoji
+- [x] One-tap recording, lamp test, seven-segment countdown, VU meter, take slip,
+      slip flight + comet landing; takes can't be lost to stray taps
+- [x] Globe: sodium/teal Earth, crisp phosphor dots, lock-on reticle, screen-space
+      tap picking, audio-reactive pulse, great-circle camera, warm-up intro
+- [x] Deck + log rebuilt; shared links open on a title card with PLAY
+- [x] First load ~36% lighter (vendor stubs + chunks), no Clerk redirects,
+      immutable asset caching, analysis in a worker
+- [x] Older recordings backfilled with real length, loudness and place names
 
 ### Done on 2026-09-23 (core rebuild)
 - [x] Live backend wired end to end (REST + Socket.IO), no mock data
@@ -295,25 +329,30 @@ your terrace, STOP and tell Mark so he can coordinate through Quipu.
 - [x] Created this CLAUDE.md
 
 ### Future Enhancements
-- [ ] Per-recording share images (og:image) for richer link previews
-- [ ] Split three.js/globe.gl into a cached vendor chunk (main bundle ~575 KB gzip)
-- [ ] One-time place-name backfill for older recordings
+- [ ] Per-recording share images (og:image) — the take slip is a natural one
 
 ---
 
-## Design Tokens (Reference)
+## Design System — "Phosphor & Needle" (Reference)
 
-```css
---bg-0: #06090d          /* Darkest background */
---bg-1: #0b1118
---bg-2: #0f1a26
---panel-glass: rgba(16,26,38,0.42)
---accent-cyan: #38f3ff   /* Primary data color */
---accent-lime: #9dff4a   /* SBD events */
---accent-pink: #ff64ff   /* Epic events */
---accent-amber: #ffb020  /* Warnings */
---accent-red: #ff4d5a    /* Critical alerts */
-```
+The site is a precise piece of night-time recording hardware that treats real
+farts with total seriousness. Tokens live in `src/styles/tokens.css`, shared
+primitives in `src/styles/instrument.css` and `src/components/HUD/instrument/`.
+
+- **Three materials**: black anodized chassis (`.chassis`, dark `.key`s) · cream
+  ceramic (`.key-ceramic`, ONLY for REC, PLAY, POST) · backlit paper (VU face and
+  take slip only).
+- **Three lights**: phosphor `#62F6D0` (readouts, farts on the globe, waveforms) ·
+  sodium `#FFA537` (city lights, countdown, fresh farts, warnings) · tally
+  `#FF3D2E` (recording only). Lit things live in recessed `.well`s.
+- **Type**: Michroma (wordmark + plate titles only), B612 (UI and every number),
+  B612 Mono (receipts/metadata), Doto (dot-matrix lines, ≥14 px), seven-segment
+  SVG digits (`SevenSeg`).
+- **Motion**: keys travel and latch; drawers spring (`--spring-*` linear()
+  curves); electronics switch on instantly and decay off. No glass, no emoji,
+  no invented jargon — only real measurements, plainly worded.
+
+The old side projects keep their own palette (`--bg-*`, `--accent-*` tokens).
 
 ---
 

@@ -1,66 +1,228 @@
-/* ─── About ────────────────────────────────────────────────────────────── */
+/* ─── About ────────────────────────────────────────────────────────────────
+   The instrument's instruction card: nameplate, plain copy, the loudness
+   scale printed like a meter legend, keyboard keys as little caps, and the
+   ceramic REC key. */
 
 .about {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 2px 22px 22px;
+  gap: 16px;
+  padding: 0 20px 22px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: var(--f-ui);
   line-height: 1.5;
 }
 
-.about__head {
+.about__plate {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--seam);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
-.about__head h2 {
-  font-family: var(--font-ui);
-  font-size: 25px;
+.about__nameplate {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.about__nameplate .plate-title {
+  font-size: clamp(9.5px, calc((100vw - 120px) / 25), 11.5px);
+  color: var(--legend-2);
+}
+
+.about__lamp {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--sodium);
+  box-shadow: 0 0 6px 1px rgba(255, 165, 55, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.about__close.key {
+  width: 40px;
+  min-width: 40px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.about__close::after {
+  content: '';
+  position: absolute;
+  inset: -4px -2px -6px;
+}
+
+.about__title {
+  margin-top: 4px;
+  font-size: 22px;
   font-weight: 700;
+  line-height: 1.2;
+  color: var(--legend);
 }
 
 .about__lead {
-  font-size: 17px;
-  color: var(--ink);
+  margin-top: -6px;
+  font-size: 16px;
+  color: var(--legend);
 }
 
+/* Numbered steps, the numbers set in little recessed windows */
 .about__steps {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
-  padding-left: 22px;
-  color: var(--ink-2);
+  padding: 0;
+  list-style: none;
+}
+
+.about__steps li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.about__step-no {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: radial-gradient(120% 90% at 50% 0%, #0a0e0d 0%, var(--well) 70%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.95), inset 0 0 0 1px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--phosphor);
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}
+
+.about__steps p {
+  padding-top: 2px;
+  font-size: 14.5px;
+  color: var(--legend-2);
 }
 
 .about__steps strong {
-  color: var(--ink);
+  color: var(--legend);
+}
+
+.about__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--seam);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+.about__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--legend-3);
 }
 
 .about__note {
   font-size: 14px;
-  color: var(--ink-2);
+  color: var(--legend-2);
 }
 
-.about__keys {
-  font-size: 13px;
-  color: var(--ink-3);
+/* The loudness words, printed like the scale on a meter: each band is a
+   cell, its upper edge in dB printed on the tick between cells. */
+.about__scale {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr 1fr 1fr;
+  margin: 4px 0 18px;
+  border-bottom: 1px solid var(--legend-4);
 }
 
-.about__keys kbd {
+.about__band {
+  position: relative;
+  padding: 0 0 8px;
+  text-align: center;
+}
+
+.about__band + .about__band::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -5px;
+  height: 11px;
+  width: 1px;
+  background: var(--legend-3);
+}
+
+.about__band-word {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--legend-2);
+}
+
+.about__band:last-child .about__band-word {
+  color: var(--legend);
+}
+
+.about__band-edge {
+  position: absolute;
+  right: 0;
+  bottom: -22px;
+  transform: translateX(50%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--legend-3);
+}
+
+/* Keyboard shortcuts, only where there's a keyboard (and a mouse) */
+.about__keylist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin: 2px 0 0;
+}
+
+.about__keylist div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.about__keylist dt {
+  display: flex;
+  gap: 4px;
+}
+
+.about__keylist dd {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--legend-2);
+}
+
+.about__keylist kbd {
   display: inline-grid;
   place-items: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 5px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.05);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--ink-2);
+  min-width: 26px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, var(--key-hi), var(--key-lo));
+  box-shadow: 0 2px 0 var(--skirt), 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--legend);
 }
 
 @media (hover: none) {
@@ -69,11 +231,30 @@
   }
 }
 
+.about__record.key-ceramic {
+  width: 100%;
+  height: 56px;
+  margin-top: 4px;
+  flex: none;
+  font-size: 15.5px;
+}
+
+.about__record .rec-dot {
+  width: 13px;
+  height: 13px;
+}
+
 .about__credit {
-  font-family: var(--font-ui);
-  font-size: 12.5px;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   text-align: center;
-  color: var(--ink-3);
+  color: var(--legend-3);
+}
+
+@media (min-width: 860px) {
+  .about {
+    padding: 0 26px 26px;
+  }
 }

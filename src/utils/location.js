@@ -1,9 +1,8 @@
-// Where did it happen? GPS first, then an approximate network location, plus
+// Where did it happen? GPS and an approximate network location together, plus
 // human-readable place names (cached so each spot is looked up only once).
 
 const GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client'
 const PLACE_CACHE_KEY = 'fatw:places:v1'
-const GPS_GIVE_UP_MS = 12000
 // Big federal countries read better as "Town, State"; elsewhere "District, City".
 const STATE_FIRST = new Set(['US', 'CA', 'AU', 'BR', 'IN', 'MX', 'AR', 'RU', 'CN', 'NG', 'DE'])
 
@@ -104,57 +103,86 @@ async function networkLocation() {
   }
 }
 
-// Resolves a posting location. Tries GPS; if it's denied, unavailable, or the
-// permission prompt is ignored, falls back to an approximate network location.
-// `onUpdate` fires with each improvement (e.g. network first, then GPS).
-export async function locate({ onUpdate } = {}) {
-  let settled = false
-  let gpsDenied = false
+async function gpsLocation() {
+  const coords = await getGpsPosition()
+  const base = { lat: roundCoord(coords.latitude), lng: roundCoord(coords.longitude), country: 'XX', place: null, source: 'gps' }
+  try {
+    // ~100 m is plenty to name the neighborhood; no need to share the exact spot
+    const named = await reverseGeocode(
+      Math.round(coords.latitude * 1000) / 1000,
+      Math.round(coords.longitude * 1000) / 1000,
+    )
+    return { ...base, ...named }
+  } catch {
+    return base
+  }
+}
 
-  const fromGps = getGpsPosition().then(async coords => {
-    const lat = roundCoord(coords.latitude)
-    const lng = roundCoord(coords.longitude)
-    const base = { lat, lng, country: 'XX', place: null, source: 'gps' }
-    try {
-      // ~100 m is plenty to name the neighborhood; no need to share the exact spot
-      const named = await reverseGeocode(
-        Math.round(coords.latitude * 1000) / 1000,
-        Math.round(coords.longitude * 1000) / 1000,
-      )
-      return { ...base, ...named }
-    } catch {
-      return base
+// When both come back, a short wait lets a GPS fix that's nearly there win
+// outright, so the place doesn't visibly change a moment later.
+const GPS_GRACE_MS = 600
+// GPS's own timeout only starts once permission is granted, so an unanswered
+// prompt would otherwise keep us waiting forever.
+const GPS_PROMPT_WAIT_MS = 12000
+
+// Finds a posting location. GPS and an approximate network estimate start
+// together; this resolves with whichever arrives first (so Post never waits on
+// an unanswered permission prompt). If the network estimate wins, its value
+// carries `upgrade` — a promise of the GPS fix (or null if GPS fails) — and
+// `onUpdate` is called when the GPS fix arrives.
+// Rejects when both fail, or when the network fails and GPS is still waiting
+// (probably on a prompt) after 12 s; the error's `code` is 'denied',
+// 'offline', 'waiting' or 'unavailable'. A GPS fix that arrives after a
+// rejection still reaches `onUpdate`.
+export function locate({ onUpdate } = {}) {
+  const fromGps = gpsLocation()
+  const fromNetwork = networkLocation()
+  let gpsState = 'pending'
+  let gpsError = null
+  const gpsOrNull = fromGps.then(
+    fix => { gpsState = 'done'; return fix },
+    error => { gpsState = 'failed'; gpsError = error; return null },
+  )
+
+  return new Promise((resolve, reject) => {
+    let done = false
+    const finish = value => {
+      if (done) return false
+      done = true
+      resolve(value)
+      return true
     }
+
+    fromGps.then(fix => {
+      if (!finish(fix)) onUpdate?.(fix)
+    }, () => {})
+
+    fromNetwork.then(
+      async estimate => {
+        if (done) return
+        if (gpsState === 'pending') {
+          await Promise.race([gpsOrNull, new Promise(r => setTimeout(r, GPS_GRACE_MS))])
+          if (done || gpsState === 'done') return
+        }
+        finish({
+          ...estimate,
+          gpsDenied: gpsError?.code === 'denied',
+          upgrade: gpsState === 'pending' ? gpsOrNull : null,
+        })
+      },
+      async networkError => {
+        const gps = await Promise.race([gpsOrNull, new Promise(r => setTimeout(() => r(null), GPS_PROMPT_WAIT_MS))])
+        if (gps || done) return
+        done = true
+        const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+        const code = gpsError?.code === 'denied' ? 'denied'
+          : offline ? 'offline'
+            : gpsState === 'pending' ? 'waiting'
+              : 'unavailable'
+        reject(Object.assign(new Error(gpsError?.message || networkError?.message || 'Location unavailable'), { code }))
+      },
+    )
   })
-
-  const giveUp = new Promise(resolve => setTimeout(() => resolve('timeout'), GPS_GIVE_UP_MS))
-  let lateGps = null
-  fromGps.then(result => { lateGps = result }, () => {})
-
-  try {
-    const first = await Promise.race([fromGps, giveUp])
-    if (first !== 'timeout') {
-      settled = true
-      return first
-    }
-  } catch (error) {
-    gpsDenied = error.code === 'denied'
-  }
-
-  let approximate
-  try {
-    approximate = await networkLocation()
-  } catch (error) {
-    if (lateGps) return lateGps
-    throw error
-  }
-  // GPS may have answered while we were asking the network — the precise fix wins.
-  if (lateGps) return lateGps
-  if (!settled) {
-    // If GPS answers later still (user finally tapped "Allow"), upgrade quietly.
-    fromGps.then(better => onUpdate?.(better)).catch(() => {})
-  }
-  return { ...approximate, gpsDenied }
 }
 
 // Background lookups for older recordings that were posted without a place name.

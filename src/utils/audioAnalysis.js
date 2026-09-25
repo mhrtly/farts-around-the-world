@@ -327,11 +327,41 @@ export function soundSeconds(analysis) {
   return Math.max(0.1, (region.end - region.start) / sampleRate)
 }
 
+// Silences the first/last few hundredths of a second in place. The finger that
+// taps "start now" or "stop" is picked up by the mic; this keeps that click out
+// of the trim, the stats and the posted clip.
+// A take stopped mid-sound is faded out over ~12 ms rather than cut to digital
+// silence, which would click.
+function cutEdges(audioBuffer, headSeconds, tailSeconds) {
+  const head = Math.min(audioBuffer.length, Math.round(Math.max(0, headSeconds) * audioBuffer.sampleRate))
+  const tail = Math.min(audioBuffer.length - head, Math.round(Math.max(0, tailSeconds) * audioBuffer.sampleRate))
+  if (!head && !tail) return
+  const ramp = Math.round(0.012 * audioBuffer.sampleRate)
+  for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+    const data = audioBuffer.getChannelData(c)
+    if (head) {
+      data.fill(0, 0, head)
+      const to = Math.min(data.length, head + ramp)
+      for (let i = head; i < to; i++) data[i] *= (i - head) / ramp
+    }
+    if (tail) {
+      const cut = data.length - tail
+      data.fill(0, cut)
+      const from = Math.max(head, cut - ramp)
+      for (let i = from; i < cut; i++) data[i] *= (cut - i) / ramp
+    }
+  }
+}
+
 // Turns a raw recording into the clip we actually post: trimmed to the sound,
 // gently normalized so quiet ones are still audible, and encoded as WAV.
-export async function prepareRecording(blob) {
+// Options: headCut / tailCut (seconds) silence a tap at either end.
+export async function prepareRecording(blob, { headCut = 0, tailCut = 0 } = {}) {
   const arrayBuffer = await blob.arrayBuffer()
   const decoded = await decodeAudio(arrayBuffer)
+  // Never cut more than a small share of a very short take
+  const room = decoded.duration * 0.25
+  cutEdges(decoded, Math.min(headCut, room), Math.min(tailCut, room))
   const analysis = analyzeBuffer(decoded)
   const { samples, sampleRate } = analysis
   const { start } = analysis.trim
@@ -363,6 +393,10 @@ export async function prepareRecording(blob) {
     duration: Math.round(Math.min(soundSeconds(analysis), clipDuration) * 10) / 10,
     clipDuration: useWav ? clipDuration : analysis.duration,
     trimmedSeconds: useWav ? Math.max(0, analysis.duration - clipDuration) : 0,
+    // Where the kept clip sits inside the raw take (seconds), for showing the trim
+    rawDuration: analysis.duration,
+    keptStart: useWav ? start / sampleRate : 0,
+    keptEnd: useWav ? end / sampleRate : analysis.duration,
     peaks: useWav ? waveformPeaks(clip, 0, clip.length, 72) : waveformPeaks(samples, 0, samples.length, 72),
     quiet: analysis.quiet,
     peakDb: analysis.peakDb,

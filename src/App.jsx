@@ -287,6 +287,12 @@ export default function App({ authEnabled = false }) {
     ) || Promise.resolve()
   ), [])
 
+  // The tab title follows the open fart (shared links arrive titled by the server)
+  useEffect(() => {
+    if (route.page !== 'home') return
+    document.title = selectedEvent ? `A fart from ${describePlace(selectedEvent).title}` : 'Farts Around the World'
+  }, [selectedEvent, route.page])
+
   // ── Selection ─────────────────────────────────────────────────────────────
   const dismissHint = useCallback(() => {
     setShowHint(false)
@@ -385,13 +391,15 @@ export default function App({ authEnabled = false }) {
   liveHandlersRef.current = { handleIncoming, handleRemoved, load }
   useEffect(() => {
     let wasLive = false
+    let everLive = false
     return connectLive({
       onNew: event => liveHandlersRef.current.handleIncoming(event),
       onDeleted: id => liveHandlersRef.current.handleRemoved(id),
       onStatus: connected => {
         setLive(connected)
-        // Catch up on anything missed while disconnected
-        if (connected && !wasLive && introDoneRef.current) liveHandlersRef.current.load()
+        // Catch up on anything missed while disconnected (not on the first connect)
+        if (connected && !wasLive && everLive) liveHandlersRef.current.load()
+        if (connected) everLive = true
         wasLive = connected
       },
     })

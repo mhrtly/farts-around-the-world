@@ -23,13 +23,21 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&display=block&text=ABCDEFGHIJKLMNOPQRSTUVWXYZ%20%C2%B7" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:ital,wght@0,400;0,700&family=B612+Mono:wght@400;700&family=Doto:wght@800&display=swap" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Doto:wght@800&display=swap" /></noscript>
-    <!-- The small globe texture is shown first (fast), then upgraded. three.js loads it with crossOrigin=anonymous. -->
-    <link rel="preload" as="image" href="/textures/earth-night-1k.jpg" crossorigin />
     <script>
       ;(function () {
         var path = window.location.pathname
         var home = path === '/' || path.indexOf('/r/') === 0
         document.documentElement.dataset.routeMode = home ? 'home' : 'subpage'
+        // The small globe texture is shown first (fast), then upgraded; three.js
+        // loads it with crossOrigin=anonymous. Only the globe pages need it.
+        if (home) {
+          var tex = document.createElement('link')
+          tex.rel = 'preload'
+          tex.as = 'image'
+          tex.href = '/textures/earth-night-1k.jpg'
+          tex.crossOrigin = 'anonymous'
+          document.head.appendChild(tex)
+        }
       })()
     </script>
     <style>

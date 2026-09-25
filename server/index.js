@@ -199,9 +199,14 @@ if (existsSync(DIST_DIR)) {
       const event = getEvent(req.params.id)
       if (!event) return next()
       indexHtmlCache = indexHtmlCache || readFileSync(indexHtmlPath, 'utf8')
-      let country = event.country
-      try { country = regionNames.of(event.country) } catch { /* keep the code */ }
-      const where = event.place ? `${event.place}${event.place.includes(country) ? '' : `, ${country}`}` : country
+      // Country name, if known ('XX' means we couldn't tell)
+      let country = event.country && event.country !== 'XX' ? event.country : null
+      if (country) {
+        try { country = regionNames.of(country) } catch { /* keep the code */ }
+      }
+      const where = event.place
+        ? (country && !event.place.includes(country) ? `${event.place}, ${country}` : event.place)
+        : (country || 'somewhere on Earth')
       const d = Number(event.duration)
       const seconds = !Number.isFinite(d) || d <= 0 ? 'A few seconds'
         : d < 1 ? `${d.toFixed(2)} seconds`
@@ -211,9 +216,9 @@ if (existsSync(DIST_DIR)) {
       const origin = `${req.protocol}://${req.get('host')}`
       const url = escapeHtml(`${origin}/r/${event.id}`)
       const image = escapeHtml(`${origin}/share.jpg`)
-      const audioUrl = escapeHtml(`/api/events/${encodeURIComponent(event.id)}/audio`)
       // The page carries its recording, so the splash can title it and the card
-      // can open before the list loads; the audio starts downloading right away.
+      // can open before the list loads. (No audio preload: on slow connections
+      // it delayed the page itself; the audio streams after the PLAY tap.)
       const shared = JSON.stringify(event).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
       const html = indexHtmlCache
         .replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`)
@@ -222,7 +227,7 @@ if (existsSync(DIST_DIR)) {
         .replace(/(<meta name="description" content=")[^"]*(")/, (_, open, close) => `${open}${description}${close}`)
         .replace(/(<meta property="og:image" content=")[^"]*(")/, (_, open, close) => `${open}${image}${close}`)
         .replace(/(<meta property="og:url" content=")[^"]*(")/, (_, open, close) => `${open}${url}${close}`)
-        .replace('</head>', () => `    <link rel="preload" as="fetch" href="${audioUrl}" crossorigin />\n    <script>window.__FATW_SHARED__ = ${shared}</script>\n  </head>`)
+        .replace('</head>', () => `    <script>window.__FATW_SHARED__ = ${shared}</script>\n  </head>`)
       res.set('Cache-Control', 'no-cache').send(html)
     } catch (err) {
       console.error('[SHARE PREVIEW]', err.message)

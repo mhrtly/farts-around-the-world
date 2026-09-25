@@ -137,7 +137,7 @@ export async function postRecording({ blob, mimeType, lat, lng, country, place, 
         if (error instanceof TypeError) throw new Error("Couldn't reach the server. Check your connection and try again.")
         throw error
       }
-      onRetry?.(attempt + 2, RETRY_DELAYS_MS.length + 1)
+      onRetry?.(attempt + 1, RETRY_DELAYS_MS.length) // "Retrying (1 of 2)…"
       await wait(error.retryAfterMs || RETRY_DELAYS_MS[attempt])
       await whenOnline(15000)
     }

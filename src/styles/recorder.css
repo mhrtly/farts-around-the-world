@@ -783,6 +783,7 @@
 }
 
 .rec-note__text {
+  text-wrap: pretty;
   flex: 1;
   min-width: 0;
 }
@@ -850,6 +851,7 @@
 }
 
 .recorder .rec-fine {
+  text-wrap: pretty;
   margin-top: 14px;
 }
 

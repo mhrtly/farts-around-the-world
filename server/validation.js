@@ -130,7 +130,7 @@ export function validateFartEvent(body) {
     if (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0 || duration > MAX_DURATION_SECONDS) {
       errors.push(`duration must be a number between 0 and ${MAX_DURATION_SECONDS}`)
     } else {
-      finalDuration = Math.round(duration * 10) / 10
+      finalDuration = duration < 1 ? Math.round(duration * 100) / 100 : Math.round(duration * 10) / 10
     }
   }
 

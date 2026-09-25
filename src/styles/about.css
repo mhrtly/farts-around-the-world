@@ -134,6 +134,7 @@
 }
 
 .about__note {
+  text-wrap: pretty;
   font-size: 14px;
   color: var(--legend-2);
 }

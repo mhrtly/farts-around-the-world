@@ -356,6 +356,15 @@ function cutEdges(audioBuffer, headSeconds, tailSeconds) {
 // Turns a raw recording into the clip we actually post: trimmed to the sound,
 // gently normalized so quiet ones are still audible, and encoded as WAV.
 // Options: headCut / tailCut (seconds) silence a tap at either end.
+function roundLength(seconds) {
+  if (!Number.isFinite(seconds)) return seconds
+  return seconds < 1 ? Math.round(seconds * 100) / 100 : Math.round(seconds * 10) / 10
+}
+
+function scalePeaks(peaks, factor) {
+  return factor === 1 ? peaks : Array.from(peaks, value => value * factor)
+}
+
 export async function prepareRecording(blob, { headCut = 0, tailCut = 0 } = {}) {
   const arrayBuffer = await blob.arrayBuffer()
   const decoded = await decodeAudio(arrayBuffer)
@@ -390,14 +399,16 @@ export async function prepareRecording(blob, { headCut = 0, tailCut = 0 } = {}) 
     blob: useWav ? wav : blob,
     mimeType: useWav ? 'audio/wav' : blob.type,
     // "Length" is the sound itself; the clip keeps a little padding around it.
-    duration: Math.round(Math.min(soundSeconds(analysis), clipDuration) * 10) / 10,
+    // Hundredths under a second (a 0.16 s pop), tenths above
+    duration: roundLength(Math.min(soundSeconds(analysis), clipDuration)),
     clipDuration: useWav ? clipDuration : analysis.duration,
     trimmedSeconds: useWav ? Math.max(0, analysis.duration - clipDuration) : 0,
     // Where the kept clip sits inside the raw take (seconds), for showing the trim
     rawDuration: analysis.duration,
     keptStart: useWav ? start / sampleRate : 0,
     keptEnd: useWav ? end / sampleRate : analysis.duration,
-    peaks: useWav ? waveformPeaks(clip, 0, clip.length, 72) : waveformPeaks(samples, 0, samples.length, 72),
+    // A take we barely heard is drawn small, not scaled up to look like a fart
+    peaks: scalePeaks(useWav ? waveformPeaks(clip, 0, clip.length, 72) : waveformPeaks(samples, 0, samples.length, 72), analysis.quiet ? 0.25 : 1),
     quiet: analysis.quiet,
     peakDb: analysis.peakDb,
     meanDb: analysis.meanDb,

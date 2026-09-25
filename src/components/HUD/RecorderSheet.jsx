@@ -165,7 +165,7 @@ function slipFor(draft, loc, stamp) {
   else if (draft.peaks && !draft.quiet) pitch = 'NONE · ALL AIR'
   const rows = [
     { label: 'LENGTH', value: lengthText(draft) },
-    { label: 'PEAK', value: Number.isFinite(draft.peakDb) && word ? `${formatDb(draft.peakDb)} dBFS · ${word.toUpperCase()}` : 'NOT MEASURED' },
+    { label: 'PEAK', value: Number.isFinite(draft.peakDb) && word ? `${formatDb(draft.peakDb)} dB · ${word.toUpperCase()}` : 'NOT MEASURED' },
     { label: 'PITCH', value: pitch },
   ]
   let place

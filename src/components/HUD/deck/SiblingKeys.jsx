@@ -21,8 +21,19 @@ export default function SiblingKeys({ events, selectedId, onSelect }) {
       scroller.classList.toggle('has-after', scroller.scrollLeft < max - 2)
     }
     update()
+    // A mouse wheel scrolls the strip sideways (its scrollbar is hidden)
+    const onWheel = event => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+      if (scroller.scrollWidth <= scroller.clientWidth) return
+      scroller.scrollLeft += event.deltaY
+      event.preventDefault()
+    }
     scroller.addEventListener('scroll', update, { passive: true })
-    return () => scroller.removeEventListener('scroll', update)
+    scroller.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      scroller.removeEventListener('scroll', update)
+      scroller.removeEventListener('wheel', onWheel)
+    }
   }, [events.length])
 
   useEffect(() => {

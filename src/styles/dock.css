@@ -160,8 +160,15 @@
 .front-panel--dock {
   left: 0;
   right: 0;
-  height: var(--dock-h, calc(116px + var(--safe-bottom)));
-  padding: 10px max(22px, calc(50vw - 200px)) var(--safe-bottom);
+  /* At least 12 px under the legends even with no home indicator (Safari
+     with its toolbar showing) */
+  height: var(--dock-h, calc(116px + max(12px, var(--safe-bottom))));
+  padding: 10px max(22px, calc(50vw - 200px)) max(12px, var(--safe-bottom));
+}
+
+/* Side keys centred on the REC cap, legends on one baseline */
+.front-panel--dock .fp-button--side {
+  padding-top: 22px;
 }
 
 .front-panel--dock.is-hidden {
@@ -228,7 +235,7 @@
 .hint-slot {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--dock-h, calc(116px + var(--safe-bottom))) + 18px);
+  bottom: calc(var(--dock-h, calc(116px + max(12px, var(--safe-bottom)))) + 18px);
   z-index: 29;
   transform: translateX(-50%);
 }
@@ -301,6 +308,13 @@
 @media (min-width: 860px) {
   .hint-slot {
     bottom: calc(104px + var(--safe-bottom) + 18px);
+  }
+}
+
+/* Wide desktops: the hint sits on the globe's axis (right of the list panel) */
+@media (min-width: 1240px) {
+  .hint-slot {
+    left: calc(50% + 170px);
   }
 }
 

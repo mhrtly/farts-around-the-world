@@ -376,3 +376,17 @@
 .rrow__play:focus-visible {
   outline-offset: -3px;
 }
+
+/* MINE, empty: the way forward is to record one */
+.rlist__record {
+  align-self: flex-start;
+  height: 44px;
+  margin-top: 6px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+.rlist__record .rec-dot {
+  width: 9px;
+  height: 9px;
+}

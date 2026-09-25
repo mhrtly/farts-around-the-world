@@ -51,10 +51,10 @@ function regionOf(recording, sitePlace) {
 // and phones on their side (the deck splits into two columns there).
 const VU_ROOM = '(min-width: 860px) and (min-height: 540px), (max-width: 859px) and (min-height: 620px), (max-width: 859px) and (min-width: 560px) and (orientation: landscape)'
 
-// How much of the meta line to print: everything, then without the word
-// POSTED, then without DAY/NIGHT, then without YOURS (the DELETE key says so
-// too). If even the shortest version wraps, print it all on two lines.
-const META_TRIMS = ['is-tight', 'is-tighter', 'is-tightest']
+// How much of the meta line to print: everything, then without DAY/NIGHT,
+// then without YOURS (the DELETE key says so too). If even the shortest
+// version wraps, print it all on two lines.
+const META_TRIMS = ['is-tighter', 'is-tightest']
 
 // One reading in the measurements row. Unknown values show ghost digits and
 // switch on with a short brightness flash once measured.
@@ -331,7 +331,6 @@ export default function RecordingCard({
           <span className="deck__stamp">
             {ordinal && <span className="deck__ordinal">No. {ordinal.n} of {ordinal.total}</span>}
             <span className="deck__posted">
-              <span className="deck__posted-word">Posted </span>
               {whenPosted(recording.timestamp)}
             </span>
             {phase && <span className="deck__phase">{phase}</span>}

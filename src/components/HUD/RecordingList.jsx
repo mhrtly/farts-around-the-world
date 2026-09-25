@@ -115,7 +115,7 @@ export default function RecordingList({
           <h2 className="plate-title" id="log-title">All farts</h2>
           {events.length > 0 && (
             <span className="rlist__count">
-              {sort === 'mine' ? `${sorted.length} of ${events.length}` : events.length}
+              {sort === 'mine' ? `${sorted.length} OF ${events.length}` : events.length}
             </span>
           )}
         </div>
@@ -188,6 +188,9 @@ export default function RecordingList({
           <div className="rlist__empty">
             <div className="rlist__empty-title">None of yours yet.</div>
             <p>Farts you post from this device show up here, and only this device can delete them.</p>
+            <button type="button" className="key-ceramic rlist__record" onClick={onRecord}>
+              <span className="rec-dot" aria-hidden="true" /> Record one
+            </button>
           </div>
         )}
 

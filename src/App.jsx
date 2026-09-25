@@ -585,7 +585,7 @@ export default function App({ authEnabled = false }) {
       await navigator.clipboard.writeText(url)
       pushToast({ tone: 'info', text: 'Link copied. Send it to someone who deserves it.' })
     } catch {
-      pushToast({ tone: 'info', text: url, duration: 10000 })
+      pushToast({ tone: 'info', text: <>Copy this link: <strong>{url}</strong></>, duration: 10000 })
     }
   }, [pushToast])
 
@@ -825,6 +825,10 @@ export default function App({ authEnabled = false }) {
         )}
       </Sheet>
 
+
+      {loadState === 'error' && events.length === 0 && globeReady && !listOpen && !recorderOpen && (
+        <Hint compact={compact} tone="sodium" text="Can't reach the fart server. Tap to retry" onDismiss={load} />
+      )}
 
       {showHint && globeReady && globeWarm && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && !launching && (
         <Hint compact={compact} onDismiss={dismissHint} />

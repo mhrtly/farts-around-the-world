@@ -45,6 +45,9 @@ outgoingLight += vec3(0.12, 0.92, 0.63) * pow(1.0 - fatwFacing, 4.0) * (0.018 + 
 #include <opaque_fragment>`)
   }
   material.customProgramCacheKey = () => 'fatw-phosphor-1'
+  // A dim teal glint instead of three-globe's grey specular haze at the top
+  material.specular?.set?.('#0a1613')
+  material.shininess = 8
   material.needsUpdate = true
 }
 

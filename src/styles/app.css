@@ -10,7 +10,7 @@ html, body, #root {
   overflow: hidden;
   background: var(--bg-0);
   color: var(--text-primary);
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--f-ui);
   font-size: 14px;
   letter-spacing: 0.04em;
 }
@@ -41,11 +41,11 @@ html, body, #root {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 243, 255, 0.18);
+  background: rgba(232, 226, 212, 0.14);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 243, 255, 0.4);
+  background: rgba(232, 226, 212, 0.26);
 }
 
 /* ─── Shared keyframes (used by inline styles in the side projects) ── */

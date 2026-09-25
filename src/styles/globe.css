@@ -10,33 +10,43 @@
   z-index: 1;
 }
 
-.home .float-tooltip-kap {
-  padding: 0;
-  border-radius: 12px;
-  background: transparent;
-  font-family: var(--font-body);
+.globe-mount canvas {
+  display: block;
+  outline: none;
 }
 
-.globe-tooltip {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--glass-strong);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-  color: var(--ink);
+.globe-mount.is-pointing canvas {
+  cursor: pointer;
+}
+
+/* Desktop hover label: one dot-matrix line in a small display well, pinned
+   above the dot. Switches on instantly, decays off. */
+.globe-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  padding: 7px 10px 6px;
   white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--decay) ease-out;
+  will-change: transform, opacity;
 }
 
-.globe-tooltip strong {
-  font-family: var(--font-ui);
+.globe-tip.is-on {
+  opacity: 1;
+  transition: none;
+}
+
+.globe-tip__text {
+  display: block;
   font-size: 14px;
-  font-weight: 600;
+  line-height: 1;
 }
 
-.globe-tooltip span {
-  font-size: 12px;
-  color: var(--ink-3);
+@media (hover: none) {
+  .globe-tip {
+    display: none;
+  }
 }

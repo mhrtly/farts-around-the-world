@@ -41,10 +41,8 @@
   outline-offset: 3px;
 }
 
-.home h1,
-.home h2,
-.home h3,
-.home p {
+/* Zero specificity, so any component class can set its own margins */
+:where(.home) :where(h1, h2, h3, p) {
   margin: 0;
 }
 

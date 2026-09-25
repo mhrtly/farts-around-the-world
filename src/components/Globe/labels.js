@@ -6,6 +6,7 @@
 
 const PAD_X = 5
 const LINE_H = 13
+const NAME_REPEAT_PX = 240 // the same name again only this far away
 
 export class LabelLayer {
   // root: an empty element laid over the canvas
@@ -46,13 +47,20 @@ export class LabelLayer {
       return false
     }
     const sorted = [...labels].sort((a, b) => b.priority - a.priority)
-    for (const full of sorted) {
+    const named = [] // names already printed, so a dense town doesn't repeat itself
+    for (const label of sorted) {
+      let full = label
+      if (full.name && named.some(n => n.name === full.name && Math.hypot(n.x - full.x, n.y - full.y) < NAME_REPEAT_PX)) {
+        if (!full.count) continue
+        full = { ...full, name: null }
+      }
       // A cluster whose name doesn't fit still gets its count
       const options = full.name && full.count ? [full, { ...full, name: null }] : [full]
       const fit = options.map(label => this.fit(label, collides)).find(Boolean)
       if (!fit) continue
       boxes.push(fit.box)
       placed.push(fit)
+      if (fit.label.name) named.push({ name: fit.label.name, x: full.x, y: full.y })
     }
     this.render(placed)
   }

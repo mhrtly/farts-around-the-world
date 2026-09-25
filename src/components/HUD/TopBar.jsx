@@ -63,8 +63,16 @@ export default function TopBar({ stats, live, onNavigate, onAbout, menuExtra = n
     const onPointer = event => {
       if (!menuRef.current?.contains(event.target)) closeMenu()
     }
+    // Focus moving elsewhere (e.g. R opens the recorder) closes it too
+    const onFocus = event => {
+      if (!menuRef.current?.contains(event.target)) closeMenu()
+    }
     window.addEventListener('pointerdown', onPointer)
-    return () => window.removeEventListener('pointerdown', onPointer)
+    document.addEventListener('focusin', onFocus)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('focusin', onFocus)
+    }
   }, [open, closeMenu])
 
   const onPanelKey = event => {

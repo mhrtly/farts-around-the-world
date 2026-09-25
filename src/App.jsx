@@ -488,6 +488,12 @@ export default function App({ authEnabled = false }) {
     recorderRef.current?.quickStart?.()
     setListOpen(false)
     setAboutOpen(false)
+    // Recording takes the stage: the open deck steps aside (the new post's
+    // deck opens when it lands)
+    if (selectionRef.current) {
+      setSelection(null)
+      replaceUrl('/')
+    }
     setRecorderOpen(true)
   }, [])
 
@@ -525,9 +531,10 @@ export default function App({ authEnabled = false }) {
         // earlier tap; if the browser refuses, the deck's PLAY key is right there).
         setLaunching(false)
         select(event, { fly: false, autoplay: true })
+        if (!compact) requestAnimationFrame(() => document.querySelector('.sheet--card .key-ceramic')?.focus({ preventScroll: true }))
         pushToast({ tone: 'success', text: 'Posted. Your fart is on the map.' })
       })
-  }, [fly, select, pushToast])
+  }, [fly, select, pushToast, compact])
 
   const handleDelete = useCallback(async event => {
     const token = ownRecordingToken(event.id)
@@ -618,7 +625,7 @@ export default function App({ authEnabled = false }) {
       } else if (key === 'Escape') {
         if (selection) closeSelection()
         else if (listOpen) setListOpen(false)
-      } else if (key === ' ' && selectedEvent && !event.target.closest?.('button')) {
+      } else if (key === ' ' && selectedEvent && !event.target.closest?.('button:not(.rrow__main)')) {
         event.preventDefault()
         toggle(selectedEvent.id, recordingAudioUrl(selectedEvent.id), { duration: selectedEvent.duration })
       } else if ((key === 'ArrowRight' || key === 'ArrowLeft') && selection) {
@@ -766,6 +773,17 @@ export default function App({ authEnabled = false }) {
         </Suspense>
       )}
 
+      {/* Before the list in the DOM, so keyboard users reach REC right after the menu */}
+      <HomeControls
+        compact={compact}
+        hidden={cardOpen || listOpen}
+        canShuffle={events.length > 0}
+        total={stats?.total ?? null}
+        onRecord={openRecorder}
+        onList={() => setListOpen(true)}
+        onShuffle={shuffle}
+      />
+
       {!compact && <aside className="side-panel chassis" aria-label="All farts">{list}</aside>}
       {compact && (
         <Sheet
@@ -799,15 +817,6 @@ export default function App({ authEnabled = false }) {
         )}
       </Sheet>
 
-      <HomeControls
-        compact={compact}
-        hidden={cardOpen || listOpen}
-        canShuffle={events.length > 0}
-        total={stats?.total ?? null}
-        onRecord={openRecorder}
-        onList={() => setListOpen(true)}
-        onShuffle={shuffle}
-      />
 
       {showHint && globeReady && globeWarm && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && !launching && (
         <Hint compact={compact} onDismiss={dismissHint} />

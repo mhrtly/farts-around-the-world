@@ -114,8 +114,14 @@ html.is-booting .toast__led {
     top: 22px;
     left: auto;
     right: 80px;
+    z-index: 44; /* under modal drawers (45): their backdrop dims a toast instead */
     width: min(380px, calc(100vw - 500px));
     transform: none;
+  }
+
+  /* One strip at a time beside the menu key, so a second never covers the deck */
+  .toast:not(:last-child) {
+    display: none;
   }
 }
 

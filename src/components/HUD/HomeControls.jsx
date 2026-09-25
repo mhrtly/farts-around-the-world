@@ -64,8 +64,9 @@ function ListGlyph() {
 function focusSidePanel() {
   const panel = document.querySelector('.side-panel')
   if (!panel) return
+  panel.querySelector('.rlist__scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
   const target = panel.querySelector('button[aria-pressed="true"], [role="listitem"] button, button')
-  target?.focus({ preventScroll: false })
+  target?.focus({ preventScroll: true, focusVisible: true })
 }
 
 // The front panel: a thumb-zone plate on phones, a bottom-centre console on

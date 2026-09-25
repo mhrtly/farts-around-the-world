@@ -138,6 +138,7 @@ export default function App({ authEnabled = false }) {
   const [toasts, setToasts] = useState([])
   const [ownIds, setOwnIds] = useState(() => ownRecordingIds())
   const [globeReady, setGlobeReady] = useState(false)
+  const [globeWarm, setGlobeWarm] = useState(false) // every dot has switched on
   const [sheetHeights, setSheetHeights] = useState({ card: 0, list: 0 })
   const [accountWanted, setAccountWanted] = useState(() => authEnabled && hasClerkSession())
   const [account, setAccount] = useState(null)
@@ -711,6 +712,7 @@ export default function App({ authEnabled = false }) {
           onSiteSelect={(key, options) => selectSite(key, options)}
           onBackgroundClick={() => { if (selection) closeSelection() }}
           onReady={() => setGlobeReady(true)}
+          onWarmupDone={() => setGlobeWarm(true)}
         />
       </div>
 
@@ -775,7 +777,7 @@ export default function App({ authEnabled = false }) {
         onShuffle={shuffle}
       />
 
-      {showHint && globeReady && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && (
+      {showHint && globeReady && globeWarm && events.length > 0 && !cardOpen && !listOpen && !recorderOpen && (
         <Hint compact={compact} onDismiss={dismissHint} />
       )}
 

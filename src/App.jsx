@@ -52,8 +52,9 @@ function parseRoute(pathname) {
   return { page: 'home', recordingId: match ? match[1] : null }
 }
 
+// Marked, so a reload of a fart you opened isn't greeted as a shared link
 function replaceUrl(path) {
-  if (window.location.pathname !== path) window.history.replaceState(null, '', path)
+  if (window.location.pathname !== path) window.history.replaceState({ fatwOpened: true }, '', path)
 }
 
 function mergeEvents(current, incoming) {
@@ -332,8 +333,9 @@ export default function App({ authEnabled = false }) {
   const step = useCallback(direction => {
     if (!chronological.length) return
     const index = chronological.findIndex(event => event.id === selection?.id)
-    const next = chronological[(index + direction + chronological.length) % chronological.length]
-    select(next, { autoplay: true, style: 'crane' })
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= chronological.length) return // no newer / older one
+    select(chronological[target], { autoplay: true, style: 'crane' })
   }, [chronological, selection, select])
 
   const shuffle = useCallback(() => {
@@ -509,9 +511,9 @@ export default function App({ authEnabled = false }) {
   // it on the globe, which sits at the middle of the screen plus its offset
   // (no drawer or deck is open at that moment).
   const getLandingPoint = useCallback(() => ({
-    x: window.innerWidth / 2 + (compact ? 0 : narrowDesktop ? 158 : 170),
+    x: window.innerWidth / 2 + (compact ? (landscapePhone ? -52 : 0) : narrowDesktop ? 158 : 170),
     y: window.innerHeight / 2,
-  }), [compact, narrowDesktop])
+  }), [compact, narrowDesktop, landscapePhone])
 
   const handleLaunch = useCallback(({ lat, lng }) => {
     // Start the camera now, so the pin is centred by the time the drawer is

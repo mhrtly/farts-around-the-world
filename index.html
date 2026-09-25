@@ -462,7 +462,11 @@
         var reduce = false
         try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch (e) {}
         var link = window.location.pathname.match(/^\/r\/([A-Za-z0-9-]{8,64})\/?$/)
-        var mode = link ? 'card' : seen ? 'return' : 'first'
+        // A /r/ URL the app set itself (a reload or a restored tab) isn't a
+        // shared link: no "someone sent you a fart" card for it
+        var opened = false
+        try { opened = !!(history.state && history.state.fatwOpened) } catch (e) {}
+        var mode = link && !opened ? 'card' : seen ? 'return' : 'first'
         html.setAttribute('data-boot', mode)
         html.classList.add('is-booting')
 

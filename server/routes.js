@@ -265,7 +265,7 @@ export default function createRoutes(io) {
       timingSafeEqual(Buffer.from(req.headers['x-admin-token']), Buffer.from(adminToken))
     const token = req.headers['x-delete-token']
     if (!isAdmin && (typeof token !== 'string' || token.length < 16)) {
-      return res.status(401).json({ error: 'Missing delete token' })
+      return res.status(401).json({ error: 'This one can only be deleted from the device that posted it.' })
     }
 
     try {
@@ -273,7 +273,12 @@ export default function createRoutes(io) {
         ? deleteEventById(req.params.id)
         : deleteEventWithToken(req.params.id, hashDeleteToken(token))
       if (!deleted) {
-        return res.status(404).json({ error: 'Recording not found or token does not match' })
+        // Gone already is a 404 (the client treats that as deleted); a token
+        // that doesn't match is a 403, so nobody is told it worked when it didn't
+        if (getEvent(req.params.id)) {
+          return res.status(403).json({ error: 'This one can only be deleted from the device that posted it.' })
+        }
+        return res.status(404).json({ error: 'Recording not found' })
       }
       io.emit('fart:deleted', { id: req.params.id })
       res.status(204).end()

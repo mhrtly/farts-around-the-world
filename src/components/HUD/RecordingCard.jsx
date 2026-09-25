@@ -347,7 +347,7 @@ export default function RecordingCard({
         )}
 
         <div className={`deck__keys ${canDelete ? 'has-delete' : ''}`}>
-          <button type="button" className="key deck__step" onClick={onPrev} aria-label="Newer fart" title={canDelete ? 'Newer' : undefined}>
+          <button type="button" className="key deck__step" onClick={onPrev} disabled={Boolean(ordinal) && ordinal.n === ordinal.total} aria-label="Newer fart" title={canDelete ? 'Newer' : undefined}>
             <Glyph name="left" size={12} />
             <span className="deck__step-word">Newer</span>
           </button>
@@ -369,7 +369,7 @@ export default function RecordingCard({
               <span>{deleteState === 'armed' ? 'Confirm' : deleteState === 'busy' ? 'Deleting' : 'Delete'}</span>
             </button>
           )}
-          <button type="button" className="key deck__step" onClick={onNext} aria-label="Older fart" title={canDelete ? 'Older' : undefined}>
+          <button type="button" className="key deck__step" onClick={onNext} disabled={Boolean(ordinal) && ordinal.n === 1} aria-label="Older fart" title={canDelete ? 'Older' : undefined}>
             <span className="deck__step-word">Older</span>
             <Glyph name="right" size={12} />
           </button>

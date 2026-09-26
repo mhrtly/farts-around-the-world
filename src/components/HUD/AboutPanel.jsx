@@ -4,7 +4,7 @@ import { LOUDNESS_BANDS } from '../../utils/recordings.js'
 
 const minus = value => String(value).replace('-', '−')
 
-export default function AboutPanel({ open, onClose, onRecord }) {
+export default function AboutPanel({ open, onClose, onRecord, onPotato }) {
   return (
     <Sheet open={open} onClose={onClose} variant="about" label="About Farts Around the World" modal>
       <div className="about">
@@ -34,7 +34,7 @@ export default function AboutPanel({ open, onClose, onRecord }) {
           </li>
           <li>
             <span className="about__step-no" aria-hidden="true">3</span>
-            <p><strong>Anyone can listen.</strong> Tap a glowing dot anywhere on Earth and hear what happened there.</p>
+            <p><strong>Anyone can listen.</strong> Tap a glowing dot anywhere on Earth and hear what happened there. Or sit back: <em>World tour</em> in the menu flies to every fart and plays it.</p>
           </li>
         </ol>
 
@@ -80,7 +80,9 @@ export default function AboutPanel({ open, onClose, onRecord }) {
           Record a fart
         </button>
 
-        <p className="about__credit">A Potato Propaganda production</p>
+        <p className="about__credit">
+          <button type="button" className="about__credit-key" onClick={() => onPotato?.()}>A Potato Propaganda production</button>
+        </p>
         <p className="about__credit about__credit--data">Night lights up close: NASA Black Marble (VIIRS), via NASA GIBS</p>
       </div>
     </Sheet>

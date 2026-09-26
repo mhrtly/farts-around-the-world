@@ -317,6 +317,16 @@ Rate limits per IP per minute: 10 posts, 120 other API calls, 600 audio files.
       traffic grows). If GIBS is down the globe keeps its own texture.
 - [ ] Moderation: anyone can post; only the poster's device can delete
 
+### Done on 2026-09-25 (potato round)
+- [x] World tour (menu): flies to every fart in a shuffled order, down to its
+      petal, plays it on arrival, moves on when it ends; any touch/key stops it
+- [x] Live arrivals in view fall in as comets (like your own posts)
+- [x] Potato Propaganda layer (keep it, add to it, keep it subtle): the planet
+      turns out to be a potato (type "potato", tap the wordmark 5×, or the
+      About credit); "potato country" whispers over Idaho, PEI and the Andes;
+      potato nicknames (Small Fry, Tater Tot, Couch Potato); "Planted." toast;
+      slip microprint; a console potato; a rare splash tagline
+
 ### Done on 2026-09-25 (deep zoom)
 - [x] Zoom from orbit to ~12 km (was stuck at ~1,400 km): wheel/trackpad toward
       the cursor, pinch-and-pan, double tap in, two-finger tap out, +/− keys
@@ -375,6 +385,9 @@ primitives in `src/styles/instrument.css` and `src/components/HUD/instrument/`.
 - **Motion**: keys travel and latch; drawers spring (`--spring-*` linear()
   curves); electronics switch on instantly and decay off. No glass, no emoji,
   no invented jargon — only real measurements, plainly worded.
+- **Potato Propaganda**: the site is a Potato Propaganda production. Potato
+  easter eggs and very subtle potato innuendo are welcome anywhere they fit
+  (see the potato round above) — never loud, never in the way of the core flows.
 - **The globe up close**: NASA night lights in the same sodium/teal, a fine
   phosphor lat/long grid (recordings are rounded to 0.01°, so every dot sits on
   a crossing of the finest one), names printed in the legend face, and shared

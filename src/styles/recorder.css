@@ -704,6 +704,24 @@
   position: relative;
 }
 
+/* Microprint along the bottom edge of the slip, inside its bottom margin
+   (no extra height: short screens are already trimmed to fit) */
+.slip__fine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  font-family: var(--f-mono);
+  font-size: 7.5px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--paper-muted);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .slip__coords {
   color: var(--paper-muted);
 }

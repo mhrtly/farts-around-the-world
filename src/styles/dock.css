@@ -311,6 +311,60 @@
   }
 }
 
+/* The whisper: the same kind of well, at the top of the globe. It steps
+   down out of the way while a toast is showing up there. */
+.whisper-slot {
+  position: absolute;
+  top: calc(var(--safe-top) + 108px);
+  left: 50%;
+  z-index: 43; /* over the top strip (42), under toasts (44) and drawers */
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: top 300ms var(--spring-deck);
+}
+
+.home:has(.toasts .toast:not(.is-leaving)) .whisper-slot {
+  top: calc(var(--safe-top) + 144px);
+}
+
+.whisper-slot .whisper {
+  pointer-events: auto;
+}
+
+@media (min-width: 860px) {
+  .whisper-slot {
+    top: 26px;
+  }
+
+  .home:has(.toasts .toast:not(.is-leaving)) .whisper-slot {
+    top: 94px;
+  }
+}
+
+@media (min-width: 1240px) {
+  .whisper-slot {
+    left: calc(50% + 170px);
+  }
+}
+
+/* Laptops: the recorder drawer's centre line, clear of the wordmark */
+@media (min-width: 860px) and (max-width: 1239px) {
+  .whisper-slot {
+    left: max(50%, calc(360px + min(520px, 100vw - 380px) / 2));
+  }
+}
+
+@media (max-width: 859px) and (max-height: 500px) and (orientation: landscape) {
+  .whisper-slot {
+    top: calc(var(--safe-top) + 66px);
+    left: calc(50% - 52px);
+  }
+
+  .home:has(.toasts .toast:not(.is-leaving)) .whisper-slot {
+    top: calc(var(--safe-top) + 84px);
+  }
+}
+
 /* Wide desktops: the hint sits on the globe's axis (right of the list panel) */
 @media (min-width: 1240px) {
   .hint-slot {

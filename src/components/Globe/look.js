@@ -30,6 +30,46 @@ float fatwGrid(vec2 ll) {
 `
 const GRID_LIGHT = 'outgoingLight += vec3(0.38, 0.96, 0.82) * fatwGrid(fatwLL) * 0.075;'
 
+// ── The easter egg: the planet as a potato ──────────────────────────────
+// uPotato (0..1) morphs the sphere into a lumpy tuber (an ellipsoid with a
+// few low bumps), tints it potato-skin brown with a handful of eyes, and
+// keeps the city lights glowing through. Normals come from finite
+// differences of the same shape, so the lumps catch the light.
+const TUBER_GLSL = `
+uniform float uPotato;
+varying vec3 vFatwDir;
+float fatwTuber(vec3 d) {
+  float r = 1.0 / length(d / vec3(1.24, 0.88, 0.96));
+  float lumps = 0.05 * sin(d.x * 4.7 + 1.3) * sin(d.y * 3.9 + 0.4)
+              + 0.035 * sin(d.z * 6.1 + d.x * 2.3 + 0.8)
+              + 0.022 * sin(d.y * 9.5 + d.z * 6.4 + 2.1);
+  return r * (1.0 + lumps);
+}
+vec3 fatwTuberPoint(vec3 d) { return d * fatwTuber(d); }
+// Value noise for the skin
+float fatwHash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float fatwNoise(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(fatwHash(i), fatwHash(i + vec3(1.0, 0.0, 0.0)), f.x),
+                 mix(fatwHash(i + vec3(0.0, 1.0, 0.0)), fatwHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+             mix(mix(fatwHash(i + vec3(0.0, 0.0, 1.0)), fatwHash(i + vec3(1.0, 0.0, 1.0)), f.x),
+                 mix(fatwHash(i + vec3(0.0, 1.0, 1.0)), fatwHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+`
+const TUBER_EYES = [
+  [0.62, 0.31, 0.72], [-0.55, 0.52, 0.65], [0.1, -0.7, 0.7], [-0.8, -0.2, -0.56],
+  [0.35, 0.6, -0.72], [0.9, -0.3, -0.3], [-0.2, 0.15, -0.97],
+].map(v => {
+  const l = Math.hypot(...v)
+  return `vec3(${v.map(x => (x / l).toFixed(4)).join(', ')})`
+})
+
 // ── Globe material (MeshPhong from three-globe, recoloured in its shader) ──
 // The night texture has warm city lights in the red channel and faint land in
 // the blue one. Cities become emissive sodium; everything else goes dark teal.
@@ -39,10 +79,28 @@ export function applyPhosphorLook(material, uniforms) {
   material.onBeforeCompile = shader => {
     shader.uniforms.uWarm = uniforms.uWarm
     shader.uniforms.uGrid = uniforms.uGrid
+    shader.uniforms.uPotato = uniforms.uPotato
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+${TUBER_GLSL}`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+vFatwDir = normalize(position);
+if (uPotato > 0.0) {
+  vec3 fd = normalize(position);
+  vec3 ft1 = normalize(cross(fd, abs(fd.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec3 ft2 = cross(fd, ft1);
+  vec3 fp0 = fatwTuberPoint(fd);
+  vec3 fn = normalize(cross(fatwTuberPoint(normalize(fd + ft1 * 0.01)) - fp0, fatwTuberPoint(normalize(fd + ft2 * 0.01)) - fp0));
+  if (dot(fn, fd) < 0.0) fn = -fn;
+  objectNormal = normalize(mix(objectNormal, fn, uPotato));
+}`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+if (uPotato > 0.0) transformed = mix(position, fatwTuberPoint(normalize(position)) * length(position), uPotato);`)
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform float uWarm;
-${GRID_GLSL}`)
+${GRID_GLSL}
+${TUBER_GLSL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
 float fatwCity = 0.0;
 #ifdef USE_MAP
@@ -66,18 +124,31 @@ float fatwCity = 0.0;
 #else
   diffuseColor.rgb = vec3(0.0022, 0.0060, 0.0068);
   float fatwOn = 0.0;
-#endif`)
+#endif
+if (uPotato > 0.0) {
+  vec3 fd = normalize(vFatwDir);
+  float mottle = 0.6 * fatwNoise(fd * 5.0) + 0.3 * fatwNoise(fd * 14.0 + 3.1) + 0.1 * fatwNoise(fd * 41.0 + 7.3);
+  vec3 skin = mix(vec3(0.15, 0.09, 0.043), vec3(0.3, 0.2, 0.1), smoothstep(0.2, 0.8, mottle));
+  // Specks and a few scuffs
+  skin *= 1.0 - 0.35 * smoothstep(0.78, 0.86, fatwNoise(fd * 90.0 + 11.0));
+  skin *= 1.0 - 0.2 * smoothstep(0.7, 0.9, fatwNoise(fd * 9.0 - 4.0)) * smoothstep(0.55, 0.75, fatwNoise(fd * 33.0));
+  float eye = 0.0;
+  ${TUBER_EYES.map(e => `eye = max(eye, smoothstep(0.9982, 0.9994, dot(fd, ${e})));`).join('\n  ')}
+  skin *= 1.0 - 0.8 * eye;
+  diffuseColor.rgb = mix(diffuseColor.rgb, skin, uPotato);
+  fatwCity *= 1.0 - 0.35 * uPotato;
+}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 totalEmissiveRadiance += mix(vec3(0.55, 0.09, 0.02), vec3(1.0, 0.43, 0.1), fatwOn) * fatwCity * fatwOn * 0.85;`)
       .replace('#include <opaque_fragment>', `float fatwFacing = clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);
-outgoingLight += vec3(0.12, 0.92, 0.63) * pow(1.0 - fatwFacing, 4.0) * (0.018 + 0.03 * uWarm);
+outgoingLight += mix(vec3(0.12, 0.92, 0.63), vec3(0.9, 0.55, 0.2), uPotato) * pow(1.0 - fatwFacing, 4.0) * (0.018 + 0.03 * uWarm);
 #ifdef USE_MAP
   vec2 fatwLL = vec2(vMapUv.x * 360.0 - 180.0, vMapUv.y * 180.0 - 90.0);
   ${GRID_LIGHT}
 #endif
 #include <opaque_fragment>`)
   }
-  material.customProgramCacheKey = () => 'fatw-phosphor-4'
+  material.customProgramCacheKey = () => 'fatw-phosphor-6'
   // A dim teal glint instead of three-globe's grey specular haze at the top
   material.specular?.set?.('#0a1613')
   material.shininess = 8

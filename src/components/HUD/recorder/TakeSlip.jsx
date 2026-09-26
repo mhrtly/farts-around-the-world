@@ -49,6 +49,7 @@ function TakeSlip({ slip, inkKey }) {
           {stamp.n ? <strong>NO. {stamp.n}</strong> : null}
         </div>
       )}
+      <p className="slip__fine" aria-hidden="true">100% organic · Potato Propaganda</p>
     </article>
   )
 }

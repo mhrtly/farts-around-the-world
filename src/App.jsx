@@ -9,7 +9,7 @@ import AboutPanel from './components/HUD/AboutPanel.jsx'
 import Sheet from './components/HUD/Sheet.jsx'
 import Toasts from './components/HUD/Toasts.jsx'
 import Icon from './components/HUD/Icon.jsx'
-import HomeControls, { Hint } from './components/HUD/HomeControls.jsx'
+import HomeControls, { Hint, Whisper } from './components/HUD/HomeControls.jsx'
 import {
   connectLive,
   deleteRecording,
@@ -304,8 +304,19 @@ export default function App({ authEnabled = false }) {
     try { localStorage.setItem('fatw:hinted', '1') } catch { /* private mode */ }
   }, [])
 
-  const select = useCallback((event, { autoplay = false, fly: shouldFly = true, style = 'push', flyMs } = {}) => {
+  const tourRef = useRef(null) // { queue, index, id, timer, playing } while touring
+  const [touring, setTouring] = useState(false)
+  const endTour = useCallback(() => {
+    const tour = tourRef.current
+    if (!tour) return
+    clearTimeout(tour.timer)
+    tourRef.current = null
+    setTouring(false)
+  }, [])
+
+  const select = useCallback((event, { autoplay = false, fly: shouldFly = true, style = 'push', flyMs, fromTour = false } = {}) => {
     if (!event) return
+    if (!fromTour) endTour() // the user picked something: the tour's over
     setSelection({ key: siteKeyOf(event), id: event.id })
     setListOpen(false)
     globeRef.current?.highlight?.(null) // a touch "hover" from the list never ends by itself
@@ -314,7 +325,132 @@ export default function App({ authEnabled = false }) {
     if (autoplay) play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
     if (shouldFly) fly({ lat: event.lat, lng: event.lng }, style, flyMs)
     replaceUrl(`/r/${event.id}`)
-  }, [dismissHint, fly, siteKeyOf])
+  }, [dismissHint, fly, siteKeyOf, endTour])
+
+  // ── World tour: every fart, hands-free ─────────────────────────────────
+  // Flies to each fart in a shuffled order (down to its petal), plays it on
+  // arrival, holds a beat after it ends, and moves on. Anything you do ends it.
+  const tourStepRef = useRef(null)
+  const tourStep = useCallback(() => {
+    const tour = tourRef.current
+    if (!tour) return
+    const list = eventsRef.current
+    let event = null
+    for (let tries = 0; tries < tour.queue.length && !event; tries++) {
+      tour.index = (tour.index + 1) % tour.queue.length
+      event = list.find(candidate => candidate.id === tour.queue[tour.index]) || null
+    }
+    if (!event) {
+      endTour()
+      return
+    }
+    // One fart isn't a tour: play it once and stop
+    if (tour.queue.length < 2 && tour.id) {
+      endTour()
+      return
+    }
+    tour.id = event.id
+    tour.playing = false
+    clearTimeout(tour.timer)
+    select(event, { fly: false, fromTour: true })
+    Promise.resolve(fly({ lat: event.lat, lng: event.lng }, 'crane')).then(arrived => {
+      if (tourRef.current !== tour || tour.id !== event.id) return
+      // The flight was cut short: someone grabbed the globe
+      if (arrived === false) {
+        endTour()
+        return
+      }
+      // Deleted while we were on the way
+      if (!eventsRef.current.some(candidate => candidate.id === event.id)) {
+        tourStepRef.current?.()
+        return
+      }
+      tour.playing = true
+      play(event.id, recordingAudioUrl(event.id), { duration: event.duration })
+      // If it never gets going (blocked, broken), move on anyway
+      tour.timer = setTimeout(() => { if (tourRef.current === tour) tourStepRef.current?.() }, (Math.min(12, event.duration || 5) + 6) * 1000)
+    })
+  }, [select, fly, endTour])
+  tourStepRef.current = tourStep
+
+  const startTour = useCallback(() => {
+    endTour()
+    const ids = eventsRef.current.map(event => event.id)
+    if (!ids.length) return
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    }
+    tourRef.current = { queue: ids, index: -1, id: null, timer: 0, playing: false, failures: 0 }
+    setTouring(true)
+    setListOpen(false)
+    dismissHint()
+    tourStep()
+  }, [tourStep, dismissHint, endTour])
+
+  // Next stop a beat after each fart ends. Three that won't play in a row
+  // (offline, audio refused) and the tour gives up rather than spin.
+  useEffect(() => {
+    const tour = tourRef.current
+    if (!tour || !tour.playing || player.id !== tour.id) return
+    if (player.status !== 'ended' && player.status !== 'error') return
+    tour.playing = false
+    tour.failures = player.status === 'error' ? tour.failures + 1 : 0
+    clearTimeout(tour.timer)
+    if (tour.failures >= 3) {
+      endTour()
+      return
+    }
+    tour.timer = setTimeout(() => { if (tourRef.current === tour) tourStepRef.current?.() }, player.status === 'ended' ? 1500 : 700)
+  }, [player.status, player.id, endTour])
+
+  // Any touch, click, scroll-zoom or key (or leaving the tab) ends the tour
+  useEffect(() => {
+    if (!touring) return undefined
+    const end = () => endTour()
+    const onVisibility = () => { if (document.hidden) endTour() }
+    window.addEventListener('pointerdown', end, true)
+    window.addEventListener('keydown', end, true)
+    window.addEventListener('wheel', end, true)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pointerdown', end, true)
+      window.removeEventListener('keydown', end, true)
+      window.removeEventListener('wheel', end, true)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [touring, endTour])
+
+  // ── Whispers: a line at the top of the globe for a few seconds ─────────
+  const [whisper, setWhisper] = useState(null) // { text, tone }
+  const whisperTimerRef = useRef(0)
+  const flashWhisper = useCallback((text, tone = 'sodium', ms = 5000) => {
+    clearTimeout(whisperTimerRef.current)
+    setWhisper({ text, tone, id: Date.now() })
+    whisperTimerRef.current = setTimeout(() => setWhisper(null), ms)
+  }, [])
+  useEffect(() => () => clearTimeout(whisperTimerRef.current), [])
+
+  // The easter egg (typing "potato", five taps on the wordmark, or the
+  // credit in About): the planet turns out to have been a potato
+  const potato = useCallback(() => {
+    if (!globeRef.current?.potato?.()) return
+    endTour()
+    setListOpen(false)
+    flashWhisper('It was a potato all along', 'sodium', 6200)
+  }, [endTour, flashWhisper])
+
+  // Flying over potato country (the globe says where)
+  const onGlobeWhisper = useCallback(key => {
+    const lines = {
+      idaho: 'Idaho · the potato state',
+      pei: 'Prince Edward Island · spud island',
+      andes: 'The Andes · where potatoes began',
+    }
+    if (!lines[key] || tourRef.current) return false
+    flashWhisper(lines[key], 'sodium', 5200)
+    return true
+  }, [flashWhisper])
 
   // A tap on the globe. The globe says which fart: the one tapped (a dot or
   // a petal), or for a cluster the newest there (or the next one, when it
@@ -357,7 +493,11 @@ export default function App({ authEnabled = false }) {
       if (ownIdsRef.current.has(event.id)) return
       const launch = launchRef.current
       if (launch && Math.abs(launch.lat - event.lat) <= 0.02 && Math.abs(launch.lng - event.lng) <= 0.05 && Date.now() - launch.at < 20_000) return
-      globeRef.current?.burst(event.lat, event.lng, { color: '#ffa537' })
+      // In view: it falls in from orbit like your own. Out of view: a flash
+      // that's still going when you get there.
+      const globe = globeRef.current
+      if (globe?.screenPoint(event.lat, event.lng)?.visible) globe.land(event.lat, event.lng)
+      else globe?.burst(event.lat, event.lng, { color: '#ffa537' })
       // No "Listen" offers over an open recorder: playing one would end up in the take
       if (recorderOpenRef.current) return
       const place = describePlace(event)
@@ -378,6 +518,8 @@ export default function App({ authEnabled = false }) {
   const handleRemoved = useCallback(id => {
     if (!id || removedIdsRef.current.has(id)) return
     removedIdsRef.current.add(id)
+    // The tour's current stop was deleted: on to the next one
+    if (tourRef.current?.id === id) setTimeout(() => tourStepRef.current?.(), 0)
     setEvents(prev => prev.filter(event => event.id !== id))
     setToasts(list => list.filter(toast => toast.eventId !== id)) // no "Listen" to a deleted fart
     setServerTotal(total => Math.max(0, total - 1))
@@ -499,6 +641,7 @@ export default function App({ authEnabled = false }) {
   // that same gesture (iOS), so one tap goes straight to the countdown.
   const openRecorder = useCallback(() => {
     recorderRef.current?.quickStart?.()
+    endTour()
     setListOpen(false)
     setAboutOpen(false)
     // Recording takes the stage: the open deck steps aside (the new post's
@@ -508,7 +651,7 @@ export default function App({ authEnabled = false }) {
       replaceUrl('/')
     }
     setRecorderOpen(true)
-  }, [])
+  }, [endTour])
 
   // Where the new pin will be once the camera arrives: the launch move centres
   // it on the globe, which sits at the middle of the screen plus its offset
@@ -548,7 +691,7 @@ export default function App({ authEnabled = false }) {
         setLaunching(false)
         select(event, { fly: false, autoplay: true })
         if (!compact) requestAnimationFrame(() => document.querySelector('.sheet--card .key-ceramic')?.focus({ preventScroll: true }))
-        pushToast({ tone: 'success', text: 'Posted. Your fart is on the map.' })
+        pushToast({ tone: 'success', text: 'Planted. Your fart is on the map.' })
       })
   }, [fly, select, pushToast, compact])
 
@@ -608,12 +751,16 @@ export default function App({ authEnabled = false }) {
   }, [])
 
   useEffect(() => {
-    const onPop = () => setRoute(parseRoute(window.location.pathname))
+    const onPop = () => {
+      endTour()
+      setRoute(parseRoute(window.location.pathname))
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [])
+  }, [endTour])
 
   useEffect(() => {
+    if (route.page !== 'home') endTour()
     document.documentElement.dataset.routeMode = route.page === 'home' ? 'home' : 'subpage'
     if (route.page !== 'home') window.dispatchEvent(new Event('fatw:ready'))
     if (route.page === 'home') {
@@ -624,9 +771,10 @@ export default function App({ authEnabled = false }) {
       revealedRef.current = false
       deepLinkOpenedRef.current = false
     }
-  }, [route.page])
+  }, [route.page, endTour])
 
   // ── Keyboard (desktop) ──────────────────────────────────────────────────
+  const typedRef = useRef('')
   useEffect(() => {
     if (route.page !== 'home') return undefined
     const onKey = event => {
@@ -634,6 +782,15 @@ export default function App({ authEnabled = false }) {
       if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) return
       if (recorderOpen || aboutOpen) return
       const key = event.key
+      // The map knows a word
+      if (key.length === 1) {
+        typedRef.current = (typedRef.current + key.toLowerCase()).slice(-6)
+        if (typedRef.current === 'potato') {
+          typedRef.current = ''
+          potato()
+          return
+        }
+      }
       if (key === 'r' || key === 'R') {
         if (event.repeat) return
         event.preventDefault()
@@ -655,7 +812,7 @@ export default function App({ authEnabled = false }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [route.page, recorderOpen, aboutOpen, selection, selectedEvent, listOpen, openRecorder, closeSelection, step])
+  }, [route.page, recorderOpen, aboutOpen, selection, selectedEvent, listOpen, openRecorder, closeSelection, step, potato])
 
   const onAccountChange = useCallback(next => {
     setAccount(next.status === 'loading' ? null : next)
@@ -769,6 +926,7 @@ export default function App({ authEnabled = false }) {
           paused={recorderActive && compact && !launching}
           dimmed={recorderOpen}
           onPick={pickFromGlobe}
+          onWhisper={onGlobeWhisper}
           onBackgroundClick={() => { if (selection) closeSelection() }}
           onReady={() => setGlobeReady(true)}
           onWarmupDone={() => setGlobeWarm(true)}
@@ -785,6 +943,8 @@ export default function App({ authEnabled = false }) {
         }}
         menuExtra={menuExtra}
         onMenuOpen={() => { if (authEnabled) setAccountWanted(true) }}
+        onTour={events.length ? startTour : null}
+        onPotato={potato}
       />
 
       {authEnabled && accountWanted && (
@@ -874,7 +1034,21 @@ export default function App({ authEnabled = false }) {
         }}
       />
 
-      <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} onRecord={openRecorder} />
+      {whisper ? (
+        <Whisper key={whisper.id} text={whisper.text} tone={whisper.tone} onPress={() => setWhisper(null)} />
+      ) : touring ? (
+        <Whisper text="World tour · tap to stop" label="Stop the world tour" onPress={endTour} />
+      ) : null}
+
+      <AboutPanel
+        open={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+        onRecord={openRecorder}
+        onPotato={() => {
+          setAboutOpen(false)
+          setTimeout(potato, 350) // once the panel is out of the way
+        }}
+      />
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>

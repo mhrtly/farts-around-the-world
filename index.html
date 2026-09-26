@@ -414,7 +414,7 @@
       <div class="boot__brand" aria-hidden="true">
         <span class="boot__lamp" id="boot-lamp"></span>
         <span class="boot__mark" id="boot-mark">Farts Around the World</span>
-        <p class="boot__tagline">Real farts, pinned where they happened.</p>
+        <p class="boot__tagline" id="boot-tagline">Real farts, pinned where they happened.</p>
       </div>
       <section class="boot__card" id="boot-card" aria-label="Someone sent you a fart" hidden>
         <p class="boot__plate">Someone sent you a fart</p>
@@ -442,6 +442,9 @@
         var doc = document
         var html = doc.documentElement
         var boot = doc.getElementById('boot')
+        // Now and then the tagline remembers who grew it
+        var tagline = doc.getElementById('boot-tagline')
+        if (tagline && Math.random() < 1 / 7) tagline.textContent = 'Real farts, planted where they happened.'
         if (!boot) return
         if (html.getAttribute('data-route-mode') === 'subpage') {
           boot.parentNode.removeChild(boot)

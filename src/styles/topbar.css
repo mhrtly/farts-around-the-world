@@ -38,6 +38,11 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  /* Tapped quickly five times it does something: no text selection, no
+     double-tap zoom */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 /* While the splash is flying its copy of the lockup up here, hide the real one

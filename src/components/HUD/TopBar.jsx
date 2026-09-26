@@ -29,7 +29,7 @@ function Counters({ stats }) {
   )
 }
 
-export default function TopBar({ stats, live, onNavigate, onAbout, menuExtra = null, onMenuOpen }) {
+export default function TopBar({ stats, live, onNavigate, onAbout, menuExtra = null, onMenuOpen, onTour, onPotato }) {
   // 'closed' | 'open' | 'closing' (the panel decays out before it unmounts)
   const [menu, setMenu] = useState('closed')
   const menuRef = useRef(null)
@@ -111,10 +111,21 @@ export default function TopBar({ stats, live, onNavigate, onAbout, menuExtra = n
     onNavigate(path)
   }
 
+  const tapsRef = useRef([])
+  const onLockupTap = () => {
+    const now = Date.now()
+    tapsRef.current = tapsRef.current.filter(at => now - at < 2500).concat(now)
+    if (tapsRef.current.length >= 5) {
+      tapsRef.current = []
+      onPotato?.()
+    }
+  }
+
   return (
     <header className="topbar">
       <div className="topbar__id">
-        <div className="topbar__lockup">
+        {/* Five quick taps on the wordmark: you'll see */}
+        <div className="topbar__lockup" onClick={onLockupTap}>
           <span
             className={`pilot ${live ? 'is-live' : ''}`}
             role="img"
@@ -153,6 +164,12 @@ export default function TopBar({ stats, live, onNavigate, onAbout, menuExtra = n
               if (event.target.closest('[role="menuitem"]')) closeMenu()
             }}
           >
+            {onTour && (
+              <button type="button" role="menuitem" onClick={() => onTour()}>
+                <Icon name="orbit" size={18} />
+                <span><strong>World tour</strong><em>Every fart, hands-free</em></span>
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"

@@ -254,6 +254,20 @@
   color: var(--legend-3);
 }
 
+.about__credit-key {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .about__credit-key:hover {
+    color: var(--sodium);
+  }
+}
+
 .about__credit--data {
   margin-top: -8px;
   font-size: 9.5px;

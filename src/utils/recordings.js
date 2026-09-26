@@ -208,10 +208,10 @@ export function nickname({ duration, peakDb }) {
   if (d == null) return null
   const quiet = word === 'Whisper' || word === 'Soft'
   const loud = word === 'Loud' || word === 'Huge'
-  if (d < 0.8) return quiet ? 'Tiny Squeak' : loud ? 'Firecracker' : 'Quick Pop'
+  if (d < 0.8) return quiet ? 'Small Fry' : loud ? 'Firecracker' : 'Tater Tot'
   if (d < 2.5) return quiet ? 'Sneaky One' : loud ? 'Brass Section' : 'Standard Issue'
   if (d < 5) return quiet ? 'Slow Leak' : loud ? 'Foghorn' : 'Rolling Thunder'
-  return quiet ? 'Marathon Leak' : loud ? 'Tectonic Event' : 'Grand Passage'
+  return quiet ? 'Couch Potato' : loud ? 'Tectonic Event' : 'Grand Passage'
 }
 
 export function summarizeStats(events, totalAllTime) {

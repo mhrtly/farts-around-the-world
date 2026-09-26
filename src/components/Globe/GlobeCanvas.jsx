@@ -72,6 +72,22 @@ const smoothstep = (a, b, x) => {
 
 const shortPlace = spot => (spot?.place ? spot.place.split(',')[0].trim() : null)
 
+// Potato country, roughly: Idaho (its eastern edge runs up the Continental
+// Divide), Prince Edward Island, and the Andes around Titicaca and Cusco,
+// where potatoes were first grown
+function potatoCountry(lat, lng) {
+  if (lat > 41.99 && lat < 49 && lng > -117.24) {
+    const east = lat < 44.45 ? -111.05
+      : lat < 45.7 ? -111.05 - ((lat - 44.45) / 1.25) * 3.45
+        : lat < 47 ? -114.5 - ((lat - 45.7) / 1.3) * 1.2
+          : -116.05
+    if (lng < east) return 'idaho'
+  }
+  if (lat > 45.95 && lat < 47.07 && lng > -64.42 && lng < -61.97) return 'pei'
+  if (lat > -17.5 && lat < -12 && lng > -73.5 && lng < -68.5) return 'andes'
+  return null
+}
+
 // The desktop hover line for a marker
 function tipText(node) {
   const spot = node.spot
@@ -102,6 +118,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   onBackgroundClick,
   onReady,
   onWarmupDone,
+  onWhisper,
 }, ref) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)
@@ -109,7 +126,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
   const engineRef = useRef(null)
   const extraSitesRef = useRef([]) // development only: stand-in places for density tests
   const propsRef = useRef(null)
-  propsRef.current = { sites, selectedId, playingEventId, compact, dimmed, paused, offsetX, offsetY, onPick, onBackgroundClick, onReady, onWarmupDone }
+  propsRef.current = { sites, selectedId, playingEventId, compact, dimmed, paused, offsetX, offsetY, onPick, onBackgroundClick, onReady, onWarmupDone, onWhisper }
 
   // A stable handle; each call goes to whichever engine is mounted.
   const apiRef = useRef(null)
@@ -129,6 +146,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       stopAutoRotate: () => engine()?.stopAutoRotate(),
       screenPoint: (lat, lng) => engine()?.screenPoint(lat, lng) || { x: window.innerWidth / 2, y: window.innerHeight / 2, visible: false },
       zoomBy: factor => engine()?.zoomBy(factor),
+      potato: () => engine()?.potato() || false,
       zoomState: () => engine()?.zoomState() || null,
       // Zoom readouts (the zoom keys, the scale) listen here: called with
       // { altitude, kmPerPx, atMin, atMax } whenever the height changes
@@ -169,7 +187,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     const camera = g.camera()
     const controls = g.controls()
 
-    const uniforms = { uWarm: { value: reduced ? 1 : 0 }, uGrid: { value: 0 } }
+    const uniforms = { uWarm: { value: reduced ? 1 : 0 }, uGrid: { value: 0 }, uPotato: { value: 0 } }
     applyPhosphorLook(g.globeMaterial(), uniforms)
 
     const size = { w: mount.clientWidth || window.innerWidth, h: mount.clientHeight || window.innerHeight, left: 0, top: 0 }
@@ -204,6 +222,10 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       bgTap: null, // the last tap on empty globe, for double-tap zoom
       zoomSent: null,
       labelsKey: '',
+      potato: { value: 0, target: 0, until: 0 }, // the easter egg
+      atmosphere: null,
+      stillSince: 0,
+      whispered: new Set(), // potato-country lines already shown this visit
     }
     const timers = {}
 
@@ -314,6 +336,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     // Zoom keys and the keyboard: around the open fart if it's on screen
     // (so it stays put), else around the middle of the globe
     function zoomBy(factor) {
+      endPotato()
       rig.cancel()
       stopAutoRotate()
       const node = markers.nodeOf(propsRef.current.selectedId)
@@ -367,19 +390,12 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
           item.bornAt = impact
           item.flashAt = impact
         } else if (state.warm.done) {
-          const spotLit = item.spot.events.some(event => markers.get(event.id)?.lit)
-          if (spotLit) {
-            // Joins a place that's already lit: on now (it flashes when its
-            // arrival is announced)
-            item.bornAt = now
-            item.quiet = true
-          } else {
-            // A new place: stays dark for a moment in case its arrival is
-            // about to be announced (land() for our own post, burst() for a
-            // live one), so the dot switches on with its effect
-            item.bornAt = now + 1700
-            item.flashAt = item.bornAt
-          }
+          // New: stays dark for a moment in case its arrival is about to be
+          // announced (a comet for a post in view, a flash for one out of
+          // view), so it switches on with its effect. A place that's already
+          // lit stays lit meanwhile (another fart there stands in).
+          item.bornAt = now + 1700
+          item.flashAt = item.bornAt
         } else if (state.warm.started) {
           item.bornAt = Math.max(now, state.warm.end)
           item.flashAt = item.bornAt
@@ -501,6 +517,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       const opts = typeof options === 'number' ? { ms: options } : (options || {})
       if (!target || !Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return Promise.resolve(false)
       const altitude = Number.isFinite(target.altitude) ? target.altitude : focusAltitude(target.lat, target.lng, Boolean(opts.landing))
+      endPotato()
       stopAutoRotate()
       zoom.stop()
       prefetchAt(target.lat, target.lng, altitude)
@@ -512,6 +529,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
     function expand(node) {
       const group = node.group
       if (!group) return
+      endPotato()
       const phone = propsRef.current.compact
       const opts = groupingOptions()
       const open = markers.grouping.openScale(group, opts)
@@ -541,6 +559,41 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       zoom.stop()
       prefetchAt(lat, lng, altitude)
       rig.flyTo({ lat, lng, altitude }, { style: 'push', reduced })
+    }
+
+    // Anything that moves the camera somewhere on purpose ends the potato
+    function endPotato() {
+      const spud = state.potato
+      if (spud.target === 1) {
+        spud.until = 0
+        spud.returning = false // the move replaces the trip back
+      }
+    }
+
+    // The easter egg: the planet turns out to be a potato for a few seconds.
+    // Pulls back so the whole tuber is in view and gives it a spin. A second
+    // call (or any tap) ends it early. Returns whether it started.
+    function potato() {
+      const now = performance.now()
+      const spud = state.potato
+      if (spud.target === 1) {
+        spud.until = now
+        return false
+      }
+      if (!state.warm.done) return false
+      spud.target = 1
+      spud.returning = true
+      spud.until = now + (reduced ? 6000 : 9500)
+      const pov = g.pointOfView()
+      zoom.stop()
+      // Far enough out for the whole tuber (it's longer than the planet is wide)
+      const out = propsRef.current.compact && size.h > size.w ? 3.7 : 2.5
+      if (pov.altitude < out - 0.2) rig.flyTo({ lat: clamp(pov.lat, -25, 25), lng: pov.lng, altitude: out }, { style: 'settle', ms: 1700, reduced })
+      if (!reduced) {
+        controls.autoRotate = true
+        controls.autoRotateSpeed = 2.4
+      }
+      return true
     }
 
     // Centre on the places' mean direction, high enough that all of them fit
@@ -675,7 +728,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       const fall = reduced ? 0 : 560
       const impact = now + fall
       const key = siteKey(lat, lng)
-      clearTimeout(timers.expect)
+      if (state.landings.get(key) === Infinity) clearTimeout(timers.expect)
       state.landings.set(key, impact)
       setTimeout(() => state.landings.delete(key), fall + 8000)
       for (const event of markers.spot(key)?.events || []) {
@@ -840,6 +893,11 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       if (event.pointerType === 'mouse' && event.button !== 0) return
       const now = performance.now()
       if (now - down.t > (down.type === 'mouse' ? 900 : 650)) return
+      // A tap while the planet is a potato brings the planet back
+      if (state.potato.target === 1) {
+        state.potato.until = now
+        return
+      }
       // A double tap on a marker is one tap: the camera has already started
       // moving, so the second one would land on empty globe
       if (now - (state.lastPickAt || 0) < 450) return
@@ -926,15 +984,46 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       const altitude = camera.position.length() / GLOBE_RADIUS - 1
       const scale = kmPerPx(altitude, size.h)
       // Never spin the planet under someone who's down close
-      if (controls.autoRotate && altitude < 0.85) controls.autoRotate = false
+      if (controls.autoRotate && altitude < 0.85 && state.potato.target === 0) controls.autoRotate = false
+
+      // Potato time
+      const spud = state.potato
+      if (spud.target === 1 && now > spud.until) {
+        spud.target = 0
+        controls.autoRotateSpeed = p.dimmed ? 0.12 : 0.35
+        if (p.selectedId) {
+          stopAutoRotate()
+          // Back round to the open fart (the spin carried it off)
+          const open = markers.get(p.selectedId)?.event
+          if (open && spud.returning) rig.flyTo({ lat: open.lat, lng: open.lng, altitude: g.pointOfView().altitude }, { style: 'crane', reduced })
+        }
+        spud.returning = false
+      }
+      // Morph only while the camera is well clear of the tuber (it bulges
+      // up to 1.28 planet radii): pulled back first, flattened if you dive in
+      const spudGoal = spud.target === 1 && altitude > 0.4 ? 1 : 0
+      if (spud.value !== spudGoal) {
+        spud.value = reduced ? spudGoal : damp(spud.value, spudGoal, dt, spudGoal ? 420 : 320)
+        if (Math.abs(spud.value - spudGoal) < 0.002) spud.value = spudGoal
+      }
+      const potatoness = spud.value * spud.value * (3 - 2 * spud.value)
+      uniforms.uPotato.value = potatoness
+      if (!state.atmosphere && now - (state.atmosphereLookAt || 0) > 1000) {
+        state.atmosphereLookAt = now
+        scene.traverse(object => { if (object.__globeObjType === 'atmosphere') state.atmosphere = object })
+      }
+      // The sphere's glow, pulses and reticle don't fit a potato
+      if (state.atmosphere) state.atmosphere.visible = potatoness < 0.02
+      rings.group.visible = potatoness < 0.3
+      reticle.points.visible = potatoness < 0.3
 
       tickWarm(now)
       // Up close the graticule (floating a few km up) would swim over the
       // ground, and the NASA tiles take over from the soft base texture
-      graticule.material.opacity = GRATICULE_OPACITY * (state.graticuleWarm ?? (reduced ? 1 : 0)) * smoothstep(0.035, 0.1, altitude)
+      graticule.material.opacity = GRATICULE_OPACITY * (state.graticuleWarm ?? (reduced ? 1 : 0)) * smoothstep(0.035, 0.1, altitude) * (1 - potatoness)
       graticule.visible = graticule.material.opacity > 0.001
-      uniforms.uGrid.value = (state.graticuleWarm ?? (reduced ? 1 : 0)) * smoothstep(0.5, 0.28, altitude)
-      tiles.update(now, dt, camera, size, altitude, state.warm.done, Boolean(rig.tween) && now < rig.tween.start + rig.tween.duration * 0.8)
+      uniforms.uGrid.value = (state.graticuleWarm ?? (reduced ? 1 : 0)) * smoothstep(0.5, 0.28, altitude) * (1 - potatoness)
+      tiles.update(now, dt, camera, size, altitude, state.warm.done && potatoness < 0.02, Boolean(rig.tween) && now < rig.tween.start + rig.tween.duration * 0.8)
 
       // Zoom readouts
       const sent = state.zoomSent
@@ -1011,6 +1100,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
         level,
         dimmed: p.dimmed,
         viewportHeight: size.h,
+        fade: 1 - potatoness,
       })
       for (const node of ignited) {
         const r = drawnRadius(node)
@@ -1058,18 +1148,29 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       // Names and counts beside the markers (only when something moved)
       const camMoved = lastCam.distanceToSquared(camera.position) > 1e-12
       lastCam.copy(camera.position)
-      const labelsKey = `${markers.layoutVersion}|${selected}|${state.warm.done}|${p.dimmed}|${size.w}x${size.h}|${off.x},${off.y}`
+      if (camMoved) state.stillSince = now
+
+      // Resting over potato country at a regional zoom: say so, once
+      if (!camMoved && now - state.stillSince > 700 && now - (state.regionAt || 0) > 500) {
+        state.regionAt = now
+        if (state.warm.done && scale < 4 && potatoness === 0 && !p.dimmed) {
+          const { lat, lng } = toLatLng(camera.position)
+          const region = potatoCountry(lat, lng)
+          if (region && !state.whispered.has(region) && p.onWhisper?.(region)) state.whispered.add(region)
+        }
+      }
+      const labelsKey = `${markers.layoutVersion}|${selected}|${state.warm.done}|${p.dimmed}|${size.w}x${size.h}|${off.x},${off.y}|${potatoness > 0.05}`
       if (camMoved || markers.moving(now) || labelsKey !== state.labelsKey || now - (state.labelsAt || 0) > 300) {
         state.labelsAt = now
         state.labelsKey = labelsKey
-        if (!state.warm.done || p.dimmed) labels.update([], [], size.w, size.h)
+        if (!state.warm.done || p.dimmed || potatoness > 0.05) labels.update([], [], size.w, size.h)
         else placeLabels(scale, selectedNode)
       }
 
       // Desktop hover label
       if (canHover) {
         let hoverNode = null
-        if (pointer.hover && !pointer.downs.size) {
+        if (pointer.hover && !pointer.downs.size && potatoness < 0.05) {
           hoverNode = markers.pick(pointer.hover.x - size.left, pointer.hover.y - size.top, 16, camera, size.w, size.h, selected, Math.min(16, 26 * 0.62))
         }
         // (a cluster keeps its key as it splits: its size is part of what's shown)
@@ -1228,6 +1329,7 @@ const GlobeCanvas = forwardRef(function GlobeCanvas({
       syncRunning,
       zoomBy,
       zoomState,
+      potato,
       setOffset(x, y) {
         state.offset.tx = x
         state.offset.ty = y

@@ -143,6 +143,40 @@ export default function HomeControls({ compact, hidden, canShuffle, total, onRec
   )
 }
 
+// A one-line dot-matrix readout at the top of the globe for things that are
+// happening (a tour in progress, the odd easter egg). Characters light up one
+// after another like the hint's; tapping it does what `onPress` says
+// (stop the tour, say).
+export function Whisper({ text, tone = 'phosphor', label, onPress }) {
+  const line = text.toUpperCase()
+  // Filled a beat after mounting, so screen readers announce it
+  const [spoken, setSpoken] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setSpoken(text), 300)
+    return () => clearTimeout(timer)
+  }, [text])
+  return (
+    <div className="whisper-slot">
+      <p className="sr-only" role="status">{spoken}</p>
+      <button
+        type="button"
+        className={`hint whisper well well--sm ${tone === 'sodium' ? 'hint--sodium' : ''}`}
+        onClick={onPress}
+        aria-label={label || text}
+        tabIndex={onPress ? 0 : -1}
+      >
+        <span className="hint__line" key={line} aria-hidden="true">
+          {[...line].map((char, index) => (
+            // The index is the character's position in the reveal sequence
+            // eslint-disable-next-line react/no-array-index-key
+            <span key={index} style={{ '--i': index }}>{char}</span>
+          ))}
+        </span>
+      </button>
+    </div>
+  )
+}
+
 // A one-line dot-matrix readout in a small well above the front panel:
 // "TAP A DOT TO LISTEN", or a live line App passes in `text`. The well rises
 // out of the panel, then the characters light up one after another over

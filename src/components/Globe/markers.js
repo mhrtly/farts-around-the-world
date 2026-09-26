@@ -417,7 +417,8 @@ export class MarkerLayer {
 
   // Places every item for this frame (camera-dependent petal offsets) and
   // writes the draw state. ctx: { selectedId, highlightId, playingId, level,
-  // dimmed, viewportHeight }. Returns the nodes that switched on this frame.
+  // dimmed, viewportHeight, fade (0..1, everything) }. Returns the nodes that
+  // switched on this frame.
   update(now, dt, camera, ctx) {
     const ignited = []
     const wall = Date.now()
@@ -428,6 +429,7 @@ export class MarkerLayer {
     _up.setFromMatrixColumn(camera.matrixWorld, 1).normalize()
     _fwd.setFromMatrixColumn(camera.matrixWorld, 2).normalize().negate()
     const worldPerPxAt1 = (2 * TAN_HALF_FOV) / Math.max(1, ctx.viewportHeight)
+    const fade = ctx.fade ?? 1
 
     // Lifecycle: switch-ons and flashes, per item
     for (const item of this.items) {
@@ -522,7 +524,7 @@ export class MarkerLayer {
           states[i * 4 + 2] = glowScale
           states[i * 4 + 3] = flash
           glows[i] = glow
-          alphas[i] = Math.max(item.alpha, lead.alpha)
+          alphas[i] = Math.max(item.alpha, lead.alpha) * fade
           continue
         }
         if (item.alpha <= 0.002 || !item.lit) continue
@@ -533,7 +535,7 @@ export class MarkerLayer {
         states[o + 2] = glowScale
         states[o + 3] = flash
         glows[i] = glow
-        alphas[i] = item.alpha
+        alphas[i] = item.alpha * fade
       }
     }
     for (const item of this.items) item.justLit = false
@@ -558,7 +560,7 @@ export class MarkerLayer {
       // the horizon too, or a bloom on the far side would show through
       const facing = clamp(MarkerLayer.facing(_pin, camera), 0, 1)
       if (facing <= 0) continue
-      const view = bloom.t * recorder * facing
+      const view = bloom.t * recorder * facing * fade
       this.pinPositions[pinCount * 3] = _pin.x
       this.pinPositions[pinCount * 3 + 1] = _pin.y
       this.pinPositions[pinCount * 3 + 2] = _pin.z

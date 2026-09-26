@@ -18,6 +18,15 @@ import './styles/recorder.css'
 import './styles/about.css'
 import './styles/toasts.css'
 
+// For whoever opens the console
+if (typeof console !== 'undefined') {
+  console.log(
+    '%c   .-~~~-.\n  /  o   o \\\n |    ~     |\n  \\  o    /\n   `~---~`%c\n\nFarts Around the World\nA Potato Propaganda production.\nThe map knows a word. Try typing it.',
+    'color:#c9a26b;font-family:monospace;line-height:1.15',
+    'color:#62f6d0;font-family:monospace',
+  )
+}
+
 // Accounts are optional. Without a Clerk key the app runs fine, just without
 // sign-in; with one, Clerk loads lazily from the menu (see AccountControls).
 const authEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
